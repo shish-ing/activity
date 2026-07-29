@@ -38,7 +38,7 @@ export const COMPANION_OPTIONS: ChipOption[] = [
 
 // 이동수단 (도보는 🚶‍♂️, 대중교통은 🚌, 자차는 🚗 아이콘 장착)
 export const TRANSPORT_OPTIONS: ChipOption[] = [
-  { value: 'walk', label: '🚶‍♂️ 도보' },
+  { value: 'walk', label: '🚶‍♂️ 도보(Walking)' },
   { value: 'transit', label: '🚌 대중교통' },
   { value: 'car', label: '🚗 자차' },
 ]
