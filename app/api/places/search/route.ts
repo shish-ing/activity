@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
 import type { Place } from '@/lib/mock-data'
 
-// 전주 대표 로컬 액티비티 / 명소 / 인스타 핫플 및 동행별 맞춤 데이터베이스
+// 전주 대표 로컬 액티비티 / 명소 / 인스타 핫플 및 주변 추천 맛집/카페 정보 데이터베이스
 export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
-  // --- [1] 공방 & 체험 (subCategory: 'workshop') ---
+  // --- [1] 수제 공방 & 체험 (subCategory: 'workshop') ---
   {
     name: '수제 한지 공방 체험',
     category: '🎨 실내 · 로컬 한지 공방',
@@ -12,7 +12,7 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     cost: 18000,
     costLabel: '18,000원',
     walkMinutes: 6,
-    reason: '시원/따뜻한 실내에서 전주 닥나무 한지를 뜨고 한지 조명/엽서를 직접 만듭니다 (아이·연인 인기).',
+    reason: '시원/따뜻한 실내에서 전주 닥나무 한지를 뜨고 한지 조명/엽서를 직접 제작합니다.',
     isMustVisit: false,
     isIndoor: true,
     mapX: 62,
@@ -24,10 +24,18 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     phone: '063-288-5678',
     tags: ['#한지공예', '#실내체험', '#아이동반강추', '#기념품만들기'],
     suggestedDuration: '1시간 15분',
-    tips: '💡 팁: 나만의 정성 어린 한지 엽서와 거울을 만드는 이색 커플/아이 체험입니다.',
+    tips: '💡 팁: 나만의 정성 어린 한지 엽서와 거울을 만드는 이색 체험입니다.',
     naverMapUrl: 'https://map.naver.com/v5/search/전주%20한지체험관',
     transitInfo: '🚌 시내버스 1000번, 119번 탑승 ➔ "한옥마을입구" 하차 후 한지길 도보 4분',
     parkingInfo: '🚗 주차장: 한옥마을 제1공영주차장 이용 권장 (도보 5분)',
+    nearbyDining: [
+      { name: '베테랑 칼국수', distance: '도보 3분 (210m)', menu: '들깨 칼국수, 수제 만두', naverMapUrl: 'https://map.naver.com/v5/search/베테랑칼국수' },
+      { name: '교동떡갈비', distance: '도보 4분 (280m)', menu: '숯불 수제 떡갈비 정식', naverMapUrl: 'https://map.naver.com/v5/search/교동떡갈비' },
+    ],
+    nearbyCafes: [
+      { name: '교동 다원', distance: '도보 2분 (150m)', menu: '전통 황차 & 한방차', naverMapUrl: 'https://map.naver.com/v5/search/교동다원' },
+      { name: '외할머니솜씨', distance: '도보 5분 (320m)', menu: '흑임자 팥빙수 & 인절미 구이', naverMapUrl: 'https://map.naver.com/v5/search/외할머니솜씨' },
+    ],
   },
   {
     name: '전주 부채 만들기 공방 (동문 부채공방)',
@@ -53,6 +61,14 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     naverMapUrl: 'https://map.naver.com/v5/search/전주%20부채공방',
     transitInfo: '🚌 시내버스 1000번, 535번 탑승 ➔ "동문길" 하차 (도보 2분)',
     parkingInfo: '🚗 주차장: 동문길 민영주차장 및 한옥마을 공영주차장 이용',
+    nearbyDining: [
+      { name: '한국집 (전주 3대 비빔밥)', distance: '도보 3분 (200m)', menu: '전통 육회비빔밥', naverMapUrl: 'https://map.naver.com/v5/search/전주한국집' },
+      { name: '현대옥 한옥마을점', distance: '도보 4분 (250m)', menu: '남부시장식 콩나물국밥', naverMapUrl: 'https://map.naver.com/v5/search/현대옥' },
+    ],
+    nearbyCafes: [
+      { name: '동문길 카페', distance: '도보 1분 (80m)', menu: '수제 핸드드립 커피', naverMapUrl: 'https://map.naver.com/v5/search/동문길카페' },
+      { name: '한옥마을 전통찻집', distance: '도보 4분 (260m)', menu: '쌍화차 & 한방차', naverMapUrl: 'https://map.naver.com/v5/search/전주한옥마을전통찻집' },
+    ],
   },
   {
     name: '전주 도자기 & 도예 힐링 공방',
@@ -62,7 +78,7 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     cost: 20000,
     costLabel: '20,000원',
     walkMinutes: 8,
-    reason: '부드러운 흙을 만지며 한옥 머그잔과 귀여운 캐릭터 접시를 물레로 만들어보는 커플 힐링 공방입니다.',
+    reason: '부드러운 흙을 만지며 한옥 머그잔과 귀여운 캐릭터 접시를 물레로 만들어보는 힐링 공방입니다.',
     isMustVisit: false,
     isIndoor: true,
     mapX: 58,
@@ -78,63 +94,17 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     naverMapUrl: 'https://map.naver.com/v5/search/전주%20도자기공방',
     transitInfo: '🚌 시내버스 1000번, 119번 탑승 ➔ "전동성당" 하차 (은행로 도보 6분)',
     parkingInfo: '🚗 주차장: 한옥마을 제2공영주차장 도보 5분',
+    nearbyDining: [
+      { name: '교동떡갈비', distance: '도보 2분 (120m)', menu: '수제 떡갈비 세트', naverMapUrl: 'https://map.naver.com/v5/search/교동떡갈비' },
+      { name: '한국집', distance: '도보 5분 (340m)', menu: '미슐랭 육회비빔밥', naverMapUrl: 'https://map.naver.com/v5/search/한국집' },
+    ],
+    nearbyCafes: [
+      { name: '외할머니솜씨', distance: '도보 3분 (180m)', menu: '흑임자 팥빙수', naverMapUrl: 'https://map.naver.com/v5/search/외할머니솜씨' },
+      { name: '교동 다원', distance: '도보 3분 (200m)', menu: '전통 잎차', naverMapUrl: 'https://map.naver.com/v5/search/교동다원' },
+    ],
   },
 
-  // --- [2] 전통 찻집 & 인스타 감성 디저트 (subCategory: 'dessert') ---
-  {
-    name: '전주 한옥마을 전통찻집 (쌍화차·한방차)',
-    category: '☕ 실내 · 전통 찻집',
-    subCategory: 'dessert',
-    isDessert: true,
-    suitableCompanions: ['couple', 'family', 'solo', 'friends'],
-    cost: 9000,
-    costLabel: '9,000원',
-    walkMinutes: 5,
-    reason: '고즈넉한 한옥 온돌 툇마루에서 깊은 쌍화차와 한방차, 수제 유과를 즐기는 힐링 찻집입니다.',
-    isMustVisit: false,
-    isIndoor: true,
-    mapX: 48,
-    mapY: 52,
-    lat: 35.8145,
-    lng: 127.1530,
-    address: '전북 전주시 완산구 은행로 65-1',
-    operatingHours: '10:00 - 22:00 (연중무휴)',
-    phone: '063-282-1234',
-    tags: ['#전통차', '#쌍화차', '#한방차', '#온돌툇마루', '#한옥찻집'],
-    suggestedDuration: '50분',
-    tips: '💡 팁: 뜨끈한 돌그릇에 지글지글 끓여 나오는 진한 쌍화차와 수제 유과 조합을 추천합니다.',
-    naverMapUrl: 'https://map.naver.com/v5/search/전주%20한옥마을%20전통찻집',
-    transitInfo: '🚌 시내버스 1000번, 119번 탑승 ➔ "전동성당" 하차 (은행로 도보 4분)',
-    parkingInfo: '🚗 주차장: 한옥마을 제1공영주차장 도보 5분',
-  },
-  {
-    name: '외할머니솜씨 (흑임자 빙수 & 인스타 디저트)',
-    category: '🍧 📸 인스타 핫플 · 전통 카페',
-    subCategory: 'dessert',
-    isDessert: true,
-    suitableCompanions: ['couple', 'friends', 'kids', 'family', 'solo'],
-    cost: 8000,
-    costLabel: '8,000원',
-    walkMinutes: 8,
-    reason: '인스타 릴스 핫플! 시원 고소한 흑임자 팥빙수와 인절미 구이가 유명한 대표 한옥 디저트 카페입니다.',
-    isMustVisit: false,
-    isIndoor: true,
-    mapX: 55,
-    mapY: 50,
-    lat: 35.8152,
-    lng: 127.1535,
-    address: '전북 전주시 완산구 오목대길 81-8',
-    operatingHours: '11:00 - 21:00 (월요일 휴무)',
-    phone: '063-232-5804',
-    tags: ['#흑임자빙수', '#인스타핫플', '#블루리본', '#전통디저트'],
-    suggestedDuration: '40분',
-    tips: '💡 팁: 시그니처 흑임자 팥빙수와 고소한 인절미 구이를 함께 드시면 최고의 후식입니다.',
-    naverMapUrl: 'https://map.naver.com/v5/search/전주%20외할머니솜씨',
-    transitInfo: '🚌 시내버스 1000번, 190번 탑승 ➔ "오목대" 하차 (도보 5분)',
-    parkingInfo: '🚗 주차장: 한옥마을 제2공영주차장 (오목대 부근) 도보 4분',
-  },
-
-  // --- [3] 역사 사적지 & 인스타 명소 (subCategory: 'spot') ---
+  // --- [2] 역사 사적지 & 인스타 명소 (subCategory: 'spot') ---
   {
     name: '전동성당',
     category: '🏛️ 실내외 · 역사 명소',
@@ -159,6 +129,14 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     naverMapUrl: 'https://map.naver.com/v5/search/전주%20전동성당',
     transitInfo: '🚌 시내버스 1000번(명품버스), 119번, 535번 탑승 ➔ "전동성당·한옥마을" 하차 (도보 2분)',
     parkingInfo: '🚗 주차장: 한옥마을 제1공영주차장 (기린대로 99) · 기본 30분 1,000원',
+    nearbyDining: [
+      { name: '한국집 (전주 3대 비빔밥)', distance: '도보 3분 (220m)', menu: '미슐랭 육회비빔밥', naverMapUrl: 'https://map.naver.com/v5/search/한국집' },
+      { name: '현대옥 한옥마을점', distance: '도보 4분 (290m)', menu: '남부시장식 콩나물국밥', naverMapUrl: 'https://map.naver.com/v5/search/현대옥' },
+    ],
+    nearbyCafes: [
+      { name: '전주 한옥마을 전통찻집', distance: '도보 4분 (250m)', menu: '진한 쌍화차 & 유과', naverMapUrl: 'https://map.naver.com/v5/search/전주한옥마을전통찻집' },
+      { name: '전동 성당 앞 테라스 카페', distance: '도보 2분 (140m)', menu: '아메리카노 & 타르트', naverMapUrl: 'https://map.naver.com/v5/search/전동성당카페' },
+    ],
   },
   {
     name: '경기전 & 대나무 숲길',
@@ -184,6 +162,14 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     naverMapUrl: 'https://map.naver.com/v5/search/전주%20경기전',
     transitInfo: '🚌 시내버스 1000번, 119번 탑승 ➔ "전동성당·한옥마을" 하차 (도보 3분)',
     parkingInfo: '🚗 주차장: 경기전 리베라 주차장 / 한옥마을 제2공영주차장 이용 권장',
+    nearbyDining: [
+      { name: '한국집', distance: '도보 2분 (150m)', menu: '전통 육회비빔밥', naverMapUrl: 'https://map.naver.com/v5/search/한국집' },
+      { name: '교동떡갈비', distance: '도보 4분 (270m)', menu: '수제 떡갈비 세트', naverMapUrl: 'https://map.naver.com/v5/search/교동떡갈비' },
+    ],
+    nearbyCafes: [
+      { name: '외할머니솜씨', distance: '도보 4분 (280m)', menu: '흑임자 팥빙수', naverMapUrl: 'https://map.naver.com/v5/search/외할머니솜씨' },
+      { name: '경기전 툇마루 찻집', distance: '도보 2분 (130m)', menu: '수제 오미자차', naverMapUrl: 'https://map.naver.com/v5/search/경기전찻집' },
+    ],
   },
   {
     name: '📸 서학동 예술마을 (인스타 릴스 감성 골목)',
@@ -209,6 +195,14 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     naverMapUrl: 'https://map.naver.com/v5/search/서학동예술마을',
     transitInfo: '🚌 시내버스 190번, 5000번 탑승 ➔ "서학동예술마을" 하차 (도보 1분)',
     parkingInfo: '🚗 주차장: 국립무형유산원 무료 주차장 및 서학동 노상 주차구역 이용',
+    nearbyDining: [
+      { name: '서학동 로컬 백반', distance: '도보 2분 (130m)', menu: '전라도 가정식 백반', naverMapUrl: 'https://map.naver.com/v5/search/서학동백반' },
+      { name: '조점례 남부시장 피순대', distance: '도보 6분 (420m)', menu: '순대국밥 & 피순대', naverMapUrl: 'https://map.naver.com/v5/search/조점례피순대' },
+    ],
+    nearbyCafes: [
+      { name: '서학동 사진관 갤러리 카페', distance: '도보 1분 (60m)', menu: '드립 커피 & 수제 디저트', naverMapUrl: 'https://map.naver.com/v5/search/서학동사진관' },
+      { name: '서학동 독립서점 카페', distance: '도보 2분 (110m)', menu: '허브티 & 북카페', naverMapUrl: 'https://map.naver.com/v5/search/서학동서점' },
+    ],
   },
   {
     name: '📚 덕진공원 연화정 한옥 도서관 (인스타 뷰 핫플)',
@@ -218,7 +212,7 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     cost: 0,
     costLabel: '무료',
     walkMinutes: 15,
-    reason: '덕진호수 연꽃 한가운데에 떠있는 국내 유일의 호수 뷰 한옥 도서관으로 인생 사진을 남기는 핫플입니다.',
+    reason: '덕진호수 연꽃 한가운데에 떠있는 아름다운 한옥 도서관으로 인생 사진을 남기는 핫플입니다.',
     isMustVisit: false,
     isIndoor: true,
     mapX: 20,
@@ -234,9 +228,16 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     naverMapUrl: 'https://map.naver.com/v5/search/연화정도서관',
     transitInfo: '🚌 시내버스 165번, 999번 탑승 ➔ "덕진공원" 하차 (공원 내 연화교 따라 도보 5분)',
     parkingInfo: '🚗 주차장: 덕진공원 전용 공영주차장 (무료 주차 가능)',
+    nearbyDining: [
+      { name: '덕진 콩나물국밥', distance: '도보 4분 (260m)', menu: '전주 콩나물국밥', naverMapUrl: 'https://map.naver.com/v5/search/덕진공원국밥' },
+      { name: '전북대 구이마을', distance: '도보 6분 (400m)', menu: '연탄 불고기 정식', naverMapUrl: 'https://map.naver.com/v5/search/구이마을' },
+    ],
+    nearbyCafes: [
+      { name: '연화정 호수 뷰 한옥 카페', distance: '도보 1분 (50m)', menu: '말차 라떼 & 아이스 아메리카노', naverMapUrl: 'https://map.naver.com/v5/search/연화정카페' },
+    ],
   },
 
-  // --- [4] 레트로 & 체험 액티비티 (subCategory: 'activity') ---
+  // --- [3] 레트로 & 체험 액티비티 (subCategory: 'activity') ---
   {
     name: '🧸 전주 난장 7080 실내 체험 박물관 (아이/친구 강추)',
     category: '🧸 아이/친구 강추 · 레트로 실내 체험',
@@ -261,6 +262,13 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     naverMapUrl: 'https://map.naver.com/v5/search/전주%20난장',
     transitInfo: '🚌 시내버스 1000번, 535번 탑승 ➔ "동문길" 하차 (도보 3분)',
     parkingInfo: '🚗 주차장: 한옥마을 제1공영주차장 이용 권장',
+    nearbyDining: [
+      { name: '베테랑 칼국수', distance: '도보 3분 (200m)', menu: '들깨 칼국수, 만두', naverMapUrl: 'https://map.naver.com/v5/search/베테랑칼국수' },
+      { name: '현대옥 한옥마을점', distance: '도보 4분 (250m)', menu: '콩나물국밥', naverMapUrl: 'https://map.naver.com/v5/search/현대옥' },
+    ],
+    nearbyCafes: [
+      { name: '추억의 달고나 카페', distance: '도보 1분 (30m)', menu: '옛날 미숫가루 & 수제 달고나', naverMapUrl: 'https://map.naver.com/v5/search/달고나카페' },
+    ],
   },
   {
     name: '🤫 남부시장 청년몰 (현지인 숨은 핫플)',
@@ -286,115 +294,16 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     naverMapUrl: 'https://map.naver.com/v5/search/남부시장%20청년몰',
     transitInfo: '🚌 시내버스 684번, 104번 탑승 ➔ "남부시장" 하차 (2층 계단 도보 2분)',
     parkingInfo: '🚗 주차장: 남부시장 천변 공영주차장 1시간 무료 이용',
+    nearbyDining: [
+      { name: '조점례 남부시장 피순대', distance: '도보 1분 (70m)', menu: '피순대 & 순대국밥', naverMapUrl: 'https://map.naver.com/v5/search/조점례피순대' },
+      { name: '옛날 피순대', distance: '도보 2분 (120m)', menu: '피순대 정식', naverMapUrl: 'https://map.naver.com/v5/search/옛날피순대' },
+    ],
+    nearbyCafes: [
+      { name: '청년몰 2층 레트로 펍/카페', distance: '도보 1분 (40m)', menu: '수제 에이드 & 드립 커피', naverMapUrl: 'https://map.naver.com/v5/search/청년몰카페' },
+    ],
   },
 
-  // --- [5] 전주 대표/노포/숨은 맛집 (subCategory: 'meal', isMeal: true) ---
-  {
-    name: '한국집 (전주 3대 전통 육회비빔밥)',
-    category: '🍽️ 네이버 지도 추천 · 전통 비빔밥',
-    subCategory: 'meal',
-    isMeal: true,
-    suitableCompanions: ['family', 'couple', 'solo', 'friends', 'kids'],
-    cost: 15000,
-    costLabel: '15,000원',
-    walkMinutes: 5,
-    reason: '미슐랭 가이드에 등재된 70년 전통의 전주 전통 육회비빔밥 찐 맛집입니다.',
-    isMustVisit: false,
-    isIndoor: true,
-    mapX: 35,
-    mapY: 50,
-    lat: 35.8160,
-    lng: 127.1480,
-    address: '전북 전주시 완산구 어진길 119',
-    operatingHours: '09:30 - 21:00 (브레이크타임 16:00 - 17:00)',
-    phone: '063-284-2230',
-    tags: ['#전주비빔밥', '#미슐랭가이드', '#육회비빔밥', '#70년전통'],
-    suggestedDuration: '50분',
-    tips: '💡 네이버 지도 점심 팁: 놋그릇에 담겨 나오는 육회비빔밥과 정갈한 반찬을 즐기세요.',
-    naverMapUrl: 'https://map.naver.com/v5/search/전주%20한국집',
-    transitInfo: '🚌 시내버스 1000번, 119번 탑승 ➔ "전동성당" 하차 후 어진길 방향 도보 3분',
-    parkingInfo: '🚗 주차장: 한국집 전용 무료 주차장 보유 (식사 고객 무료 주차 가능)',
-  },
-  {
-    name: '현대옥 한옥마을점 (뜨끈한 콩나물국밥)',
-    category: '🍽️ 네이버 지도 추천 · 국밥 맛집',
-    subCategory: 'meal',
-    isMeal: true,
-    suitableCompanions: ['solo', 'friends', 'couple', 'family', 'kids'],
-    cost: 9000,
-    costLabel: '9,000원',
-    walkMinutes: 7,
-    reason: '전주 남부시장식 수란과 함께 즐기는 얼큰 뜨끈한 대표 콩나물국밥 맛집입니다.',
-    isMustVisit: false,
-    isIndoor: true,
-    mapX: 42,
-    mapY: 45,
-    lat: 35.8140,
-    lng: 127.1520,
-    address: '전북 전주시 완산구 오목대길 66',
-    operatingHours: '08:00 - 20:00 (연중무휴)',
-    phone: '063-285-8989',
-    tags: ['#콩나물국밥', '#남부시장식', '#수란', '#뜨끈한국밥'],
-    suggestedDuration: '40분',
-    tips: '💡 네이버 지도 점심 팁: 수란과 오징어 사리를 추가해 국물에 적셔 드시면 으뜸입니다.',
-    naverMapUrl: 'https://map.naver.com/v5/search/현대옥%20한옥마을점',
-    transitInfo: '🚌 시내버스 1000번, 535번 탑승 ➔ "오목대·한옥마을" 하차 후 오목대길 도보 4분',
-    parkingInfo: '🚗 주차장: 한옥마을 제2공영주차장 이용 권장',
-  },
-  {
-    name: '교동떡갈비 (아이/가족 추천 1순위)',
-    category: '🍽️ 아이/가족 추천 · 숯불 떡갈비',
-    subCategory: 'meal',
-    isMeal: true,
-    suitableCompanions: ['kids', 'family', 'couple'],
-    cost: 16000,
-    costLabel: '16,000원',
-    walkMinutes: 6,
-    reason: '아이들과 어르신 모두 좋아하는 숯불 향 수제 떡갈비와 비빔밥 정식 맛집입니다.',
-    isMustVisit: false,
-    isIndoor: true,
-    mapX: 48,
-    mapY: 52,
-    lat: 35.8142,
-    lng: 127.1510,
-    address: '전북 전주시 완산구 은행로 52',
-    operatingHours: '11:00 - 20:30 (라스트오더 19:50)',
-    phone: '063-288-2232',
-    tags: ['#수제떡갈비', '#아이동반강추', '#가족식사', '#한옥맛집'],
-    suggestedDuration: '55분',
-    tips: '💡 네이버 지도 점심 팁: 달콤 짭조름한 수제 떡갈비는 아이들이 특히 좋아하는 1순위 메뉴입니다.',
-    naverMapUrl: 'https://map.naver.com/v5/search/전주%20교동떡갈비',
-    transitInfo: '🚌 시내버스 1000번, 119번 탑승 ➔ "전동성당" 하차 후 은행로 따라 도보 5분',
-    parkingInfo: '🚗 주차장: 교동 떡갈비 제휴 한옥마을 제1공영주차장 이용 권장',
-  },
-  {
-    name: '조점례 남부시장 피순대 (친구/혼행 핫플)',
-    category: '🍽️ 미식/친구 추천 · 24시 순대국밥',
-    subCategory: 'meal',
-    isMeal: true,
-    suitableCompanions: ['friends', 'solo', 'couple'],
-    cost: 10000,
-    costLabel: '10,000원',
-    walkMinutes: 12,
-    reason: '친구들과 진한 피순대국밥 뚝배기에 초장을 곁들여 먹는 전국 명물 전주 노포 식당입니다.',
-    isMustVisit: false,
-    isIndoor: true,
-    mapX: 75,
-    mapY: 42,
-    lat: 35.8122,
-    lng: 127.1465,
-    address: '전북 전주시 완산구 풍남문2길 39 (남부시장 내)',
-    operatingHours: '24시간 영업 (연중무휴)',
-    phone: '063-288-1439',
-    tags: ['#피순대', '#친구끼리', '#남부시장맛집', '#전주노포'],
-    suggestedDuration: '50분',
-    tips: '💡 네이버 지도 점심 팁: 깻잎에 피순대와 초장을 올려 싸 드시는 것이 전주 현지 방식입니다.',
-    naverMapUrl: 'https://map.naver.com/v5/search/조점례%20남부시장%20피순대',
-    transitInfo: '🚌 시내버스 684번, 74번 탑승 ➔ "남부시장" 하차 (시장 입구 도보 2분)',
-    parkingInfo: '🚗 주차장: 남부시장 천변 공영주차장 1시간 무료 할인권',
-  },
-
-  // --- [6] 전시 & 국립 박물관 (subCategory: 'museum') ---
+  // --- [4] 전시 & 국립 박물관 (subCategory: 'museum') ---
   {
     name: '어진박물관 (경기전 지하 실내 전시관)',
     category: '🏛️ 실내 · 쾌적 박물관',
@@ -403,7 +312,7 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     cost: 0,
     costLabel: '경기전 입장권 포함 (무료)',
     walkMinutes: 4,
-    reason: '경기전 지하의 쾌적한 실내 박물관으로 태조 어진과 조선 왕실 유물을 아이들과 쾌적하게 관람합니다.',
+    reason: '경기전 지하의 쾌적한 실내 박물관으로 태조 어진과 조선 왕실 유물을 날씨 걱정 없이 관람합니다.',
     isMustVisit: false,
     isIndoor: true,
     mapX: 39,
@@ -415,10 +324,16 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     phone: '063-281-2790',
     tags: ['#어진박물관', '#실내박물관', '#아이동반체험', '#조선왕조'],
     suggestedDuration: '45분',
-    tips: '💡 팁: 경기전 안쪽지하고 진입하시면 쾌적한 온도 속에서 왕실 어진을 관람하실 수 있습니다.',
+    tips: '💡 팁: 경기전 안쪽 지하고 진입하시면 쾌적한 온도 속에서 왕실 어진을 관람하실 수 있습니다.',
     naverMapUrl: 'https://map.naver.com/v5/search/어진박물관',
     transitInfo: '🚌 시내버스 1000번, 119번 탑승 ➔ "전동성당" 하차 (경기전 내 도보 3분)',
     parkingInfo: '🚗 주차장: 경기전 리베라 주차장 / 한옥마을 제1공영주차장',
+    nearbyDining: [
+      { name: '한국집 (전주 3대 비빔밥)', distance: '도보 3분 (200m)', menu: '전통 비빔밥', naverMapUrl: 'https://map.naver.com/v5/search/한국집' },
+    ],
+    nearbyCafes: [
+      { name: '한옥마을 전통찻집', distance: '도보 3분 (180m)', menu: '쌍화차', naverMapUrl: 'https://map.naver.com/v5/search/한옥마을전통찻집' },
+    ],
   },
   {
     name: '국립무형유산원 전시관',
@@ -440,10 +355,16 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     phone: '063-280-1400',
     tags: ['#무형유산', '#무료전시', '#실내피서', '#쾌적한실내'],
     suggestedDuration: '1시간 10분',
-    tips: '💡 팁: 대형 실내 전시실에서 조용하고 쾌적한 피서/한파 관람을 즐길 수 있습니다.',
+    tips: '💡 팁: 대형 실내 전시실에서 조용하고 쾌적한 관람을 즐길 수 있습니다.',
     naverMapUrl: 'https://map.naver.com/v5/search/국립무형유산원',
     transitInfo: '🚌 시내버스 190번, 5000번 탑승 ➔ "국립무형유산원" 정류장 하차 (도보 1분)',
     parkingInfo: '🚗 주차장: 국립무형유산원 전용 대형 지하/지상 무료 주차장 보유',
+    nearbyDining: [
+      { name: '서학동 로컬 백반', distance: '도보 2분 (120m)', menu: '가정식 백반 정식', naverMapUrl: 'https://map.naver.com/v5/search/서학동백반' },
+    ],
+    nearbyCafes: [
+      { name: '서학동 독립서점 카페', distance: '도보 2분 (150m)', menu: '핸드드립 커피', naverMapUrl: 'https://map.naver.com/v5/search/서학동카페' },
+    ],
   },
 ]
 

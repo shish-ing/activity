@@ -8,6 +8,7 @@ import {
   ChevronDown,
   ChevronUp,
   Clock,
+  Coffee,
   ExternalLink,
   Footprints,
   Info,
@@ -16,6 +17,7 @@ import {
   RefreshCw,
   Star,
   Tag,
+  Utensils,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -222,6 +224,55 @@ export function PlaceCard({
             {place.reason}
           </p>
 
+          {/* 장소 주변 추천 맛집 & 카페 서브 안내 (선택 옵션) */}
+          {place.nearbyDining || place.nearbyCafes ? (
+            <div className="mt-3 rounded-xl border border-primary/25 bg-primary/5 p-3 text-xs">
+              <div className="flex items-center justify-between font-bold text-foreground mb-2">
+                <div className="flex items-center gap-1.5">
+                  <MapPin className="size-3.5 text-primary" />
+                  <span>📍 이 장소 바로 근처 추천 맛집 & 카페</span>
+                </div>
+                <span className="text-[10px] font-normal text-muted-foreground">(선택 참조)</span>
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-2">
+                {place.nearbyDining ? (
+                  <div className="rounded-lg bg-card border border-border p-2">
+                    <div className="flex items-center gap-1 font-semibold text-emerald-400 text-[11px] mb-1">
+                      <Utensils className="size-3" /> 근처 맛집
+                    </div>
+                    {place.nearbyDining.map((item) => (
+                      <div key={item.name} className="text-[11px] leading-tight text-foreground py-1 border-b border-border/40 last:border-0">
+                        <div className="flex items-center justify-between font-medium">
+                          <span>{item.name}</span>
+                          <span className="text-[10px] text-emerald-400 font-normal">{item.distance}</span>
+                        </div>
+                        <div className="text-[10px] text-muted-foreground mt-0.5">대표: {item.menu}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
+                {place.nearbyCafes ? (
+                  <div className="rounded-lg bg-card border border-border p-2">
+                    <div className="flex items-center gap-1 font-semibold text-amber-400 text-[11px] mb-1">
+                      <Coffee className="size-3" /> 근처 카페/디저트
+                    </div>
+                    {place.nearbyCafes.map((item) => (
+                      <div key={item.name} className="text-[11px] leading-tight text-foreground py-1 border-b border-border/40 last:border-0">
+                        <div className="flex items-center justify-between font-medium">
+                          <span>{item.name}</span>
+                          <span className="text-[10px] text-amber-400 font-normal">{item.distance}</span>
+                        </div>
+                        <div className="text-[10px] text-muted-foreground mt-0.5">대표: {item.menu}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
           {/* 현지인 팁 */}
           {place.tips ? (
             <p className="mt-2 rounded-xl border border-accent/30 bg-accent/10 px-3 py-2 text-xs text-foreground font-normal">
@@ -307,7 +358,7 @@ export function PlaceCard({
         </div>
       </div>
 
-      {/* 하단 버튼 바: 클릭 시 바로 다른 추천 장소로 변경 */}
+      {/* 하단 버튼 바 */}
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border/40 pt-2.5">
         <button
           type="button"

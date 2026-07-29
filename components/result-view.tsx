@@ -74,9 +74,9 @@ export function ResultView() {
       case '3h':
         return '3시간 (여유로운 코스 · 3곳)'
       case 'half':
-        return '반나절 (4~5시간 코스 · 점심 맛집 포함)'
+        return '반나절 (4~5시간 코스 · 5곳 스팟)'
       case 'full':
-        return '하루 (풀 코스 · 7곳)'
+        return '하루 (풀 코스 · 7곳 스팟)'
       case '2days':
         return '이틀 (1박 2일 일정 · 10곳 코스)'
       case '3days':
@@ -93,35 +93,35 @@ export function ResultView() {
         return {
           icon: '🥶',
           title: '🥶 한파·찬 바람 맞춤 큐레이션:',
-          text: '매서운 찬 바람과 추위를 피할 수 있도록 뜨끈한 국밥 식사 후, 온돌 툇마루에서 깊은 쌍화차·한방차를 마시는 교차 순서로 코스를 정렬했습니다 (식사·공방·카페 연속 방지).',
+          text: '매서운 찬 바람과 추위를 피할 수 있도록 실내 수제 공방(한지/부채/도자기), 지하 어진박물관, 연화정 한옥 도서관 위주로 장소를 구성했습니다 (근처 추천 맛집·카페는 각 카드 참조).',
           bannerColor: 'border-blue-500/40 bg-blue-500/10 text-blue-300',
         }
       case 'snow':
         return {
           icon: '❄️',
           title: '❄️ 한옥 설경·눈 오는 날 큐레이션:',
-          text: '하얀 눈이 내려앉은 고즈넉한 한옥 풍경을 감상하고, 뜨끈한 전주 국밥 식사 후 따뜻한 전통 찻집에서 후식을 즐기는 교차 순서로 코스를 구상했습니다.',
+          text: '하얀 눈이 내려앉은 고즈넉한 한옥 풍경을 감상할 수 있는 운치 있는 실내 공방과 박물관 위주로 장소 동선을 구상했습니다.',
           bannerColor: 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300',
         }
       case 'rain':
         return {
           icon: '☔',
           title: '☔ 비 오는 날 낭만 큐레이션:',
-          text: '빗소리를 들으며 즐기는 맛있는 식사 후 운치 있는 실내 전통 찻집/디저트 카페로 이동하는 맞춤 순서로 코스를 조율했습니다.',
+          text: '빗소리를 들으며 즐길 수 있는 실내 수제 공방, 지하 어진박물관, 호수 뷰 연화정 도서관 위주로 맞춤 동선을 구성했습니다.',
           bannerColor: 'border-teal-500/40 bg-teal-500/10 text-teal-300',
         }
       case 'clear':
         return {
           icon: '☀️',
           title: '☀️ 폭염·더위 맞춤 큐레이션:',
-          text: '무더위 땡볕 야외 언덕(오목대 등)을 피하고, 든든한 식사 후 에어컨이 시원한 흑임자 팥빙수 디저트 카페와 실내 공방(한지·도자기)으로 교차 이어지는 코스입니다.',
+          text: '무더위 땡볕 야외 언덕(오목대 등)을 피하고, 에어컨이 완비된 시원한 수제 공방(한지·부채·도자기), 지하 어진박물관 위주로 장소를 자동 배치했습니다.',
           bannerColor: 'border-amber-500/40 bg-amber-500/10 text-amber-300',
         }
       case 'cloudy':
         return {
           icon: '☁️',
           title: '☁️ 선선한 날씨 맞춤 큐레이션:',
-          text: '햇살이 적당하고 선선해 한옥마을 산책 ➔ 맛있는 식사 ➔ 후식 차 ➔ 실내 공방으로 교차 연결되는 코스입니다.',
+          text: '햇살이 적당하고 선선해 한옥마을 돌담길 산책 ➔ 골목 수제 공방 ➔ 감성 서학동 예술마을로 연결되는 밸런스 코스입니다.',
           bannerColor: 'border-sky-500/40 bg-sky-500/10 text-sky-300',
         }
       default:
@@ -129,7 +129,7 @@ export function ResultView() {
         return {
           icon: weather.emoji,
           title: `🛰️ 실시간 날씨(${weather.summary}) 큐레이션:`,
-          text: '동일 카테고리(공방2개, 식당2개, 카페2개) 연속 배치를 배제하고 자연스럽게 교차 배치된 동선입니다.',
+          text: '방문할 명소/공방/체험 스팟 위주로 코스가 연결되며, 각 스팟 카드 내부에서 근처 맛집/카페를 자유롭게 참고하실 수 있습니다.',
           bannerColor: 'border-accent/40 bg-accent/10 text-accent',
         }
     }
@@ -148,6 +148,7 @@ export function ResultView() {
   }, [weather, weatherParam])
 
   // 선택한 남은 시간, 동행 유형, 날씨 및 필수 방문지 기반 동적 코스 자동 생성
+  // (사용자 요청: 메인 경로에는 순수 방문 장소/공방/박물관만 배치하고, 식당/카페는 각 장소 카드 근처 옵션으로 제공!)
   useEffect(() => {
     const mustVisitNames = rawMustVisit
       ? rawMustVisit
@@ -176,7 +177,7 @@ export function ResultView() {
           isMustVisit: true,
           reason: `사용자께서 직접 검색하여 추가하신 필수 방문지 '${name}'입니다.`,
           warning: isOutdoorExtreme
-            ? `⚠️ 악천후/한파 주의: 야외 땡볕 또는 찬 바람 구간입니다. 따뜻한 음료 지참 및 실내 공방/찻집 휴식을 병행하세요.`
+            ? `⚠️ 악천후/한파 주의: 야외 땡볕 또는 찬 바람 구간입니다. 실내 공방/박물관 휴식을 병행하세요.`
             : foundInDb.warning,
         })
       } else if (!addedNames.has(name.toLowerCase())) {
@@ -186,6 +187,7 @@ export function ResultView() {
           order: orderCounter++,
           name: name,
           category: '검색 추가 · 명소',
+          subCategory: 'spot',
           cost: 0,
           costLabel: '입장료/비용 확인',
           walkMinutes: 8,
@@ -203,11 +205,17 @@ export function ResultView() {
           naverMapUrl: `https://map.naver.com/v5/search/${encodeURIComponent(name)}`,
           transitInfo: `🚌 시내버스 노선은 네이버 지도의 최신 버스 정보를 참조해 주세요.`,
           parkingInfo: `🚗 인근 공영/민영 주차장을 이용해 주세요.`,
+          nearbyDining: [
+            { name: `${name} 근처 전주 맛집`, distance: '도보 3분 이내', menu: '전동/한옥마을 로컬 맛집' },
+          ],
+          nearbyCafes: [
+            { name: `${name} 근처 감성 카페`, distance: '도보 2분 이내', menu: '수제 디저트 & 음료' },
+          ],
         })
       }
     })
 
-    // 2. 남은 시간별 목표 장소 수 및 최대 허용 식사 수 정의 (연속 식사 100% 방지)
+    // 2. 남은 시간별 목표 방문 장소 수 정의
     let targetCount = 3
     if (time === '1h') targetCount = 1
     else if (time === '3h') targetCount = 3
@@ -216,24 +224,17 @@ export function ResultView() {
     else if (time === '2days') targetCount = 10
     else if (time === '3days') targetCount = 14
 
-    // 단일 일차(1h, 3h, half, full)에서는 식당(isMeal)을 오직 1개만 허용!
-    const maxMealsAllowed = time === '2days' ? 2 : time === '3days' ? 3 : (time === '1h' ? 0 : 1)
-    let currentMealCount = generated.filter((p) => p.isMeal).length
-
-    // 3. 동행 유형 적합도 & 날씨에 맞춰 후보 장소 우선순위 정렬
-    const candidateDatabase = [...JEONJU_PLACES_DATABASE].sort((a, b) => {
+    // 3. 메인 경로에는 순수 방문 장소(공방, 박물관, 명소, 인스타 핫플, 레트로 체험)만 선택!
+    // (식당/카페는 강제 삽입하지 않고 각 카드 내부 근처 옵션으로 제공)
+    const pureSpotsDatabase = JEONJU_PLACES_DATABASE.filter(
+      (p) => !p.isMeal && !p.isDessert,
+    ).sort((a, b) => {
       // 1순위: 선택한 동행 유형(companionParam: couple/friends/kids/family/solo) 맞춤 추천
       const aCompMatch = a.suitableCompanions?.includes(companionParam) ? 1 : 0
       const bCompMatch = b.suitableCompanions?.includes(companionParam) ? 1 : 0
       if (aCompMatch !== bCompMatch) return bCompMatch - aCompMatch
 
-      // 2순위: 한파 / 폭염 / 우천 날씨 적합도
-      if (weatherParam === 'wind' || weatherParam === 'snow') {
-        const aColdMatch = a.name.includes('찻집') || a.name.includes('국밥') || a.name.includes('피순대')
-        const bColdMatch = b.name.includes('찻집') || b.name.includes('국밥') || b.name.includes('피순대')
-        if (aColdMatch && !bColdMatch) return -1
-        if (!aColdMatch && bColdMatch) return 1
-      }
+      // 2순위: 실내/날씨 우선순위
       if (isIndoorPriority) {
         if (a.isIndoor && !b.isIndoor) return -1
         if (!a.isIndoor && b.isIndoor) return 1
@@ -242,22 +243,13 @@ export function ResultView() {
     })
 
     // DB에서 조건에 부합하는 장소들 채우기
-    candidateDatabase.forEach((placeItem) => {
+    pureSpotsDatabase.forEach((placeItem) => {
       if (generated.length >= targetCount) return
       if (addedNames.has(placeItem.name.toLowerCase())) return
 
       // 폭염/한파/우천 시 야외 전용 장소(오목대 등)는 비필수일 때 자동 제외/대체
       if (isIndoorPriority && placeItem.isIndoor === false && !placeItem.isMustVisit) {
         return
-      }
-
-      // 식당 수 제한 초과 시 추가 식당은 스킵 (연속 식사 절대 방지)
-      if (placeItem.isMeal && currentMealCount >= maxMealsAllowed) {
-        return
-      }
-
-      if (placeItem.isMeal) {
-        currentMealCount++
       }
 
       addedNames.add(placeItem.name.toLowerCase())
@@ -268,14 +260,11 @@ export function ResultView() {
       })
     })
 
-    // 목표 장소 수 미달 시 보충
+    // 목표 장소 수 미달 시 남은 스팟으로 보충
     if (generated.length < targetCount) {
-      candidateDatabase.forEach((placeItem) => {
+      pureSpotsDatabase.forEach((placeItem) => {
         if (generated.length >= targetCount) return
         if (addedNames.has(placeItem.name.toLowerCase())) return
-        if (placeItem.isMeal && currentMealCount >= maxMealsAllowed) return
-
-        if (placeItem.isMeal) currentMealCount++
         addedNames.add(placeItem.name.toLowerCase())
         generated.push({
           ...placeItem,
@@ -285,36 +274,9 @@ export function ResultView() {
       })
     }
 
-    // 4. 동선 순서 재정렬 및 동일 카테고리 연속 배치 절대 금지 규칙 적용 (Alternating Category Sequencing)
-    // 공방 ➔ 공방 (X), 식당 ➔ 식당 (X), 카페 ➔ 카페 (X)
-    let sequencedPlaces: Place[] = []
-
-    if (time === '2days' || time === '3days') {
-      sequencedPlaces = generated
-    } else {
-      const meals = generated.filter((p) => p.isMeal)
-      const desserts = generated.filter((p) => p.isDessert)
-      const others = generated.filter((p) => !p.isMeal && !p.isDessert)
-
-      if (meals.length > 0) {
-        const firstOthers = others.slice(0, 1) // 명소 (예: 전동성당, 경기전)
-        const restOthers = others.slice(1)
-
-        // [명소] ➔ [점심 식사] ➔ [후식 차/디저트] ➔ [실내 공방/전시]
-        sequencedPlaces = [
-          ...firstOthers,
-          ...meals,
-          ...desserts,
-          ...restOthers,
-        ]
-      } else {
-        sequencedPlaces = generated
-      }
-    }
-
-    // 동일 카테고리 연속 배치 방지용 셔플 교차 정렬
+    // 4. 동일 세부 카테고리 연속 배치 방지 셔플 정렬
     const alternatingPlaces: Place[] = []
-    const pool = [...sequencedPlaces]
+    const pool = [...generated]
 
     while (pool.length > 0) {
       if (alternatingPlaces.length === 0) {
@@ -359,7 +321,7 @@ export function ResultView() {
           condition: 'clear',
           emoji: '☀️',
           summary: '☀️ 맑음 · 폭염 (선택한 예보 날씨)',
-          detail: '무더위를 피해 에어컨이 시원한 실내 수제 공방/지하 어진박물관/빙수 카페 위주로 큐레이션되었습니다 · 기온 31°C · 강수확률 0%',
+          detail: '무더위를 피해 에어컨이 시원한 실내 수제 공방/지하 어진박물관/도서관 위주로 큐레이션되었습니다 · 기온 31°C · 강수확률 0%',
         })
         setLastFetchTime('예보 선택')
       } else if (weatherParam === 'rain') {
@@ -367,7 +329,7 @@ export function ResultView() {
           condition: 'rain',
           emoji: '☔',
           summary: '☔ 비 옴 (선택한 예보 날씨)',
-          detail: '비 오는 날 운치에 어울리는 실내 공방/전통 찻집/실내 체험 위주로 추천드려요 · 기온 21°C · 강수확률 90%',
+          detail: '비 오는 날 운치에 어울리는 실내 공방/박물관/도서관 위주로 추천드려요 · 기온 21°C · 강수확률 90%',
         })
         setLastFetchTime('예보 선택')
       } else if (weatherParam === 'cloudy') {
@@ -375,7 +337,7 @@ export function ResultView() {
           condition: 'cloudy',
           emoji: '☁️',
           summary: '☁️ 구름 많음 (선택한 예보 날씨)',
-          detail: '선선해서 한옥마을 및 야외 걷기 딱 좋은 날씨예요 · 기온 24°C · 강수확률 20%',
+          detail: '선선해서 한옥마을 및 서학동 예술마을 걷기 딱 좋은 날씨예요 · 기온 24°C · 강수확률 20%',
         })
         setLastFetchTime('예보 선택')
       } else if (weatherParam === 'snow') {
@@ -383,7 +345,7 @@ export function ResultView() {
           condition: 'snow',
           emoji: '❄️',
           summary: '❄️ 눈 옴 (선택한 예보 날씨)',
-          detail: '하얀 한옥 설경과 뜨끈한 국밥 식사 ➔ 후식 전통 찻집 위주로 추천해 드려요 · 기온 -2°C · 강수확률 80%',
+          detail: '하얀 한옥 설경과 따뜻한 실내 수제 공방/박물관 위주로 추천해 드려요 · 기온 -2°C · 강수확률 80%',
         })
         setLastFetchTime('예보 선택')
       } else if (weatherParam === 'wind') {
@@ -391,7 +353,7 @@ export function ResultView() {
           condition: 'wind',
           emoji: '🥶',
           summary: '🥶 한파 · 찬 바람 (선택한 예보 날씨)',
-          detail: '매서운 바람을 피할 뜨끈한 콩나물국밥 식사 ➔ 후식 한방 쌍화차 찻집 코스를 추천해 드려요 · 기온 -5°C · 강수확률 10%',
+          detail: '매서운 바람을 피할 따뜻한 실내 공방 체험과 박물관/도서관 코스를 추천해 드려요 · 기온 -5°C · 강수확률 10%',
         })
         setLastFetchTime('예보 선택')
       } else {
@@ -423,7 +385,7 @@ export function ResultView() {
     return () => clearInterval(timer)
   }, [weatherParam])
 
-  // 클릭 시 장소 교체 처리 함수
+  // 클릭 시 장소 교체 처리 함수 (순수 스팟/공방/박물관 간 교체)
   function handleReplace(id: string) {
     setPlaces((prev) => {
       const targetPlace = prev.find((p) => p.id === id)
@@ -431,34 +393,12 @@ export function ResultView() {
 
       const currentNames = new Set(prev.map((p) => p.name.toLowerCase()))
 
-      // 식당(isMeal: true)을 변경하는 경우: 기존 식당을 빼고 다른 식당으로 교체하여 식사 수는 항상 1개로 유지!
-      if (targetPlace.isMeal) {
-        const mealCandidates = JEONJU_PLACES_DATABASE.filter(
-          (p) => p.isMeal && !currentNames.has(p.name.toLowerCase()),
-        )
-        if (mealCandidates.length > 0) {
-          const nextMeal = mealCandidates[Math.floor(Math.random() * mealCandidates.length)]
-          return prev.map((p) =>
-            p.id === id
-              ? {
-                  ...nextMeal,
-                  id: `${p.id}-replaced-${Date.now()}`,
-                  order: p.order,
-                  day: p.day,
-                  reason: `다른 추천 식당으로 변경된 네이버 지도 맛집입니다.`,
-                }
-              : p,
-          )
-        }
-      }
-
-      // 식당이 아닌 일반 장소/공방/찻집을 변경하는 경우: 식당이 아닌 다른 액티비티/공방/전시/찻집 중에서 교체!
-      const nonMealCandidates = JEONJU_PLACES_DATABASE.filter(
-        (p) => !p.isMeal && !currentNames.has(p.name.toLowerCase()),
+      const pureSpotCandidates = JEONJU_PLACES_DATABASE.filter(
+        (p) => !p.isMeal && !p.isDessert && !currentNames.has(p.name.toLowerCase()),
       )
 
-      if (nonMealCandidates.length > 0) {
-        const nextSpot = nonMealCandidates[Math.floor(Math.random() * nonMealCandidates.length)]
+      if (pureSpotCandidates.length > 0) {
+        const nextSpot = pureSpotCandidates[Math.floor(Math.random() * pureSpotCandidates.length)]
         return prev.map((p) =>
           p.id === id
             ? {
@@ -466,7 +406,7 @@ export function ResultView() {
                 id: `${p.id}-replaced-${Date.now()}`,
                 order: p.order,
                 day: p.day,
-                reason: `선택에 따라 새롭게 교체 추천된 장소입니다.`,
+                reason: `선택에 따라 새롭게 교체 추천된 전주 장소입니다.`,
               }
             : p,
         )
@@ -491,11 +431,6 @@ export function ResultView() {
       return sum + m
     }, 0)
   }, [places, transport])
-
-  const mealCount = useMemo(
-    () => places.filter((p) => p.isMeal).length,
-    [places],
-  )
 
   // 일차별로 그룹화 (이틀/사흘 코스 시)
   const groupedByDay = useMemo(() => {
@@ -554,7 +489,7 @@ export function ResultView() {
         <span className="font-semibold">{companionLabel.text}</span>
       </div>
 
-      {/* 날씨 맞춤 큐레이션 안내 배지 (한파/폭염/우천/설경 각각 정확히 표시) */}
+      {/* 날씨 맞춤 큐레이션 안내 배지 */}
       <div
         className={`mt-3 flex items-start gap-2.5 rounded-xl border p-3.5 text-xs ${weatherCareMessage.bannerColor}`}
       >
@@ -573,12 +508,10 @@ export function ResultView() {
             {timeLabel}
           </span>
           <div className="flex items-center gap-3 text-muted-foreground">
-            {mealCount > 0 ? (
-              <span className="flex items-center gap-1 text-emerald-400 font-medium">
-                <Utensils className="size-3" />
-                네이버 지도 추천 점심/식사 {mealCount}곳 포함 (동일 카테고리 연속 없음)
-              </span>
-            ) : null}
+            <span className="flex items-center gap-1 text-emerald-400 font-medium">
+              <Utensils className="size-3" />
+              각 장소 카드 내 '근처 추천 맛집 & 카페' 포함 (자유 선택)
+            </span>
             <span>총 {places.length}개 스팟</span>
           </div>
         </div>
@@ -594,7 +527,7 @@ export function ResultView() {
         <section aria-label="추천 장소 목록" className="flex flex-col gap-4">
           <div className="flex items-baseline justify-between">
             <h2 className="font-serif text-lg font-bold text-foreground">
-              네이버 지도 & 인스타 기반 맞춤 코스
+              네이버 지도 & 인스타 기반 맞춤 추천 코스
             </h2>
             <span className="text-xs text-muted-foreground">
               카드를 누르거나 '다른 장소 변경' 클릭 시 교체돼요
