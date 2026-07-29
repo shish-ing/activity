@@ -329,40 +329,34 @@ export function ConditionForm() {
         size="lg"
         onClick={handleSubmit}
         disabled={loading}
-        className="h-14 w-full rounded-2xl text-lg font-extrabold bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-slate-950 shadow-xl shadow-amber-500/40 transition-all active:scale-[0.99] cursor-pointer mt-4 border-2 border-yellow-200/80"
+        className="h-14 w-full rounded-2xl text-base sm:text-lg font-serif font-bold tracking-wide bg-slate-900 hover:bg-slate-800 text-white shadow-xl shadow-slate-900/20 transition-all active:scale-[0.99] cursor-pointer mt-4 border border-slate-700/60"
       >
         {loading ? (
-          <>
-            <Loader2 className="size-6 animate-spin text-slate-950" />
-            출발 주소 및 1번 장소 최단 코스 계산 중...
-          </>
+          <div className="flex items-center gap-2">
+            <Loader2 className="size-5 animate-spin text-white" />
+            <span>최단 여행 코스 생성 중...</span>
+          </div>
         ) : (
-          <>
-            <Sparkles className="size-6 text-slate-950 fill-slate-950" />
-            ✨ 맞춤 코스 추천받기 (결과 보기)
-          </>
+          <span>맞춤 여행 코스 추천받기</span>
         )}
       </Button>
 
-      {/* 2. 📱 화면 하단 항상 고정 플로팅 버튼 (절대 사라지지 않는 스티키 바) */}
-      <div className="fixed bottom-0 inset-x-0 z-50 p-3 sm:p-4 bg-slate-950/80 backdrop-blur-lg border-t border-amber-500/30 flex justify-center shadow-2xl">
+      {/* 2. 📱 화면 하단 항상 고정 스티키 바 (세련된 화이트 글래스 & 딥네이비 럭셔리 버튼) */}
+      <div className="fixed bottom-0 inset-x-0 z-50 p-3 sm:p-4 bg-white/85 backdrop-blur-xl border-t border-slate-200/80 flex justify-center shadow-2xl">
         <div className="w-full max-w-xl">
           <Button
             size="lg"
             onClick={handleSubmit}
             disabled={loading}
-            className="h-13 w-full rounded-xl text-base sm:text-lg font-extrabold bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-slate-950 shadow-lg shadow-amber-500/40 border border-yellow-200/80 cursor-pointer"
+            className="h-13 w-full rounded-xl text-base sm:text-lg font-serif font-bold tracking-wide bg-slate-900 hover:bg-slate-800 text-white shadow-lg shadow-slate-900/20 border border-slate-800 transition-all cursor-pointer"
           >
             {loading ? (
-              <>
-                <Loader2 className="size-5 animate-spin text-slate-950" />
-                최단 여행 코스 생성 중...
-              </>
+              <div className="flex items-center gap-2">
+                <Loader2 className="size-5 animate-spin text-white" />
+                <span>최단 여행 코스 생성 중...</span>
+              </div>
             ) : (
-              <>
-                <Sparkles className="size-5 text-slate-950 fill-slate-950" />
-                🚀 지금 이 조건으로 맞춤 코스 보기 (클릭)
-              </>
+              <span>맞춤 여행 코스 추천받기</span>
             )}
           </Button>
         </div>
