@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { AlertCircle, Bus, Calendar, Car, Clock, Footprints, Heart, MapPin, RefreshCw, Share2, Sparkles, SunMedium, Utensils, Wallet } from 'lucide-react'
+import { AlertCircle, ArrowRight, Bus, Calendar, Car, Clock, Footprints, Heart, MapPin, RefreshCw, Share2, Sparkles, SunMedium, Utensils, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PlaceCard } from '@/components/place-card'
 import { MapPlaceholder } from '@/components/map-placeholder'
@@ -98,6 +98,7 @@ export function ResultView() {
   const companionParam = searchParams.get('companion') || 'couple' // 'solo' | 'couple' | 'friends' | 'family' | 'kids' | 'pet'
   const rawBudget = searchParams.get('budget')
   const startLocationParam = searchParams.get('startLocation') || '전주 한옥마을'
+  const startAddressParam = searchParams.get('startAddress') || ''
 
   const [places, setPlaces] = useState<Place[]>(RECOMMENDED_PLACES)
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -122,6 +123,60 @@ export function ResultView() {
     if (userBudgetLimit >= 500000) return '50만원 이상 (넉넉한 럭셔리 코스)'
     return `${(userBudgetLimit / 10000).toLocaleString('ko-KR')}만원 맞춤`
   }, [userBudgetLimit])
+
+  // 출발지에서 1번째 추천 장소까지 이동 시내버스 & 네이버 지도 길찾기 안내 연동
+  const firstPlaceTransitInfo = useMemo(() => {
+    if (!places || places.length === 0) return null
+    const firstSpot = places[0]
+    const locName = startLocationParam
+
+    if (locName.includes('전주역')) {
+      return {
+        busRoute: '🚌 전주 명품 시내버스 1000번, 119번, 535번 (직행 버스)',
+        boardStop: '전주역 첫마을마중길 정류장 탑승',
+        alightStop: `${firstSpot.name} 인근 (전동성당·한옥마을) 하차 (도보 2분)`,
+        duration: '대중교통 약 18분 (시내버스 14분 + 도보 4분)',
+        carDuration: '자차 차로 약 12분 (3.8km)',
+        mapUrl: `https://map.naver.com/v5/directions/-/127.1615,35.8490,전주역/127.1492,35.8133,${encodeURIComponent(firstSpot.name)}/-/transit?c=15,0,0,0,dh`,
+      }
+    } else if (locName.includes('터미널')) {
+      return {
+        busRoute: '🚌 전주 시내버스 165번, 79번, 1000번 탑승',
+        boardStop: '고속버스터미널 정류장 탑승',
+        alightStop: `${firstSpot.name} 정류장 하차 (도보 3분)`,
+        duration: '대중교통 약 12분 (시내버스 9분 + 도보 3분)',
+        carDuration: '자차 차로 약 7분 (2.5km)',
+        mapUrl: `https://map.naver.com/v5/directions/-/127.1320,35.8360,전주고속버스터미널/127.1492,35.8133,${encodeURIComponent(firstSpot.name)}/-/transit?c=15,0,0,0,dh`,
+      }
+    } else if (locName.includes('전북대')) {
+      return {
+        busRoute: '🚌 전주 시내버스 165번, 684번, 999번 탑승',
+        boardStop: '전북대 구정문 정류장 탑승',
+        alightStop: `${firstSpot.name} 정류장 하차 (도보 2분)`,
+        duration: '대중교통 약 15분 (시내버스 11분 + 도보 4분)',
+        carDuration: '자차 차로 약 9분 (3.1km)',
+        mapUrl: `https://map.naver.com/v5/directions/-/127.1290,35.8470,전북대학교/127.1492,35.8133,${encodeURIComponent(firstSpot.name)}/-/transit?c=15,0,0,0,dh`,
+      }
+    } else if (locName.includes('객사')) {
+      return {
+        busRoute: '🚌 전주 시내버스 1000번, 165번 탑승 (또는 도보 산책)',
+        boardStop: '객사 정류장 탑승 (영화의거리 도보 8분)',
+        alightStop: `${firstSpot.name} 하차 (도보 2분)`,
+        duration: '대중교통 약 8분 (도보 이동 시 약 10분)',
+        carDuration: '자차 차로 약 4분 (1.2km)',
+        mapUrl: `https://map.naver.com/v5/directions/-/127.1435,35.8185,전주객사/127.1492,35.8133,${encodeURIComponent(firstSpot.name)}/-/transit?c=15,0,0,0,dh`,
+      }
+    } else {
+      return {
+        busRoute: '🚶 인접 산책 경로 (한옥마을 중심 인접 산책로)',
+        boardStop: startAddressParam || '출발 주소지 출발',
+        alightStop: `${firstSpot.name} 도착 (도보 3분~7분)`,
+        duration: `도보 산책 약 4분~8분 이내`,
+        carDuration: '자차 차로 약 3분',
+        mapUrl: `https://map.naver.com/v5/search/${encodeURIComponent(firstSpot.name)}`,
+      }
+    }
+  }, [places, startLocationParam, startAddressParam])
 
   // 동행 유형 안내 라벨
   const companionLabel = useMemo(() => {
@@ -343,7 +398,7 @@ export function ResultView() {
       return Math.random() - 0.5
     })
 
-    // DB에서 조건에 부합하는 장소들 채우기 (유료 체험/공방도 포함하여 예산의 80%를 알차게 활용)
+    // DB에서 조건에 부합하는 장소들 채우기
     let currentCostSum = generated.reduce((s, p) => s + p.cost, 0)
 
     pureSpotsDatabase.forEach((placeItem) => {
@@ -551,7 +606,7 @@ export function ResultView() {
     return () => clearInterval(timer)
   }, [weatherParam])
 
-  // 클릭 시 장소 교체 처리 함수 (교체 후에도 맛집3/카페3 보장)
+  // 클릭 시 장소 교체 처리 함수
   function handleReplace(id: string) {
     setPlaces((prev) => {
       const targetPlace = prev.find((p) => p.id === id)
@@ -708,9 +763,42 @@ export function ResultView() {
       ) : (
         <div className="mt-3 flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/10 p-3 text-xs text-primary font-semibold">
           <MapPin className="size-4 shrink-0 text-primary" />
-          <span>🚩 설정된 출발지: <strong className="text-foreground">{startLocationParam}</strong> (이 출발지를 기준으로 최단 지리적 순선 코스가 연동되었습니다)</span>
+          <span>🚩 설정된 출발지: <strong className="text-foreground">{startLocationParam}</strong> {startAddressParam ? `(${startAddressParam})` : ''} (이 출발지를 기준으로 최단 지리적 순선 코스가 연동되었습니다)</span>
         </div>
       )}
+
+      {/* 출발지 ➔ 1번 추천 장소 이동 방법 & 시내버스 노선 추천 전용 배지 */}
+      {firstPlaceTransitInfo && places.length > 0 ? (
+        <div className="mt-3 flex flex-col gap-2.5 rounded-2xl border border-blue-500/40 bg-blue-500/10 p-4 text-xs text-foreground shadow-xs">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-blue-500/30 pb-2.5">
+            <div className="flex items-center gap-2 font-bold text-sm text-blue-300">
+              <Bus className="size-4.5 text-blue-400 shrink-0" />
+              <span>🚩 출발지에서 1번 '{places[0].name}'까지 이동 방법 & 추천 시내버스</span>
+            </div>
+            <a
+              href={firstPlaceTransitInfo.mapUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 rounded-xl bg-blue-500/25 px-3 py-1.5 text-xs font-semibold text-blue-200 hover:bg-blue-500/40 transition-colors border border-blue-500/50 shadow-xs"
+            >
+              <span>네이버 지도 실시간 길찾기</span>
+              <ArrowRight className="size-3.5 text-blue-300" />
+            </a>
+          </div>
+
+          <div className="grid gap-2.5 sm:grid-cols-2 pt-1">
+            <div className="flex flex-col gap-1 rounded-xl bg-card/60 p-2.5 border border-border/50">
+              <span className="font-bold text-blue-300 text-xs">{firstPlaceTransitInfo.busRoute}</span>
+              <span className="text-muted-foreground text-[11px]">🚏 탑승: {firstPlaceTransitInfo.boardStop}</span>
+              <span className="text-muted-foreground text-[11px]">🚏 하차: {firstPlaceTransitInfo.alightStop}</span>
+            </div>
+            <div className="flex flex-col gap-1 rounded-xl bg-card/60 p-2.5 border border-border/50">
+              <span className="font-bold text-emerald-400 text-xs">⏱️ 대중교통 소요시간: {firstPlaceTransitInfo.duration}</span>
+              <span className="text-muted-foreground text-[11px]">🚗 자차 이동 소요시간: {firstPlaceTransitInfo.carDuration}</span>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* 예산 및 동행 유형 맞춤 안내 배지 */}
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3 text-xs text-emerald-300">
