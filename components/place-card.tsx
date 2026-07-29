@@ -12,7 +12,6 @@ import {
   Footprints,
   Info,
   MapPin,
-  Navigation,
   Phone,
   RefreshCw,
   Star,
@@ -41,12 +40,22 @@ export function PlaceCard({
 }: PlaceCardProps) {
   const [expanded, setExpanded] = useState(false)
 
-  // 이동수단별 이동 거리 및 소요 시간 계산
+  // 이동수단별 지능적 거리 및 소요시간 계산 (가까운 거리는 도보 추천)
+  const mins = place.walkMinutes || 0
+  const isNearby = mins > 0 && mins <= 7 // 약 500m 이내 인접한 거리
+
   const moveInfo = (() => {
-    const mins = place.walkMinutes || 0
     if (mins === 0) return { icon: Footprints, text: '현재 위치' }
 
     if (transport === 'car') {
+      if (isNearby) {
+        const walkM = mins * 70
+        const distText = walkM >= 1000 ? `${(walkM / 1000).toFixed(1)}km` : `${walkM}m`
+        return {
+          icon: Footprints,
+          text: `도보 ${distText} · 약 ${mins}분 (기존 주차장에 차 두고 걸어가기 권장)`,
+        }
+      }
       const driveMins = Math.max(2, Math.round(mins * 0.5))
       const distance = (mins * 0.15 + 0.5).toFixed(1)
       return {
@@ -56,6 +65,14 @@ export function PlaceCard({
     }
 
     if (transport === 'transit') {
+      if (isNearby) {
+        const walkM = mins * 70
+        const distText = walkM >= 1000 ? `${(walkM / 1000).toFixed(1)}km` : `${walkM}m`
+        return {
+          icon: Footprints,
+          text: `도보 ${distText} · 약 ${mins}분 (가까워서 도보 권장)`,
+        }
+      }
       const transitMins = Math.max(5, Math.round(mins * 1.1 + 3))
       const distance = (mins * 0.18 + 0.8).toFixed(1)
       return {
@@ -136,30 +153,68 @@ export function PlaceCard({
             </span>
           </div>
 
-          {/* 자차 선택 시 주차장 정보 상자 강조 */}
-          {transport === 'car' && place.parkingInfo ? (
-            <div className="mt-2.5 rounded-xl border border-blue-500/30 bg-blue-500/10 p-2.5 text-xs text-foreground">
-              <div className="flex items-start gap-1.5">
-                <Car className="size-4 shrink-0 text-blue-400 mt-0.5" />
-                <div>
-                  <span className="font-semibold text-blue-400">자차 주차 정보:</span>{' '}
-                  <span>{place.parkingInfo}</span>
+          {/* --- [자차 모드 분기] --- */}
+          {transport === 'car' ? (
+            isNearby ? (
+              <div className="mt-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-foreground">
+                <div className="flex items-start gap-1.5">
+                  <Footprints className="size-4 shrink-0 text-amber-400 mt-0.5" />
+                  <div>
+                    <span className="font-semibold text-amber-400">🚗 주차 꿀팁 (도보 이동 추천):</span>{' '}
+                    <span>
+                      이전 장소와 가까운 거리에 위치해 있습니다. 차를 새로 출차해 이동하고 재주차하는 것보다 기존 주차장에 차를 세워두고 골목 산책으로 걸어가시는 것이 훨씬 편합니다 (도보 약 {mins}분).
+                    </span>
+                    {place.parkingInfo ? (
+                      <div className="mt-1 text-[11px] text-muted-foreground">
+                        ※ 목적지 전용 주차 안내: {place.parkingInfo}
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : place.parkingInfo ? (
+              <div className="mt-2.5 rounded-xl border border-blue-500/30 bg-blue-500/10 p-2.5 text-xs text-foreground">
+                <div className="flex items-start gap-1.5">
+                  <Car className="size-4 shrink-0 text-blue-400 mt-0.5" />
+                  <div>
+                    <span className="font-semibold text-blue-400">🚗 자차 차로 이동 & 주차 안내:</span>{' '}
+                    <span>{place.parkingInfo}</span>
+                  </div>
+                </div>
+              </div>
+            ) : null
           ) : null}
 
-          {/* 대중교통 선택 시 시내버스 & 승하차 정보 상자 강조 */}
-          {transport === 'transit' && place.transitInfo ? (
-            <div className="mt-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-xs text-foreground">
-              <div className="flex items-start gap-1.5">
-                <Bus className="size-4 shrink-0 text-emerald-400 mt-0.5" />
-                <div>
-                  <span className="font-semibold text-emerald-400">대중교통(시내버스) 길안내:</span>{' '}
-                  <span>{place.transitInfo}</span>
+          {/* --- [대중교통 모드 분기] --- */}
+          {transport === 'transit' ? (
+            isNearby ? (
+              <div className="mt-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-foreground">
+                <div className="flex items-start gap-1.5">
+                  <Footprints className="size-4 shrink-0 text-amber-400 mt-0.5" />
+                  <div>
+                    <span className="font-semibold text-amber-400">🚌 대중교통 꿀팁 (도보 이동 추천):</span>{' '}
+                    <span>
+                      인접한 인근 거리입니다 (도보 약 {mins}분). 버스를 기다리고 승하차하는 시간보다 천천히 걸어가시는 것이 훨씬 빠르고 편리합니다.
+                    </span>
+                    {place.transitInfo ? (
+                      <div className="mt-1 text-[11px] text-muted-foreground">
+                        ※ 장거리 이동 시 시내버스 참고: {place.transitInfo}
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : place.transitInfo ? (
+              <div className="mt-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-xs text-foreground">
+                <div className="flex items-start gap-1.5">
+                  <Bus className="size-4 shrink-0 text-emerald-400 mt-0.5" />
+                  <div>
+                    <span className="font-semibold text-emerald-400">🚌 시내버스 길안내:</span>{' '}
+                    <span>{place.transitInfo}</span>
+                  </div>
+                </div>
+              </div>
+            ) : null
           ) : null}
 
           {/* 추천 사유 */}
@@ -220,15 +275,14 @@ export function PlaceCard({
                 </div>
               ) : null}
 
-              {/* 자차 및 대중교통 이동 정보 보조 표시 */}
-              {transport !== 'car' && place.parkingInfo ? (
+              {place.parkingInfo ? (
                 <div className="flex items-start gap-2 text-muted-foreground">
                   <Car className="size-3.5 shrink-0 text-blue-400 mt-0.5" />
                   <span>주차장 팁: {place.parkingInfo}</span>
                 </div>
               ) : null}
 
-              {transport !== 'transit' && place.transitInfo ? (
+              {place.transitInfo ? (
                 <div className="flex items-start gap-2 text-muted-foreground">
                   <Bus className="size-3.5 shrink-0 text-emerald-400 mt-0.5" />
                   <span>시내버스: {place.transitInfo}</span>
