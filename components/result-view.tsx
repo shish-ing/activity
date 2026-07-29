@@ -829,6 +829,7 @@ export function ResultView() {
         userBudgetLimit={userBudgetLimit}
         totalPlaceCost={totalCost}
         transport={transport}
+        time={time}
       />
 
       {/* 하단 고정바 */}
