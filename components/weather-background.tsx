@@ -9,6 +9,65 @@ interface WeatherBackgroundProps {
   realtimeCondition?: string
 }
 
+/* ========================================================================= */
+/* 🌬️ 사용자가 제공한 이미지 기반 5가지 다양한 세련된 바람 SVG 쉐이프들 */
+/* ========================================================================= */
+
+// 1. 구름 뿜어져 나오는 바람 (Puff Cloud Wind)
+function WindPuffShape({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 160 80" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+      {/* 뒤쪽 바람 줄기 */}
+      <path d="M10 25 H 70" />
+      <path d="M20 40 H 80" />
+      <path d="M15 55 H 65" />
+      {/* 구름 바람 머리 */}
+      <path d="M75 40 C 70 25 85 15 100 20 C 110 10 130 15 135 30 C 145 30 155 45 145 55 C 150 65 135 75 125 70 C 115 80 95 75 90 65 C 80 65 75 50 80 40 Z" fill="rgba(255,255,255,0.15)" />
+    </svg>
+  )
+}
+
+// 2. 끝이 말려 올라가는 3중 회오리 바람 (Triple Spiral Wind)
+function TripleSpiralWindShape({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 180 80" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round">
+      <path d="M10 20 C 60 20 120 15 140 30 C 155 42 140 60 125 45 C 115 35 130 20 145 25" />
+      <path d="M25 45 C 75 45 115 40 130 55 C 140 65 130 75 120 65 C 115 58 125 48 135 52" />
+      <path d="M40 68 C 80 68 110 65 125 72" />
+    </svg>
+  )
+}
+
+// 3. 부드러운 잔물결 파도 바람 (Smooth Wave Wind)
+function WaveWindShape({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 180 60" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round">
+      <path d="M10 20 C 40 5 80 35 120 15 C 145 2 165 25 150 35 C 135 45 130 30 145 25" />
+      <path d="M30 40 C 60 25 100 50 140 32" />
+    </svg>
+  )
+}
+
+// 4. 위아래 쌍 갈고리 바람 (Double Hook Wind)
+function DoubleHookWindShape({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 160 70" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round">
+      <path d="M10 25 C 50 25 100 15 120 30 C 135 40 125 55 110 45 C 100 38 112 25 125 30" />
+      <path d="M25 48 C 65 48 105 40 135 52 C 148 57 142 68 130 62" />
+    </svg>
+  )
+}
+
+// 5. 360도 루프 원형 바람 (Whirl Loop Swirl Wind)
+function LoopSwirlWindShape({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 170 70" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round">
+      <path d="M10 35 C 50 35 80 10 100 35 C 115 55 85 55 80 35 C 75 15 110 15 155 35" />
+      <path d="M30 55 C 60 55 85 45 110 58" />
+    </svg>
+  )
+}
+
 export function WeatherBackground({ weather, realtimeCondition }: WeatherBackgroundProps) {
   // 실제 표현할 테마
   const activeTheme: WeatherTheme = useMemo(() => {
@@ -17,6 +76,20 @@ export function WeatherBackground({ weather, realtimeCondition }: WeatherBackgro
     }
     return (weather as WeatherTheme) || 'clear'
   }, [weather, realtimeCondition])
+
+  // 바람 입자 배치용 다양한 패턴 데이터
+  const windParticles = useMemo(() => [
+    { type: 'puff', top: 12, left: -5, duration: 4.5, delay: 0, scale: 1.1 },
+    { type: 'triple', top: 22, left: 15, duration: 3.8, delay: 0.8, scale: 1.2 },
+    { type: 'wave', top: 35, left: -10, duration: 5.2, delay: 1.5, scale: 0.95 },
+    { type: 'hook', top: 48, left: 25, duration: 4.1, delay: 0.3, scale: 1.15 },
+    { type: 'loop', top: 60, left: 5, duration: 4.8, delay: 1.1, scale: 1.0 },
+    { type: 'triple', top: 72, left: 30, duration: 3.5, delay: 1.9, scale: 1.3 },
+    { type: 'puff', top: 28, left: 50, duration: 4.3, delay: 2.2, scale: 0.9 },
+    { type: 'wave', top: 65, left: 55, duration: 5.0, delay: 2.7, scale: 1.1 },
+    { type: 'hook', top: 18, left: 60, duration: 3.9, delay: 1.4, scale: 1.05 },
+    { type: 'loop', top: 42, left: 70, duration: 4.6, delay: 0.6, scale: 1.25 },
+  ], [])
 
   return (
     <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden transition-all duration-1000">
@@ -124,38 +197,39 @@ export function WeatherBackground({ weather, realtimeCondition }: WeatherBackgro
       </div>
 
       {/* ========================================================================= */}
-      {/* 4. 💨 바람: 한옥 처마를 스치는 청아한 바람 결 (Silken Wind Stream) */}
+      {/* 4. 💨 바람: 사용자가 요청한 5가지 다양한 세련된 바람 드로잉 요소 랜덤 배치 */}
       {/* ========================================================================= */}
       <div
-        className={`absolute inset-0 transition-opacity duration-1000 bg-gradient-to-b from-[#38BDF8] via-[#0284C7] to-[#0369A1] ${
+        className={`absolute inset-0 transition-opacity duration-1000 bg-gradient-to-b from-[#0284C7] via-[#0369A1] to-[#075985] ${
           activeTheme === 'wind' ? 'opacity-100' : 'opacity-0'
         }`}
       >
         <div className="absolute top-1/4 -left-10 size-[600px] rounded-full bg-sky-200/30 blur-[130px]" />
 
-        {/* 세련된 동양적 바람결 스웝 스트림 */}
+        {/* 다양한 바람 SVG 입자 10개 (랜덤 모양 & 타이밍 & 위치) */}
         <div className="absolute inset-0">
-          {[...Array(5)].map((_, i) => (
-            <div
-              key={`hanok-wind-${i}`}
-              className="absolute animate-tornado-swirl opacity-40"
-              style={{
-                top: `${(i * 18) + 12}%`,
-                left: `${(i * 20) % 70}%`,
-                animationDuration: `${(i % 3) * 2.5 + 4}s`,
-                animationDelay: `${i * 0.7}s`,
-              }}
-            >
-              <svg className="w-44 h-12 text-white/90 drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]" viewBox="0 0 200 50" fill="none">
-                <path
-                  d="M10,25 C50,5 110,45 160,20 C180,10 190,30 170,35 C150,40 140,25 155,20"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </div>
-          ))}
+          {windParticles.map((p, idx) => {
+            const iconClass = "w-36 sm:w-44 text-white/85 drop-shadow-[0_0_12px_rgba(255,255,255,0.85)]"
+            return (
+              <div
+                key={`random-wind-${idx}`}
+                className="absolute animate-random-wind"
+                style={{
+                  top: `${p.top}%`,
+                  left: `${p.left}%`,
+                  animationDuration: `${p.duration}s`,
+                  animationDelay: `${p.delay}s`,
+                  transform: `scale(${p.scale})`,
+                }}
+              >
+                {p.type === 'puff' && <WindPuffShape className={iconClass} />}
+                {p.type === 'triple' && <TripleSpiralWindShape className={iconClass} />}
+                {p.type === 'wave' && <WaveWindShape className={iconClass} />}
+                {p.type === 'hook' && <DoubleHookWindShape className={iconClass} />}
+                {p.type === 'loop' && <LoopSwirlWindShape className={iconClass} />}
+              </div>
+            )
+          })}
         </div>
       </div>
 
@@ -179,34 +253,31 @@ export function WeatherBackground({ weather, realtimeCondition }: WeatherBackgro
       </div>
 
       {/* ========================================================================= */}
-      {/* 🏯 [전주 정체성 핵심] 하단 세련된 한옥 기와 처마 실루엣 (Hanok Rooflines) */}
+      {/* 🏯 하단 세련된 전주 한옥 기와 처마 실루엣 (Hanok Rooflines) */}
       {/* ========================================================================= */}
       <div className="absolute bottom-0 inset-x-0 h-48 pointer-events-none z-10 overflow-hidden">
-        {/* 뒤쪽 한옥 처마 겹 레이어 (은은한 실루엣) */}
+        {/* 뒤쪽 한옥 처마 겹 레이어 */}
         <svg
           className="absolute bottom-0 left-0 w-[115%] h-36 text-slate-900/20 transform -translate-x-5"
           viewBox="0 0 1200 160"
           preserveAspectRatio="none"
         >
-          {/* 한옥 지붕 & 처마 곡선 벡터 */}
           <path
             d="M0,160 L0,80 C60,70 120,40 180,60 C240,80 300,75 360,50 C420,25 480,65 540,75 C600,85 660,40 720,55 C780,70 840,30 900,45 C960,60 1020,35 1080,50 C1140,65 1180,45 1200,60 L1200,160 Z"
             fill="currentColor"
           />
         </svg>
 
-        {/* 앞쪽 전주 한옥마을 상징 전통 기와지붕 실루엣 (정교하고 우아한 처마 선) */}
+        {/* 앞쪽 전주 한옥마을 기와 지붕 처마 선 */}
         <svg
           className="absolute bottom-0 inset-x-0 w-full h-32 text-slate-950/35"
           viewBox="0 0 1440 180"
           preserveAspectRatio="none"
         >
-          {/* 전주 한옥 기와 지붕 곡선 & 서래/처마 마루 */}
           <path
             d="M0,180 L0,110 C80,95 160,50 240,75 C320,100 400,90 480,60 C560,30 640,80 720,95 C800,110 880,50 960,70 C1040,90 1120,40 1200,65 C1280,90 1360,60 1440,80 L1440,180 Z"
             fill="currentColor"
           />
-          {/* 한옥 서까래 마루 경계선 포인트 */}
           <path
             d="M240,75 C320,100 400,90 480,60 M720,95 C800,110 880,50 960,70"
             stroke="rgba(255,255,255,0.2)"
@@ -252,22 +323,25 @@ export function WeatherBackground({ weather, realtimeCondition }: WeatherBackgro
           animation: page-rain linear infinite;
         }
 
-        /* 바람결 수확 이동 */
-        @keyframes tornado-swirl {
+        /* 다채로운 랜덤 바람 이동 애니메이션 */
+        @keyframes random-wind {
           0% {
-            transform: translateX(-180px) scale(0.7);
+            transform: translateX(-200px) translateY(0px) scale(0.8);
             opacity: 0;
           }
-          40% {
-            opacity: 0.8;
+          25% {
+            opacity: 0.9;
+          }
+          75% {
+            opacity: 0.85;
           }
           100% {
-            transform: translateX(110vw) scale(1.1);
+            transform: translateX(110vw) translateY(-25px) scale(1.1);
             opacity: 0;
           }
         }
-        .animate-tornado-swirl {
-          animation: tornado-swirl cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        .animate-random-wind {
+          animation: random-wind ease-in-out infinite;
         }
 
         /* 떠다니는 안개 구름 */
