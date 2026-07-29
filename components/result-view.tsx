@@ -1110,23 +1110,7 @@ export function ResultView() {
         ) : null}
       </div>
 
-      {/* 출발지 선택 및 한옥마을 기본 기준 노티피케이션 */}
-      {startLocationParam.includes('한옥마을') ? (
-        <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-300">
-          <MapPin className="size-4 shrink-0 text-amber-400 mt-0.5" />
-          <div>
-            <span className="font-bold">📍 출발 기준지 안내:</span>{' '}
-            <span>
-              실시간 위치 수신 불가 환경(또는 미승인)으로 인해, 전주 대표 중심지인 <strong>'전주 한옥마을(전동성당)'을 기본 출발지 기준</strong>으로 설정하여 주변 및 최단 지리적 순선 코스를 안내해 드립니다.
-            </span>
-          </div>
-        </div>
-      ) : (
-        <div className="mt-3 flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/10 p-3 text-xs text-primary font-semibold">
-          <MapPin className="size-4 shrink-0 text-primary" />
-          <span>🚩 설정된 출발지: <strong className="text-foreground">{startLocationParam}</strong> {startAddressParam ? `(${startAddressParam})` : ''} (이 출발지를 기준으로 최단 지리적 순선 코스가 연동되었습니다)</span>
-        </div>
-      )}
+
 
       {/* 출발지 ➔ 1번 추천 장소 이동 방법 & 시내버스 노선 추천 전용 배지 */}
       {firstPlaceTransitInfo && places.length > 0 ? (
@@ -1247,28 +1231,7 @@ export function ResultView() {
         </div>
       </div>
 
-      {/* 예산 및 동행 유형 맞춤 안내 배지 */}
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3 text-xs text-emerald-300">
-        <div className="flex items-center gap-2">
-          <Sparkles className="size-4 shrink-0 text-emerald-400" />
-          <span className="font-semibold">{companionLabel.text}</span>
-        </div>
-        <div className="flex items-center gap-1.5 font-bold text-amber-300 bg-amber-500/15 px-2.5 py-1 rounded-lg border border-amber-500/30">
-          <Wallet className="size-3.5 text-amber-400" />
-          <span>예산: {budgetDisplayLabel}</span>
-        </div>
-      </div>
 
-      {/* 날씨 맞춤 큐레이션 안내 배지 */}
-      <div
-        className={`mt-3 flex items-start gap-2.5 rounded-xl border p-3.5 text-xs ${weatherCareMessage.bannerColor}`}
-      >
-        <span className="text-base leading-none">{weatherCareMessage.icon}</span>
-        <div>
-          <span className="font-bold">{weatherCareMessage.title}</span>{' '}
-          <span className="leading-relaxed">{weatherCareMessage.text}</span>
-        </div>
-      </div>
 
       {/* 시간 및 이동수단 안내 띠 */}
       <div className="mt-3 flex flex-col gap-2 rounded-xl bg-card border border-border p-3 text-xs text-foreground">
