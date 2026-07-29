@@ -20,7 +20,7 @@ export function BudgetPieChart({
   transport,
   time = '3h',
 }: BudgetPieChartProps) {
-  // 예산 소진 비율 및 지출 카테고리 세부 내역 계산 (여행 시간 파라미터 엄격 반영)
+  // 예산 소진 비율 및 지출 카테고리 세부 내역 계산 (시간 파라미터 엄격 적용)
   const breakdownData = useMemo(() => {
     if (userBudgetLimit === 0) {
       return {
@@ -46,11 +46,11 @@ export function BudgetPieChart({
       Math.max(totalPlaceCost + 15000, Math.round(userBudgetLimit * 0.82)),
     )
 
-    // 2. 교통비 추정 (도보 0원 / 대중교통 ~4,500원 / 자차 ~12,000원)
+    // 2. 교통비 추정
     const transportCost =
       transport === 'car' ? 12000 : transport === 'transit' ? 4500 : 0
 
-    // 3. 여행 시간(time)별 현실적 식사 횟수 및 식비 상한 제한
+    // 3. 여행 시간(time)별 식비 상한선 제약
     let mealDesc = '전주 로컬 맛집 정식 1식'
     let maxMealCost = 22000
     let maxCafeCost = 12000
@@ -81,7 +81,7 @@ export function BudgetPieChart({
       maxCafeCost = 45000
     }
 
-    // 4. 현실적 식비 & 카페비 계산
+    // 4. 현실적 카테고리별 지출액 계산
     const diningAmount = Math.min(
       maxMealCost,
       Math.max(12000, Math.round(targetSpent * (time === '1h' ? 0.1 : time === '3h' ? 0.18 : 0.32))),
@@ -92,10 +92,8 @@ export function BudgetPieChart({
       Math.max(6000, Math.round(targetSpent * 0.12)),
     )
 
-    // 관람 및 공방 체험비
     const activityAmount = Math.max(totalPlaceCost, Math.round(targetSpent * 0.25))
 
-    // 짧은 시간 일정에서 큰 예산이 남을 경우, 남은 예산은 전주 고급 특산품/선물 세트 쇼핑으로 배정!
     const shoppingAmount = Math.max(
       0,
       targetSpent - diningAmount - cafeAmount - activityAmount - transportCost,
@@ -112,7 +110,7 @@ export function BudgetPieChart({
         name: '🍲 로컬 식비',
         amount: diningAmount,
         percentage: Math.round((diningAmount / totalCalculated) * 100),
-        color: '#10b981', // 에메랄드 그린
+        color: '#10b981', // 초록색 (에메랄드)
         icon: Utensils,
         description: mealDesc,
       },
@@ -120,7 +118,7 @@ export function BudgetPieChart({
         name: '🎟️ 관람 & 공방 체험료',
         amount: activityAmount,
         percentage: Math.round((activityAmount / totalCalculated) * 100),
-        color: '#f59e0b', // 앰버 옐로우
+        color: '#f59e0b', // 노란색 (앰버)
         icon: Ticket,
         description: '한지/도자기/부채 공방, 전주 난장, 어진박물관 등',
       },
@@ -128,7 +126,7 @@ export function BudgetPieChart({
         name: '☕ 카페 & 전통 찻집',
         amount: cafeAmount,
         percentage: Math.round((cafeAmount / totalCalculated) * 100),
-        color: '#06b6d4', // 시안 블루
+        color: '#06b6d4', // 시안 하늘색
         icon: Coffee,
         description: '외할머니솜씨 팥빙수, 교동다원 전통 황차 1회',
       },
@@ -136,7 +134,7 @@ export function BudgetPieChart({
         name: '🛍️ 특산품 & 고급 선물 쇼핑',
         amount: shoppingAmount,
         percentage: Math.round((shoppingAmount / totalCalculated) * 100),
-        color: '#a855f7', // 퍼플 보라
+        color: '#a855f7', // 보라색 (퍼플)
         icon: Gift,
         description: '전주 수제 초코파이 선물세트, 전통주 모주, 한지 소품',
       },
@@ -144,7 +142,7 @@ export function BudgetPieChart({
         name: transport === 'car' ? '🚗 주차 & 기름값' : transport === 'transit' ? '🚌 시내버스 교통비' : '🚶 도보 이동비',
         amount: transportCost,
         percentage: Math.round((transportCost / totalCalculated) * 100),
-        color: '#3b82f6', // 브라이트 블루
+        color: '#3b82f6', // 파란색 (블루)
         icon: Bus,
         description: transport === 'car' ? '공영주차장 및 기름값' : transport === 'transit' ? '전주 시내버스 3~4회 승차' : '도보 0원 산책',
       },
@@ -161,23 +159,49 @@ export function BudgetPieChart({
     }
   }, [userBudgetLimit, totalPlaceCost, transport, time])
 
-  // 선명하고 확실한 색상 구별을 위한 CSS Conic Gradient 생성
-  const conicGradientStyle = useMemo(() => {
+  // 색상 번짐이나 오버랩이 0%인 완벽한 수학적 SVG Vector Donut Path 계산
+  const svgDonutSlices = useMemo(() => {
     const total = breakdownData.targetSpent
-    if (total === 0) return { background: '#10b981' }
+    if (total === 0) return []
 
-    let currentPercentAcc = 0
-    const colorStops = breakdownData.categories.map((cat) => {
-      const start = currentPercentAcc
-      const pct = (cat.amount / total) * 100
-      currentPercentAcc += pct
-      const end = currentPercentAcc
-      return `${cat.color} ${start.toFixed(2)}% ${end.toFixed(2)}%`
+    const outerRadius = 90
+    const innerRadius = 55
+    let currentAngle = -Math.PI / 2 // 12시 방향부터 시계방향 회전
+
+    return breakdownData.categories.map((cat) => {
+      const fraction = cat.amount / total
+      const sliceAngle = fraction * 2 * Math.PI
+      const startAngle = currentAngle
+      const endAngle = currentAngle + sliceAngle
+      currentAngle = endAngle
+
+      // 극좌표계 -> 직교좌표계 변환
+      const x1_out = outerRadius * Math.cos(startAngle)
+      const y1_out = outerRadius * Math.sin(startAngle)
+      const x2_out = outerRadius * Math.cos(endAngle)
+      const y2_out = outerRadius * Math.sin(endAngle)
+
+      const x2_in = innerRadius * Math.cos(endAngle)
+      const y2_in = innerRadius * Math.sin(endAngle)
+      const x1_in = innerRadius * Math.cos(startAngle)
+      const y1_in = innerRadius * Math.sin(startAngle)
+
+      const largeArc = sliceAngle > Math.PI ? 1 : 0
+
+      // SVG Donut Path
+      const pathData = [
+        `M ${x1_out.toFixed(3)} ${y1_out.toFixed(3)}`,
+        `A ${outerRadius} ${outerRadius} 0 ${largeArc} 1 ${x2_out.toFixed(3)} ${y2_out.toFixed(3)}`,
+        `L ${x2_in.toFixed(3)} ${y2_in.toFixed(3)}`,
+        `A ${innerRadius} ${innerRadius} 0 ${largeArc} 0 ${x1_in.toFixed(3)} ${y1_in.toFixed(3)}`,
+        `Z`,
+      ].join(' ')
+
+      return {
+        ...cat,
+        pathData,
+      }
     })
-
-    return {
-      background: `conic-gradient(${colorStops.join(', ')})`,
-    }
   }, [breakdownData])
 
   if (userBudgetLimit === 0) {
@@ -223,26 +247,34 @@ export function BudgetPieChart({
       </div>
 
       <div className="grid gap-6 md:grid-cols-[220px_1fr] items-center pt-2">
-        {/* 원형 도넛 그래프 (선명한 CSS Conic Gradient 색상 선명 표기) */}
+        {/* 원형 도넛 그래프 (각 영역별 독립 SVG Vector Path - 영역 겹침/번짐 0%) */}
         <div className="relative flex flex-col items-center justify-center p-2">
-          <div
-            style={conicGradientStyle}
-            className="size-44 rounded-full shadow-lg border-2 border-border/40 relative flex items-center justify-center transition-all hover:scale-105"
-          >
-            {/* Center Donut Hole */}
-            <div className="size-28 rounded-full bg-card shadow-inner flex flex-col items-center justify-center text-center p-2">
-              <span className="text-[11px] font-medium text-muted-foreground">총 예상 지출</span>
-              <span className="font-bold text-sm text-foreground">
-                {formatWon(breakdownData.targetSpent)}
-              </span>
-              <span className="text-[10px] text-accent font-semibold">
-                (예산의 {breakdownData.utilizationRate}%)
-              </span>
-            </div>
+          <svg viewBox="-100 -100 200 200" className="size-48 overflow-visible">
+            {svgDonutSlices.map((slice) => (
+              <path
+                key={slice.name}
+                d={slice.pathData}
+                fill={slice.color}
+                stroke="hsl(var(--card))"
+                strokeWidth="2"
+                className="transition-all hover:opacity-85 cursor-pointer"
+              />
+            ))}
+          </svg>
+
+          {/* 그래프 중앙 텍스트 */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+            <span className="text-[11px] font-medium text-muted-foreground">총 예상 지출</span>
+            <span className="font-bold text-sm text-foreground">
+              {formatWon(breakdownData.targetSpent)}
+            </span>
+            <span className="text-[10px] text-accent font-semibold">
+              (예산의 {breakdownData.utilizationRate}%)
+            </span>
           </div>
         </div>
 
-        {/* 범례 및 세부 지출 항목 내역 5선 (색상 도트 명확 연동) */}
+        {/* 범례 및 세부 지출 항목 내역 5선 (색상 도트 정확 연동) */}
         <div className="flex flex-col gap-2">
           {breakdownData.categories.map((cat) => {
             return (
