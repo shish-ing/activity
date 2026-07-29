@@ -587,17 +587,21 @@ export function ResultView() {
     }
   }, [weatherParam, weather])
 
-  // 날씨 기반 폭염/우천/한파 실내 스팟 우선배치 여부
-  const isIndoorPriority = useMemo(() => {
-    return (
-      weatherParam === 'wind' ||
-      weatherParam === 'snow' ||
-      weatherParam === 'rain' ||
-      weatherParam === 'clear' ||
-      weather.condition === 'rain' ||
-      weather.detail.includes('30°C')
-    )
+  // 날씨별 실내 장소 비중 비율 (0.0 ~ 1.0)
+  // 1.0 = 100% 실내, 0.5 = 실내/야외 반반, 0.0 = 제한 없음
+  const indoorRatio = useMemo(() => {
+    // 폭설·폭우: 실내 70% + 야외 30%
+    if (weatherParam === 'snow' || weatherParam === 'rain' || weather.condition === 'rain') return 0.7
+    // 강풍·한파: 실내 70%
+    if (weatherParam === 'wind') return 0.7
+    // 폭염: 실내 60%
+    if (weatherParam === 'clear' || weather.detail.includes('30°C')) return 0.6
+    // 흐림·선선·실시간 auto: 실내/야외 균등
+    return 0.5
   }, [weather, weatherParam])
+
+  // isIndoorPriority: 실내 비중이 50% 초과인 경우 (정렬 우선순위 판단용)
+  const isIndoorPriority = indoorRatio > 0.5
 
   // 선택한 출발지, 남은 시간, 예산, 이동수단, 동행 유형, 날씨 및 최단 경로 정렬
   useEffect(() => {
@@ -669,8 +673,11 @@ export function ResultView() {
     else if (time === '2days') targetCount = 10
     else if (time === '3days') targetCount = 14
 
-    // 3. 예산 범위(0원~50만원+) & 이동수단(도보, 대중교통, 자차) 지리적 필터링
-    // DB 자체가 전주 고유 명소만 포함하므로 별도 프랜차이즈 필터 불필요
+    // 3. 날씨별 실내/야외 비중 기반 필터링
+    // indoorRatio = 실내 장소 목표 비율 (예: 0.7이면 70%는 실내, 30%는 야외)
+    const indoorTarget = Math.round(targetCount * indoorRatio)
+    const outdoorTarget = targetCount - indoorTarget
+
     const pureSpotsDatabase = JEONJU_PLACES_DATABASE.filter((p) => {
       if (p.isMeal || p.isDessert) return false
 
@@ -707,15 +714,23 @@ export function ResultView() {
       return Math.random() - 0.5
     })
 
-    // DB에서 조건에 부합하는 장소들 채우기
+    // DB에서 날씨 비중에 맞게 실내/야외 장소를 할당
     let currentCostSum = generated.reduce((s, p) => s + p.cost, 0)
+    // 이미 필수 방문지로 추가된 실내/야외 카운트 반영
+    let indoorCount = generated.filter(p => p.isIndoor !== false).length
+    let outdoorCount = generated.filter(p => p.isIndoor === false).length
 
     pureSpotsDatabase.forEach((placeItem) => {
       if (generated.length >= targetCount) return
       if (addedNames.has(placeItem.name.toLowerCase())) return
 
-      if (isIndoorPriority && placeItem.isIndoor === false && !placeItem.isMustVisit) {
-        return
+      // 날씨 비중 제어: 실내/야외 쿼터 초과 시 해당 타입 건너뜀
+      if (placeItem.isIndoor !== false) {
+        // 실내 장소: 실내 쿼터 초과 시 야외 자리가 남아있으면 건너뜀
+        if (indoorCount >= indoorTarget && outdoorCount < outdoorTarget) return
+      } else {
+        // 야외 장소: 야외 쿼터 초과 시 건너뜀
+        if (outdoorCount >= outdoorTarget) return
       }
 
       if (userBudgetLimit > 0 && currentCostSum + placeItem.cost > userBudgetLimit && placeItem.cost > 0) {
@@ -724,12 +739,14 @@ export function ResultView() {
 
       currentCostSum += placeItem.cost
       addedNames.add(placeItem.name.toLowerCase())
+      if (placeItem.isIndoor !== false) indoorCount++; else outdoorCount++
       generated.push(ensureThreeDiningAndCafes({
         ...placeItem,
         id: `db-${orderCounter}`,
         order: orderCounter++,
       }))
     })
+
 
     // 목표 장소 수 미달 시 보충
     if (generated.length < targetCount) {
@@ -845,7 +862,8 @@ export function ResultView() {
     })
 
     setPlaces(finalPlaces)
-  }, [rawMustVisit, time, isIndoorPriority, weatherParam, companionParam, transport, userBudgetLimit, startLocationParam])
+  }, [rawMustVisit, time, indoorRatio, isIndoorPriority, weatherParam, companionParam, transport, userBudgetLimit, startLocationParam])
+
 
   async function loadRealtimeWeather() {
     setWeatherLoading(true)
