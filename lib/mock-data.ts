@@ -11,12 +11,12 @@ export type ChipOption = {
 
 // 남은 시간
 export const TIME_OPTIONS: ChipOption[] = [
-  { value: '1h', label: '1시간', hint: '가볍게' },
-  { value: '3h', label: '3시간', hint: '여유롭게' },
-  { value: 'half', label: '반나절', hint: '4~5시간' },
-  { value: 'full', label: '하루', hint: '풀 코스' },
-  { value: '2days', label: '이틀', hint: '1박 2일' },
-  { value: '3days', label: '사흘', hint: '2박 3일' },
+  { value: '1h', label: '⚡ 1시간', hint: '가볍게' },
+  { value: '3h', label: '☕ 3시간', hint: '여유롭게' },
+  { value: 'half', label: '🌤️ 반나절', hint: '4~5시간' },
+  { value: 'full', label: '🗓️ 하루', hint: '풀 코스' },
+  { value: '2days', label: '🏕️ 이틀', hint: '1박 2일' },
+  { value: '3days', label: '🗺️ 사흘', hint: '2박 3일' },
 ]
 
 // 예산
@@ -28,19 +28,19 @@ export const BUDGET_OPTIONS: ChipOption[] = [
 
 // 동행 유형
 export const COMPANION_OPTIONS: ChipOption[] = [
-  { value: 'solo', label: '혼자' },
-  { value: 'couple', label: '커플' },
-  { value: 'friends', label: '친구' },
-  { value: 'family', label: '가족' },
-  { value: 'kids', label: '아이 동반' },
-  { value: 'pet', label: '반려동물 동반' },
+  { value: 'solo', label: '🙋‍♂️ 혼자' },
+  { value: 'couple', label: '👩‍❤️‍👨 커플' },
+  { value: 'friends', label: '🧑‍🤝‍🧑 친구' },
+  { value: 'family', label: '👨‍👩‍👧‍👦 가족' },
+  { value: 'kids', label: '👶 아이 동반' },
+  { value: 'pet', label: '🐾 반려동물 동반' },
 ]
 
-// 이동수단
+// 이동수단 (도보는 🚶‍♂️, 대중교통은 🚌, 자차는 🚗 아이콘 장착)
 export const TRANSPORT_OPTIONS: ChipOption[] = [
-  { value: 'walk', label: '도보' },
-  { value: 'transit', label: '대중교통' },
-  { value: 'car', label: '자차' },
+  { value: 'walk', label: '🚶‍♂️ 도보' },
+  { value: 'transit', label: '🚌 대중교통' },
+  { value: 'car', label: '🚗 자차' },
 ]
 
 // 날씨 선택지 (실시간 및 예보/가상 날씨)
