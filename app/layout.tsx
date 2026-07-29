@@ -55,7 +55,7 @@ export default function RootLayout({
   return (
     <html
       lang="ko"
-      className={`bg-background ${notoSansKr.variable} ${gowunBatang.variable}`}
+      className={`dark bg-[#142A40] ${notoSansKr.variable} ${gowunBatang.variable}`}
     >
       <head>
         <link
@@ -64,7 +64,7 @@ export default function RootLayout({
           crossOrigin=""
         />
       </head>
-      <body className="font-sans antialiased">
+      <body className="font-sans antialiased relative z-10">
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
