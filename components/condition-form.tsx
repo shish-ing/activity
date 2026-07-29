@@ -12,6 +12,7 @@ import {
   MOCK_LOCATION,
   TIME_OPTIONS,
   TRANSPORT_OPTIONS,
+  WEATHER_OPTIONS,
 } from '@/lib/mock-data'
 import { cn } from '@/lib/utils'
 
@@ -22,6 +23,7 @@ export function ConditionForm() {
   const [time, setTime] = useState<string | null>('3h')
   const [budget, setBudget] = useState<string | null>('3')
   const [companion, setCompanion] = useState<string | null>('couple')
+  const [weatherOpt, setWeatherOpt] = useState<string | null>('auto')
   const [transport, setTransport] = useState<string | null>('walk')
   const [mustVisit, setMustVisit] = useState<string[]>(['전동성당'])
   const [loading, setLoading] = useState(false)
@@ -48,6 +50,7 @@ export function ConditionForm() {
     if (time) params.set('time', time)
     if (budget) params.set('budget', budget)
     if (companion) params.set('companion', companion)
+    if (weatherOpt) params.set('weather', weatherOpt)
     if (transport) params.set('transport', transport)
 
     setTimeout(() => {
@@ -114,6 +117,14 @@ export function ConditionForm() {
           options={COMPANION_OPTIONS}
           value={companion}
           onChange={setCompanion}
+          columns={3}
+        />
+        {/* 동행 유형과 이동수단 사이에 위치한 날씨 선택 옵션 (이모티콘 포함) */}
+        <ChipSelect
+          label="날씨 (실시간 연동 & 예보 직접 선택)"
+          options={WEATHER_OPTIONS}
+          value={weatherOpt}
+          onChange={setWeatherOpt}
           columns={3}
         />
         <ChipSelect

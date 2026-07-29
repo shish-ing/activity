@@ -43,6 +43,16 @@ export const TRANSPORT_OPTIONS: ChipOption[] = [
   { value: 'car', label: '자차' },
 ]
 
+// 날씨 선택지 (실시간 및 예보/가상 날씨)
+export const WEATHER_OPTIONS: ChipOption[] = [
+  { value: 'auto', label: '🛰️ 실시간', hint: '기상청 연동' },
+  { value: 'clear', label: '☀️ 맑음·더위', hint: '시원한 실내' },
+  { value: 'rain', label: '☔ 비 옴', hint: '우천 공방/찻집' },
+  { value: 'cloudy', label: '☁️ 구름 많음', hint: '선선한 산책' },
+  { value: 'snow', label: '❄️ 눈 옴', hint: '한옥 설경/따뜻' },
+  { value: 'wind', label: '🥶 바람·한파', hint: '따뜻한 국밥/실내' },
+]
+
 // 필수 방문지 검색 더미 결과 (검색창에 입력 시 노출)
 export const SEARCH_SUGGESTIONS: string[] = [
   '전동성당',
@@ -59,7 +69,7 @@ export const SEARCH_SUGGESTIONS: string[] = [
 
 // 현재 날씨 요약 (결과 화면 상단 배지)
 export type Weather = {
-  condition: 'rain' | 'clear' | 'cloudy'
+  condition: 'rain' | 'clear' | 'cloudy' | 'snow' | 'wind'
   emoji: string
   summary: string
   detail: string

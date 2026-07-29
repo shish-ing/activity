@@ -24,6 +24,7 @@ export function ResultView() {
   const rawMustVisit = searchParams.get('mustVisit')
   const time = searchParams.get('time') || '3h'
   const transport = searchParams.get('transport') || 'walk' // 'walk' | 'transit' | 'car'
+  const weatherParam = searchParams.get('weather') || 'auto' // 'auto' | 'clear' | 'rain' | 'cloudy' | 'snow' | 'wind'
 
   const [places, setPlaces] = useState<Place[]>(RECOMMENDED_PLACES)
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -66,16 +67,20 @@ export function ResultView() {
     }
   }, [time])
 
-  // 날씨 기반 폭염/우천 자동 배치 판단
+  // 날씨 기반 폭염/우천/한파 자동 배치 판단
   const isHotOrRain = useMemo(() => {
     return (
+      weatherParam === 'rain' ||
+      weatherParam === 'clear' ||
+      weatherParam === 'snow' ||
+      weatherParam === 'wind' ||
       weather.condition === 'rain' ||
       weather.detail.includes('30°C') ||
       weather.detail.includes('29°C') ||
       weather.detail.includes('28°C') ||
       weather.summary.includes('맑음')
     )
-  }, [weather])
+  }, [weather, weatherParam])
 
   // 선택한 남은 시간, 날씨 및 필수 방문지 기반 동적 코스 자동 생성
   useEffect(() => {
@@ -98,7 +103,6 @@ export function ResultView() {
 
       if (foundInDb && !addedNames.has(foundInDb.name.toLowerCase())) {
         addedNames.add(foundInDb.name.toLowerCase())
-        // 만약 폭염 날씨인데 야외 명소(오목대 등)가 필수 방문지에 포함되어 있다면 폭염 경고 추가
         const isOutdoorHot = isHotOrRain && foundInDb.isIndoor === false
         generated.push({
           ...foundInDb,
@@ -107,7 +111,7 @@ export function ResultView() {
           isMustVisit: true,
           reason: `사용자께서 직접 검색하여 추가하신 필수 방문지 '${name}'입니다.`,
           warning: isOutdoorHot
-            ? `☀️ 폭염 주의 (기온 30°C): 땡볕 경사 구간입니다. 양산/손선풍기 필수 및 시원한 실내 공방/카페 휴식을 병행하세요.`
+            ? `☀️ 폭염/악천후 주의: 땡볕 야외 또는 경사 구간입니다. 양산/손선풍기 필수 및 시원한 실내 공방/카페 휴식을 병행하세요.`
             : foundInDb.warning,
         })
       } else if (!addedNames.has(name.toLowerCase())) {
@@ -162,9 +166,8 @@ export function ResultView() {
       if (generated.length >= targetCount) return
       if (addedNames.has(placeItem.name.toLowerCase())) return
 
-      // 폭염 시 야외 전용 장소(오목대, 자만벽화마을 등)는 비필수일 때 자동 제외/대체
+      // 폭염/우천 시 야외 전용 장소(오목대, 자만벽화마을 등)는 비필수일 때 자동 제외/대체
       if (isHotOrRain && placeItem.isIndoor === false && !placeItem.isMustVisit) {
-        // 폭염 날씨일 경우 야외 언덕 코스(오목대 등) 대신 실내 공방/박물관 우선 추천
         return
       }
 
@@ -179,7 +182,7 @@ export function ResultView() {
           ...placeItem,
           id: `db-${orderCounter}`,
           order: orderCounter++,
-          reason: `네이버 지도 추천 시원한 전주 3대 점심/미식 맛집입니다.`,
+          reason: `네이버 지도 추천 전주 3대 점심/미식 맛집입니다.`,
         })
         return
       }
@@ -230,21 +233,64 @@ export function ResultView() {
   async function loadRealtimeWeather() {
     setWeatherLoading(true)
     try {
-      const res = await fetch('/api/weather')
-      if (res.ok) {
-        const data = await res.json()
+      if (weatherParam === 'clear') {
         setWeather({
-          condition: data.condition,
-          emoji: data.emoji,
-          summary: data.summary,
-          detail: data.detail,
+          condition: 'clear',
+          emoji: '☀️',
+          summary: '☀️ 맑음 · 폭염 (선택한 예보 날씨)',
+          detail: '무더위를 피해 에어컨이 시원한 실내 수제 공방/지하 어진박물관/빙수 카페 위주로 큐레이션되었습니다 · 기온 31°C · 강수확률 0%',
         })
-        if (data.lastUpdated) {
-          setLastFetchTime(data.lastUpdated)
+        setLastFetchTime('예보 선택')
+      } else if (weatherParam === 'rain') {
+        setWeather({
+          condition: 'rain',
+          emoji: '☔',
+          summary: '☔ 비 옴 (선택한 예보 날씨)',
+          detail: '비 오는 날 운치에 어울리는 실내 공방/전통 찻집/실내 체험 위주로 추천드려요 · 기온 21°C · 강수확률 90%',
+        })
+        setLastFetchTime('예보 선택')
+      } else if (weatherParam === 'cloudy') {
+        setWeather({
+          condition: 'cloudy',
+          emoji: '☁️',
+          summary: '☁️ 구름 많음 (선택한 예보 날씨)',
+          detail: '선선해서 한옥마을 및 야외 걷기 딱 좋은 날씨예요 · 기온 24°C · 강수확률 20%',
+        })
+        setLastFetchTime('예보 선택')
+      } else if (weatherParam === 'snow') {
+        setWeather({
+          condition: 'snow',
+          emoji: '❄️',
+          summary: '❄️ 눈 옴 (선택한 예보 날씨)',
+          detail: '하얀 한옥 설경과 따뜻한 실내 찻집/전주 콩나물국밥 위주로 추천해 드려요 · 기온 -2°C · 강수확률 80%',
+        })
+        setLastFetchTime('예보 선택')
+      } else if (weatherParam === 'wind') {
+        setWeather({
+          condition: 'wind',
+          emoji: '🥶',
+          summary: '🥶 한파 · 찬 바람 (선택한 예보 날씨)',
+          detail: '매서운 바람을 피할 따뜻한 실내 공방 체험과 얼큰한 남부시장 순대국밥 코스를 추천해 드려요 · 기온 -5°C · 강수확률 10%',
+        })
+        setLastFetchTime('예보 선택')
+      } else {
+        // 'auto' - 실시간 기상청 API
+        const res = await fetch('/api/weather')
+        if (res.ok) {
+          const data = await res.json()
+          setWeather({
+            condition: data.condition,
+            emoji: data.emoji,
+            summary: `🛰️ 실시간: ${data.summary}`,
+            detail: data.detail,
+          })
+          if (data.lastUpdated) {
+            setLastFetchTime(data.lastUpdated)
+          }
         }
       }
     } catch (err) {
-      console.error('Failed to load realtime weather:', err)
+      console.error('Failed to load weather:', err)
     } finally {
       setWeatherLoading(false)
     }
@@ -254,7 +300,7 @@ export function ResultView() {
     loadRealtimeWeather()
     const timer = setInterval(loadRealtimeWeather, 3600000)
     return () => clearInterval(timer)
-  }, [])
+  }, [weatherParam])
 
   function handleReplace(id: string) {
     setPlaces((prev) =>
@@ -306,7 +352,7 @@ export function ResultView() {
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 pb-28">
-      {/* 실시간 날씨 요약 배지 */}
+      {/* 실시간 / 선택된 예보 날씨 요약 배지 */}
       <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-accent/40 bg-accent/10 px-4 py-3">
         <div className="flex items-center gap-3">
           <span className="text-2xl" aria-hidden>
@@ -315,30 +361,32 @@ export function ResultView() {
           <div>
             <div className="flex items-center gap-2">
               <p className="text-sm font-semibold text-foreground">
-                전주 실시간 날씨: {weather.summary}
+                {weather.summary}
               </p>
               <span className="rounded-full bg-accent/20 px-2 py-0.5 text-[10px] font-medium text-accent">
-                1시간 주기 최신화
+                {weatherParam === 'auto' ? '실시간 1시간 주기' : '예보 조건 맞춤'}
               </span>
             </div>
             <p className="text-xs text-muted-foreground">{weather.detail}</p>
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={loadRealtimeWeather}
-          disabled={weatherLoading}
-          title="기상청/실시간 날씨 새로고침"
-          className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
-        >
-          <RefreshCw
-            className={`size-3.5 ${weatherLoading ? 'animate-spin' : ''}`}
-          />
-          <span className="hidden sm:inline">
-            {lastFetchTime ? `${lastFetchTime} 갱신` : '새로고침'}
-          </span>
-        </button>
+        {weatherParam === 'auto' ? (
+          <button
+            type="button"
+            onClick={loadRealtimeWeather}
+            disabled={weatherLoading}
+            title="기상청/실시간 날씨 새로고침"
+            className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+          >
+            <RefreshCw
+              className={`size-3.5 ${weatherLoading ? 'animate-spin' : ''}`}
+            />
+            <span className="hidden sm:inline">
+              {lastFetchTime ? `${lastFetchTime} 갱신` : '새로고침'}
+            </span>
+          </button>
+        ) : null}
       </div>
 
       {/* 폭염/더위 날씨 맞춤 큐레이션 안내 배지 */}
@@ -346,9 +394,9 @@ export function ResultView() {
         <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3.5 py-2.5 text-xs text-foreground">
           <SunMedium className="size-4 shrink-0 text-amber-400 mt-0.5" />
           <div>
-            <span className="font-semibold text-amber-400">☀️ 폭염 날씨 케어 큐레이션:</span>{' '}
+            <span className="font-semibold text-amber-400">☀️ 날씨 케어 큐레이션:</span>{' '}
             <span>
-              오늘처럼 기온이 높은 날(30°C) 땡볕 야외 언덕(오목대 등)을 피하고, 에어컨이 완비된 <strong>시원한 수제 공방(한지·부채·도자기), 지하 어진박물관, 빙수 카페</strong> 위주로 코스를 자동 배치했습니다.
+              선택하신 기상 환경에 맞춰 땡볕 야외 언덕(오목대 등)을 피하고, 에어컨이 완비된 <strong>시원한 수제 공방(한지·부채·도자기), 지하 어진박물관, 빙수 카페</strong> 위주로 코스를 자동 배치했습니다.
             </span>
           </div>
         </div>
