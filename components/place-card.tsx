@@ -10,6 +10,7 @@ import {
   ChevronUp,
   Clock,
   Coffee,
+  ExternalLink,
   Footprints,
   Gift,
   Heart,
@@ -259,9 +260,18 @@ export function PlaceCard({
                     </div>
                     {place.nearbyDining.map((item) => (
                       <div key={item.name} className="text-xs leading-tight text-foreground py-1.5 border-b border-border/40 last:border-0">
-                        <div className="flex items-center justify-between font-semibold">
-                          <span>{item.name}</span>
-                          <span className="text-[10px] text-emerald-400 font-normal">{item.distance}</span>
+                        <div className="flex items-center justify-between font-semibold gap-1">
+                          <a
+                            href={item.naverMapUrl || `https://map.naver.com/v5/search/${encodeURIComponent(place.name + ' ' + item.name)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="hover:underline flex items-center gap-1 text-foreground hover:text-emerald-500 transition-colors truncate"
+                            title="네이버 지도로 장소 길찾기"
+                          >
+                            <span className="truncate">{item.name}</span>
+                            <ExternalLink className="size-3 text-emerald-500 opacity-70 shrink-0" />
+                          </a>
+                          <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 shrink-0">{item.distance}</span>
                         </div>
                         <div className="text-[11px] text-muted-foreground mt-0.5">대표 메뉴: {item.menu}</div>
                       </div>
@@ -276,9 +286,18 @@ export function PlaceCard({
                     </div>
                     {place.nearbyCafes.map((item) => (
                       <div key={item.name} className="text-xs leading-tight text-foreground py-1.5 border-b border-border/40 last:border-0">
-                        <div className="flex items-center justify-between font-semibold">
-                          <span>{item.name}</span>
-                          <span className="text-[10px] text-amber-400 font-normal">{item.distance}</span>
+                        <div className="flex items-center justify-between font-semibold gap-1">
+                          <a
+                            href={item.naverMapUrl || `https://map.naver.com/v5/search/${encodeURIComponent(place.name + ' ' + item.name)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="hover:underline flex items-center gap-1 text-foreground hover:text-amber-500 transition-colors truncate"
+                            title="네이버 지도로 장소 길찾기"
+                          >
+                            <span className="truncate">{item.name}</span>
+                            <ExternalLink className="size-3 text-amber-500 opacity-70 shrink-0" />
+                          </a>
+                          <span className="text-[10px] text-amber-400 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 shrink-0">{item.distance}</span>
                         </div>
                         <div className="text-[11px] text-muted-foreground mt-0.5">시그니처: {item.menu}</div>
                       </div>
@@ -293,9 +312,18 @@ export function PlaceCard({
                     </div>
                     {place.nearbySpecialties.map((item) => (
                       <div key={item.name} className="text-xs leading-tight text-foreground py-1.5 border-b border-border/40 last:border-0">
-                        <div className="flex items-center justify-between font-semibold">
-                          <span>{item.name}</span>
-                          <span className="text-[10px] text-purple-400 font-normal">{item.distance}</span>
+                        <div className="flex items-center justify-between font-semibold gap-1">
+                          <a
+                            href={item.naverMapUrl || `https://map.naver.com/v5/search/${encodeURIComponent(place.name + ' ' + item.name)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="hover:underline flex items-center gap-1 text-foreground hover:text-purple-400 transition-colors truncate"
+                            title="네이버 지도로 장소 길찾기"
+                          >
+                            <span className="truncate">{item.name}</span>
+                            <ExternalLink className="size-3 text-purple-400 opacity-70 shrink-0" />
+                          </a>
+                          <span className="text-[10px] text-purple-400 font-bold bg-purple-500/10 px-1.5 py-0.5 rounded border border-purple-500/20 shrink-0">{item.distance}</span>
                         </div>
                         <div className="text-[11px] text-muted-foreground mt-0.5">추천 선물: {item.item}</div>
                       </div>
