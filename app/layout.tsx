@@ -55,7 +55,7 @@ export default function RootLayout({
   return (
     <html
       lang="ko"
-      className={`dark bg-[#142A40] ${notoSansKr.variable} ${gowunBatang.variable}`}
+      className={`light bg-[#38BDF8] ${notoSansKr.variable} ${gowunBatang.variable}`}
     >
       <head>
         <link

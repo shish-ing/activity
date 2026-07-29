@@ -44,21 +44,21 @@ export function ChipSelect({
               className={cn(
                 'flex flex-col items-start justify-center rounded-xl border px-3 py-2.5 text-left transition-all outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
                 active
-                  ? 'border-primary bg-primary text-primary-foreground shadow-sm'
-                  : 'border-border bg-card text-foreground hover:border-primary/40 hover:bg-secondary',
+                  ? 'border-amber-400 bg-amber-400 text-slate-950 font-bold shadow-md scale-[1.01]'
+                  : 'border-slate-200/90 bg-white/85 text-slate-800 hover:border-amber-300 hover:bg-white shadow-2xs',
               )}
             >
               <span className="flex w-full items-center justify-between gap-1">
-                <span className="text-sm font-medium">{opt.label}</span>
-                {active ? <Check className="size-3.5 shrink-0" /> : null}
+                <span className="text-sm font-semibold">{opt.label}</span>
+                {active ? <Check className="size-3.5 shrink-0 text-slate-950" /> : null}
               </span>
               {opt.hint ? (
                 <span
                   className={cn(
                     'text-xs',
                     active
-                      ? 'text-primary-foreground/75'
-                      : 'text-muted-foreground',
+                      ? 'text-slate-900/80 font-medium'
+                      : 'text-slate-500',
                   )}
                 >
                   {opt.hint}

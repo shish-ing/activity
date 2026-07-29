@@ -136,10 +136,10 @@ export function ConditionForm() {
       <WeatherBackground weather={weatherOpt || 'auto'} />
 
       {/* 네이버 지도 연동 출발지 주소 검색 & 실시간 GPS 카드 */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-primary/50 bg-card/75 backdrop-blur-md p-4 sm:p-5 shadow-lg relative">
+      <div className="flex flex-col gap-3 rounded-2xl border border-sky-200/80 bg-white/85 text-slate-900 backdrop-blur-md p-4 sm:p-5 shadow-xl relative">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 font-semibold text-sm text-foreground">
-            <MapPin className="size-4.5 text-primary" />
+          <div className="flex items-center gap-2 font-bold text-sm text-slate-900">
+            <MapPin className="size-4.5 text-sky-600" />
             <span>🗺️ 네이버 지도 연동 출발지 / 주소 검색</span>
           </div>
           <Button
@@ -148,7 +148,7 @@ export function ConditionForm() {
             size="sm"
             onClick={handleGetRealGpsLocation}
             disabled={isGpsLoading}
-            className="h-8 text-xs gap-1.5 text-primary border-primary/40 bg-primary/10 hover:bg-primary/20 rounded-xl"
+            className="h-8 text-xs gap-1.5 text-sky-700 border-sky-300 bg-sky-50 hover:bg-sky-100 rounded-xl font-bold"
           >
             <LocateFixed className={cn('size-3.5', isGpsLoading && 'animate-spin')} />
             {isGpsLoading ? 'GPS 위치 조회 중...' : '🎯 실시간 내 GPS 위치 찾기'}
@@ -157,8 +157,8 @@ export function ConditionForm() {
 
         {/* 직접 출발지/주소 검색 입력창 */}
         <div className="relative">
-          <div className="flex items-center rounded-xl border border-border bg-secondary/60 px-3.5 py-2 text-sm text-foreground focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/30">
-            <Search className="size-4 text-muted-foreground mr-2 shrink-0" />
+          <div className="flex items-center rounded-xl border border-sky-200 bg-sky-50/70 px-3.5 py-2.5 text-sm text-slate-900 focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-300/40">
+            <Search className="size-4 text-sky-600 mr-2 shrink-0" />
             <input
               type="text"
               value={startInput}
@@ -170,14 +170,14 @@ export function ConditionForm() {
                 setShowSuggestions(true)
               }}
               placeholder="출발하고 싶은 장소명이나 도로명 주소를 입력하세요 (예: cgv 효자, 전주역, 가련산로, 태조로)"
-              className="w-full bg-transparent outline-none placeholder:text-muted-foreground"
+              className="w-full bg-transparent outline-none placeholder:text-slate-400 font-medium text-slate-900"
             />
           </div>
 
           {/* 네이버 지도 자동완성 주소 드롭다운 */}
           {showSuggestions && filteredSuggestions.length > 0 ? (
-            <div className="absolute inset-x-0 top-full z-40 mt-1 max-h-60 overflow-y-auto rounded-xl border border-border bg-card p-1 shadow-lg backdrop-blur-md">
-              <div className="px-3 py-1.5 text-[11px] font-semibold text-emerald-400 border-b border-border/50">
+            <div className="absolute inset-x-0 top-full z-40 mt-1 max-h-60 overflow-y-auto rounded-xl border border-sky-200 bg-white p-1.5 shadow-xl backdrop-blur-md">
+              <div className="px-3 py-1.5 text-[11px] font-bold text-sky-600 border-b border-sky-100">
                 🗺️ 네이버 지도 추천 전주 출발 주소
               </div>
               {filteredSuggestions.map((item) => (
@@ -185,13 +185,13 @@ export function ConditionForm() {
                   key={item.name}
                   type="button"
                   onClick={() => handleSelectSuggestion(item)}
-                  className="flex w-full flex-col text-left px-3 py-2 text-xs hover:bg-accent/10 rounded-lg transition-colors border-b border-border/30 last:border-0"
+                  className="flex w-full flex-col text-left px-3 py-2 text-xs hover:bg-sky-50 rounded-lg transition-colors border-b border-slate-100 last:border-0"
                 >
-                  <div className="flex items-center justify-between font-bold text-foreground">
+                  <div className="flex items-center justify-between font-bold text-slate-900">
                     <span>{item.name}</span>
-                    <span className="text-[10px] text-accent font-medium">{item.type}</span>
+                    <span className="text-[10px] text-amber-600 font-bold">{item.type}</span>
                   </div>
-                  <span className="text-[11px] text-muted-foreground">{item.address}</span>
+                  <span className="text-[11px] text-slate-500">{item.address}</span>
                 </button>
               ))}
             </div>
@@ -200,7 +200,7 @@ export function ConditionForm() {
       </div>
 
       {/* 조건 입력 카드 */}
-      <div className="flex flex-col gap-5 rounded-2xl border border-border/80 bg-card/75 backdrop-blur-md p-4 sm:p-5 shadow-lg">
+      <div className="flex flex-col gap-5 rounded-2xl border border-sky-200/80 bg-white/85 text-slate-900 backdrop-blur-md p-4 sm:p-5 shadow-xl">
         <ChipSelect
           label="남은 시간"
           options={TIME_OPTIONS}
@@ -209,7 +209,7 @@ export function ConditionForm() {
         />
 
         {/* 예산 슬라이더 (막대바) 카드 UI */}
-        <div className="flex flex-col gap-2.5 rounded-xl border border-accent/30 bg-accent/5 p-3.5">
+        <div className="flex flex-col gap-2.5 rounded-xl border border-amber-300/80 bg-amber-50/70 p-3.5">
           <div className="flex flex-wrap items-center justify-between gap-1">
             <div className="flex items-center gap-1.5 font-semibold text-sm text-foreground">
               <Wallet className="size-4 text-accent" />

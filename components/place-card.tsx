@@ -68,10 +68,10 @@ export function PlaceCard({
       onMouseEnter={() => onHover?.(place.id)}
       onMouseLeave={() => onHover?.(null)}
       className={cn(
-        'group relative flex flex-col rounded-2xl border bg-card p-4 transition-all sm:p-5',
+        'group relative flex flex-col rounded-2xl border bg-white/90 text-slate-800 backdrop-blur-md p-4 transition-all sm:p-5 shadow-md',
         highlighted
-          ? 'border-accent bg-accent/5 ring-2 ring-accent/40 shadow-md'
-          : 'border-border hover:border-accent/50 hover:shadow-xs',
+          ? 'border-amber-400 bg-amber-50/90 ring-2 ring-amber-400/60 shadow-lg'
+          : 'border-slate-200/90 hover:border-amber-300 hover:shadow-lg',
       )}
     >
       {/* 장소 순서 핀 & 태그 Header */}

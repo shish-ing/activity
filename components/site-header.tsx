@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 
 export function SiteHeader({ showBack = false }: { showBack?: boolean }) {
   return (
-    <header className="sticky top-0 z-30 border-b border-border/50 bg-card/75 backdrop-blur-md">
+    <header className="sticky top-0 z-30 border-b border-sky-200/80 bg-white/85 backdrop-blur-md shadow-xs">
       <div className="mx-auto flex h-14 w-full max-w-5xl items-center gap-2 px-4">
         {showBack ? (
           <Button
