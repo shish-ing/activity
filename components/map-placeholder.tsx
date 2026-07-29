@@ -2,6 +2,8 @@
 
 import { useEffect, useRef } from 'react'
 import type { Place } from '@/lib/mock-data'
+import { Button } from '@/components/ui/button'
+import { Maximize2 } from 'lucide-react'
 
 type MapPlaceholderProps = {
   places: Place[]
@@ -18,6 +20,27 @@ export function MapPlaceholder({
   const mapRef = useRef<any>(null)
   const markersRef = useRef<Record<string, any>>({})
   const polylineRef = useRef<any>(null)
+  const isMapInitializedRef = useRef<boolean>(false)
+  const prevPlacesKeyRef = useRef<string>('')
+
+  // 장소 구성 고유 식별키
+  const placesKey = places.map((p) => p.id).join(',')
+
+  // 전체 코스 화면에 맞게 지도 재정렬하는 수동 버튼 함수
+  function handleFitBounds() {
+    if (!mapRef.current || places.length === 0) return
+    let L: any
+    import('leaflet').then((leafletModule) => {
+      L = leafletModule.default || leafletModule
+      const routeLatLngs: [number, number][] = places.map((p) => {
+        const lat = p.lat || 35.8133 + (p.mapY - 50) * 0.0002
+        const lng = p.lng || 127.1492 + (p.mapX - 30) * 0.0002
+        return [lat, lng]
+      })
+      const bounds = L.latLngBounds(routeLatLngs)
+      mapRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 })
+    })
+  }
 
   useEffect(() => {
     if (typeof window === 'undefined' || !containerRef.current) return
@@ -70,7 +93,7 @@ export function MapPlaceholder({
         return [lat, lng]
       })
 
-      // 1. 숫자마다 직선(Polyline 경로선)만 선명하게 연결!
+      // 1. 숫자마다 직선(Polyline 경로선) 선명하게 연결
       if (routeLatLngs.length > 1) {
         const polyline = L.polyline(routeLatLngs, {
           color: '#f59e0b', // 선명한 주황-금빛 경로선
@@ -83,12 +106,11 @@ export function MapPlaceholder({
         polylineRef.current = polyline
       }
 
-      // 2. 글자(명칭) 완전히 제거! 오직 원형 숫자 핀(1, 2, 3...)과 경로선만 표시
+      // 2. 글자(명칭) 없이 원형 숫자 핀(1, 2, 3...)과 경로선만 표시
       places.forEach((place, idx) => {
         const [lat, lng] = routeLatLngs[idx]
         const isActive = activeId === place.id
 
-        // 오직 깔끔한 동그라미 숫자 핀 (글자 텍스트 완전 제거)
         const iconHtml = `
           <div style="
             width: 32px;
@@ -119,7 +141,6 @@ export function MapPlaceholder({
 
         const marker = L.marker([lat, lng], { icon: customIcon }).addTo(map)
 
-        // 마커에 툴팁으로만 호버 시 명칭 간략 노출 (지도 자체에는 글자 0개!)
         marker.bindTooltip(`<b>${place.order}번. ${place.name}</b>`, {
           direction: 'top',
           offset: [0, -16],
@@ -131,20 +152,38 @@ export function MapPlaceholder({
         markersRef.current[place.id] = marker
       })
 
-      // 모든 코스 장소가 한 화면에 딱 들어오도록 지도 영역 자동 조절
-      if (routeLatLngs.length > 0) {
+      // 3. 🎯 핵심: 장소 목록(places)이 새로 생성되거나 변경된 최초 1회만 fitBounds() 실행!
+      // 사용자가 확대/축소/이동한 상태(Zoom level & Center)는 마우스 호버나 카드 조작에도 100% 그대로 유지됩니다.
+      const isPlacesChanged = prevPlacesKeyRef.current !== placesKey
+      if (routeLatLngs.length > 0 && (!isMapInitializedRef.current || isPlacesChanged)) {
         const bounds = L.latLngBounds(routeLatLngs)
         map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 })
+        isMapInitializedRef.current = true
+        prevPlacesKeyRef.current = placesKey
       }
     })
-  }, [places, activeId, onHover])
+  }, [places, activeId, onHover, placesKey])
 
   return (
     <div className="relative h-full min-h-[420px] w-full overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       <div ref={containerRef} className="h-full w-full min-h-[420px] z-0" />
+      
+      {/* 상단 뱃지 */}
       <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 rounded-xl bg-background/90 border border-border px-3 py-1.5 text-xs font-semibold text-foreground backdrop-blur shadow-sm">
-        <span>🗺️ 인터랙티브 경로 지도 (숫자 핀 & 경로선 표시)</span>
+        <span>🗺️ 인터랙티브 경로 지도 (확대/축소 상태 유지)</span>
       </div>
+
+      {/* 사용자가 필요할 때 전체 화면 크기로 맞추는 리셋 버튼 */}
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={handleFitBounds}
+        className="absolute bottom-3 right-3 z-10 h-8 gap-1.5 text-xs font-bold bg-white/95 text-slate-800 border-slate-300 hover:bg-slate-100 shadow-md backdrop-blur-md rounded-xl"
+      >
+        <Maximize2 className="size-3.5 text-amber-600" />
+        <span>🎯 전체 코스 보기</span>
+      </Button>
     </div>
   )
 }
