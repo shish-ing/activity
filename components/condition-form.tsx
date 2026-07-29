@@ -15,19 +15,24 @@ import {
 } from '@/lib/mock-data'
 import { cn } from '@/lib/utils'
 
-// 네이버 지도 연동 전주 대표 주요 출발지 & 주소 데이터베이스
+// 네이버 지도 연동 전주 대표 주요 출발지 & 상세 주소 데이터베이스
 const NAVER_MAP_START_ADDRESSES = [
   { name: '전주 한옥마을 (전동성당)', address: '전북 전주시 완산구 태조로 51', type: '한옥마을 중심' },
+  { name: 'CGV 효자 (몰오브효자)', address: '전북 전주시 완산구 용머리로 45 (효자동3가)', type: '영화관·쇼핑몰' },
   { name: '전주역 (KTX/SRT)', address: '전북 전주시 덕진구 동부대로 680', type: '기차역' },
   { name: '전주고속버스터미널', address: '전북 전주시 덕진구 가련산로 5', type: '터미널' },
   { name: '전주시외버스터미널', address: '전북 전주시 덕진구 가련산로 19', type: '터미널' },
   { name: '전북대학교 전주캠퍼스', address: '전북 전주시 덕진구 백제대로 567', type: '대학교' },
   { name: '전주 객사 (객리단길)', address: '전북 전주시 완산구 전주객사4길 19', type: '시내 중심' },
+  { name: '전북도청 (효자동)', address: '전북 전주시 완산구 효자로 225', type: '관공서' },
+  { name: 'CGV 객사 (영화의거리)', address: '전북 전주시 완산구 전주객사4길 74', type: '영화관' },
   { name: '전주 팔복예술공장', address: '전북 전주시 덕진구 구렛들1길 46', type: '문화공간' },
   { name: '전주 덕진공원 연화정', address: '전북 전주시 덕진구 권삼득로 390', type: '공원' },
   { name: '한국도로공사 전주 수목원', address: '전북 전주시 덕진구 번영로 462-45', type: '수목원' },
   { name: '전주 아중호수', address: '전북 전주시 덕진구 아중호수길 130', type: '호수' },
   { name: '서학동 예술마을', address: '전북 전주시 완산구 서학로 16-1', type: '예술마을' },
+  { name: '전주 혁신도시 (만성동)', address: '전북 전주시 덕진구 기지로 77', type: '혁신도시' },
+  { name: '전주 송천동 에코시티', address: '전북 전주시 덕진구 세병동로 30', type: '주거지' },
 ]
 
 export function ConditionForm() {
@@ -161,7 +166,7 @@ export function ConditionForm() {
                 setIsFallbackToHanok(e.target.value.includes('한옥마을'))
                 setShowSuggestions(true)
               }}
-              placeholder="출발하고 싶은 장소명이나 도로명 주소를 입력하세요 (예: 전주역, 가련산로, 태조로)"
+              placeholder="출발하고 싶은 장소명이나 도로명 주소를 입력하세요 (예: cgv 효자, 전주역, 가련산로, 태조로)"
               className="w-full bg-transparent outline-none placeholder:text-muted-foreground"
             />
           </div>

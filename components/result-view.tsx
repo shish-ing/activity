@@ -125,56 +125,176 @@ export function ResultView() {
   }, [userBudgetLimit])
 
   // 출발지에서 1번째 추천 장소까지 이동 시내버스 & 네이버 지도 길찾기 안내 연동
+  // 출발지에서 1번째 추천 장소까지 이동 시내버스 & 네이버 지도 길찾기 안내 연동
   const firstPlaceTransitInfo = useMemo(() => {
     if (!places || places.length === 0) return null
     const firstSpot = places[0]
-    const locName = startLocationParam
+    const locName = (startLocationParam + ' ' + startAddressParam).toLowerCase()
 
+    // 1. CGV 효자 / 몰오브효자 / 효자동 3가
+    if (locName.includes('cgv 효자') || locName.includes('cgv효자') || locName.includes('효자몰') || (locName.includes('효자') && locName.includes('cgv'))) {
+      return {
+        busRoute: '🚌 전주 시내버스 119번, 165번, 3-2번 (효자몰·CGV 정류장 승차)',
+        boardStop: '효자몰·CGV 정류장 탑승 (도보 1분)',
+        alightStop: `${firstSpot.name} 인근 (전동성당·한옥마을) 정류장 하차 (도보 3분)`,
+        duration: '대중교통 약 24분 (시내버스 20분 + 도보 4분 · 약 5.8km)',
+        carDuration: '자차/택시 차로 약 14분 (5.8km · 예상 택시비 약 7,500원)',
+        mapUrl: `https://map.naver.com/v5/directions/-/127.1085,35.8115,CGV효자몰/127.1492,35.8133,${encodeURIComponent(firstSpot.name)}/-/transit?c=15,0,0,0,dh`,
+      }
+    }
+
+    // 2. 효자동 / 전북도청
+    if (locName.includes('효자') || locName.includes('도청')) {
+      return {
+        busRoute: '🚌 전주 시내버스 119번, 165번, 380번 탑승',
+        boardStop: '전북도청·효자동 정류장 탑승',
+        alightStop: `${firstSpot.name} 정류장 하차 (도보 3분)`,
+        duration: '대중교통 약 26분 (시내버스 22분 + 도보 4분 · 약 6.2km)',
+        carDuration: '자차/택시 차로 약 15분 (6.2km · 예상 택시비 약 8,000원)',
+        mapUrl: `https://map.naver.com/v5/directions/-/127.1010,35.8170,전북도청/127.1492,35.8133,${encodeURIComponent(firstSpot.name)}/-/transit?c=15,0,0,0,dh`,
+      }
+    }
+
+    // 3. 서신동 / 이마트 전주점
+    if (locName.includes('서신')) {
+      return {
+        busRoute: '🚌 전주 시내버스 119번, 684번, 79번 탑승',
+        boardStop: '서신동 주민센터/이마트 정류장 탑승',
+        alightStop: `${firstSpot.name} 정류장 하차 (도보 2분)`,
+        duration: '대중교통 약 20분 (시내버스 16분 + 도보 4분 · 약 4.5km)',
+        carDuration: '자차/택시 차로 약 11분 (4.5km · 예상 택시비 약 6,200원)',
+        mapUrl: `https://map.naver.com/v5/directions/-/127.1180,35.8300,서신동/127.1492,35.8133,${encodeURIComponent(firstSpot.name)}/-/transit?c=15,0,0,0,dh`,
+      }
+    }
+
+    // 4. 송천동 / 에코시티
+    if (locName.includes('송천') || locName.includes('에코')) {
+      return {
+        busRoute: '🚌 전주 시내버스 165번, 999번, 119번 탑승',
+        boardStop: '송천주공 / 에코시티 정류장 탑승',
+        alightStop: `${firstSpot.name} 정류장 하차 (도보 3분)`,
+        duration: '대중교통 약 28분 (시내버스 24분 + 도보 4분 · 약 7.2km)',
+        carDuration: '자차/택시 차로 약 16분 (7.2km · 예상 택시비 약 9,000원)',
+        mapUrl: `https://map.naver.com/v5/directions/-/127.1350,35.8670,송천동/127.1492,35.8133,${encodeURIComponent(firstSpot.name)}/-/transit?c=15,0,0,0,dh`,
+      }
+    }
+
+    // 5. 혁신도시 / 만성동
+    if (locName.includes('혁신') || locName.includes('만성')) {
+      return {
+        busRoute: '🚌 전주 시내버스 165번, 72번, 73번 탑승',
+        boardStop: '혁신도시 국민연금공단 정류장 탑승',
+        alightStop: `${firstSpot.name} 정류장 하차 (도보 3분)`,
+        duration: '대중교통 약 35분 (시내버스 30분 + 도보 5분 · 약 10.5km)',
+        carDuration: '자차/택시 차로 약 20분 (10.5km · 예상 택시비 약 13,000원)',
+        mapUrl: `https://map.naver.com/v5/directions/-/127.0650,35.8340,혁신도시/127.1492,35.8133,${encodeURIComponent(firstSpot.name)}/-/transit?c=15,0,0,0,dh`,
+      }
+    }
+
+    // 6. 삼천동 / 평화동
+    if (locName.includes('삼천') || locName.includes('평화')) {
+      return {
+        busRoute: '🚌 전주 시내버스 119번, 1000번, 165번 탑승',
+        boardStop: '삼천동/평화동 정류장 탑승',
+        alightStop: `${firstSpot.name} 정류장 하차 (도보 3분)`,
+        duration: '대중교통 약 18분 (시내버스 14분 + 도보 4분 · 약 3.8km)',
+        carDuration: '자차/택시 차로 약 10분 (3.8km · 예상 택시비 약 5,500원)',
+        mapUrl: `https://map.naver.com/v5/directions/-/127.1250,35.7980,삼천동/127.1492,35.8133,${encodeURIComponent(firstSpot.name)}/-/transit?c=15,0,0,0,dh`,
+      }
+    }
+
+    // 7. 아중리 / 우아동
+    if (locName.includes('아중') || locName.includes('우아')) {
+      return {
+        busRoute: '🚌 전주 시내버스 1000번, 103번 탑승',
+        boardStop: '아중리 정류장 탑승',
+        alightStop: `${firstSpot.name} 정류장 하차 (도보 2분)`,
+        duration: '대중교통 약 16분 (시내버스 12분 + 도보 4분 · 약 4.1km)',
+        carDuration: '자차/택시 차로 약 9분 (4.1km · 예상 택시비 약 5,800원)',
+        mapUrl: `https://map.naver.com/v5/directions/-/127.1720,35.8310,아중리/127.1492,35.8133,${encodeURIComponent(firstSpot.name)}/-/transit?c=15,0,0,0,dh`,
+      }
+    }
+
+    // 8. 팔복동 / 팔복예술공장
+    if (locName.includes('팔복')) {
+      return {
+        busRoute: '🚌 전주 시내버스 380번, 350번 탑승',
+        boardStop: '팔복예술공장 정류장 탑승',
+        alightStop: `${firstSpot.name} 정류장 하차 (도보 3분)`,
+        duration: '대중교통 약 29분 (시내버스 24분 + 도보 5분 · 약 7.8km)',
+        carDuration: '자차/택시 차로 약 16분 (7.8km · 예상 택시비 약 9,500원)',
+        mapUrl: `https://map.naver.com/v5/directions/-/127.0980,35.8560,팔복동/127.1492,35.8133,${encodeURIComponent(firstSpot.name)}/-/transit?c=15,0,0,0,dh`,
+      }
+    }
+
+    // 9. 전주역
     if (locName.includes('전주역')) {
       return {
-        busRoute: '🚌 전주 명품 시내버스 1000번, 119번, 535번 (직행 버스)',
+        busRoute: '🚌 전주 명품 시내버스 1000번, 119번, 535번 탑승',
         boardStop: '전주역 첫마을마중길 정류장 탑승',
         alightStop: `${firstSpot.name} 인근 (전동성당·한옥마을) 하차 (도보 2분)`,
-        duration: '대중교통 약 18분 (시내버스 14분 + 도보 4분)',
-        carDuration: '자차 차로 약 12분 (3.8km)',
+        duration: '대중교통 약 18분 (시내버스 14분 + 도보 4분 · 약 3.8km)',
+        carDuration: '자차/택시 차로 약 12분 (3.8km · 예상 택시비 약 5,500원)',
         mapUrl: `https://map.naver.com/v5/directions/-/127.1615,35.8490,전주역/127.1492,35.8133,${encodeURIComponent(firstSpot.name)}/-/transit?c=15,0,0,0,dh`,
       }
-    } else if (locName.includes('터미널')) {
+    }
+
+    // 10. 터미널
+    if (locName.includes('터미널')) {
       return {
         busRoute: '🚌 전주 시내버스 165번, 79번, 1000번 탑승',
         boardStop: '고속버스터미널 정류장 탑승',
         alightStop: `${firstSpot.name} 정류장 하차 (도보 3분)`,
-        duration: '대중교통 약 12분 (시내버스 9분 + 도보 3분)',
-        carDuration: '자차 차로 약 7분 (2.5km)',
+        duration: '대중교통 약 12분 (시내버스 9분 + 도보 3분 · 약 2.5km)',
+        carDuration: '자차/택시 차로 약 7분 (2.5km · 예상 택시비 약 4,500원)',
         mapUrl: `https://map.naver.com/v5/directions/-/127.1320,35.8360,전주고속버스터미널/127.1492,35.8133,${encodeURIComponent(firstSpot.name)}/-/transit?c=15,0,0,0,dh`,
       }
-    } else if (locName.includes('전북대')) {
+    }
+
+    // 11. 전북대
+    if (locName.includes('전북대')) {
       return {
         busRoute: '🚌 전주 시내버스 165번, 684번, 999번 탑승',
         boardStop: '전북대 구정문 정류장 탑승',
         alightStop: `${firstSpot.name} 정류장 하차 (도보 2분)`,
-        duration: '대중교통 약 15분 (시내버스 11분 + 도보 4분)',
-        carDuration: '자차 차로 약 9분 (3.1km)',
+        duration: '대중교통 약 15분 (시내버스 11분 + 도보 4분 · 약 3.1km)',
+        carDuration: '자차/택시 차로 약 9분 (3.1km · 예상 택시비 약 5,000원)',
         mapUrl: `https://map.naver.com/v5/directions/-/127.1290,35.8470,전북대학교/127.1492,35.8133,${encodeURIComponent(firstSpot.name)}/-/transit?c=15,0,0,0,dh`,
       }
-    } else if (locName.includes('객사')) {
+    }
+
+    // 12. 객사
+    if (locName.includes('객사')) {
       return {
         busRoute: '🚌 전주 시내버스 1000번, 165번 탑승 (또는 도보 산책)',
         boardStop: '객사 정류장 탑승 (영화의거리 도보 8분)',
         alightStop: `${firstSpot.name} 하차 (도보 2분)`,
-        duration: '대중교통 약 8분 (도보 이동 시 약 10분)',
-        carDuration: '자차 차로 약 4분 (1.2km)',
+        duration: '대중교통 약 8분 (도보 이동 시 약 10분 · 약 1.2km)',
+        carDuration: '자차/택시 차로 약 4분 (1.2km · 기본요금)',
         mapUrl: `https://map.naver.com/v5/directions/-/127.1435,35.8185,전주객사/127.1492,35.8133,${encodeURIComponent(firstSpot.name)}/-/transit?c=15,0,0,0,dh`,
       }
-    } else {
+    }
+
+    // 13. 한옥마을 내부 인접 출발 시
+    if (locName.includes('한옥마을') || locName.includes('전동성당')) {
       return {
-        busRoute: '🚶 인접 산책 경로 (한옥마을 중심 인접 산책로)',
-        boardStop: startAddressParam || '출발 주소지 출발',
+        busRoute: '🚶 한옥마을 중심 인접 도보 이동',
+        boardStop: '출발지 출발',
         alightStop: `${firstSpot.name} 도착 (도보 3분~7분)`,
-        duration: `도보 산책 약 4분~8분 이내`,
+        duration: '도보 산책 약 4분~8분 이내',
         carDuration: '자차 차로 약 3분',
         mapUrl: `https://map.naver.com/v5/search/${encodeURIComponent(firstSpot.name)}`,
       }
+    }
+
+    // 14. 임의 입력 주소 일반 시내버스 연동
+    return {
+      busRoute: `🚌 전주 시내버스 119번, 165번, 1000번 (${startLocationParam} 부근 승차)`,
+      boardStop: `${startLocationParam} 인근 정류장 탑승`,
+      alightStop: `${firstSpot.name} 인근 정류장 하차 (도보 3분)`,
+      duration: `대중교통 약 20분~30분 소요 (시내버스 연동)`,
+      carDuration: `자차/택시 차로 약 10분~15분 소요`,
+      mapUrl: `https://map.naver.com/v5/search/${encodeURIComponent(startLocationParam + ' ' + firstSpot.name)}`,
     }
   }, [places, startLocationParam, startAddressParam])
 
