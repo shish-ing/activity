@@ -135,7 +135,7 @@ export function ConditionForm() {
     <div className="flex flex-col gap-4">
       <WeatherBackground weather={weatherOpt || 'auto'} />
       {/* 네이버 지도 연동 출발지 주소 검색 & 실시간 GPS 카드 */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-primary/40 bg-card p-4 sm:p-5 shadow-xs relative">
+      <div className="flex flex-col gap-3 rounded-2xl border border-primary/40 bg-card/90 backdrop-blur-md p-4 sm:p-5 shadow-xs relative">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 font-semibold text-sm text-foreground">
             <MapPin className="size-4.5 text-primary" />
@@ -203,7 +203,7 @@ export function ConditionForm() {
       </div>
 
       {/* 조건 입력 카드 */}
-      <div className="flex flex-col gap-5 rounded-2xl border border-border bg-card p-4 sm:p-5">
+      <div className="flex flex-col gap-5 rounded-2xl border border-border bg-card/90 backdrop-blur-md p-4 sm:p-5">
         <ChipSelect
           label="남은 시간"
           options={TIME_OPTIONS}
