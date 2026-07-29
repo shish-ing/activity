@@ -152,7 +152,7 @@ export function ResultView() {
     return `${(userBudgetLimit / 10000).toLocaleString('ko-KR')}만원 맞춤`
   }, [userBudgetLimit])
 
-  // 실시간 코스 추가 검색어 매칭 후보군
+  // 실시간 코스 추가 검색어 매칭 후보군 (DB 실제 명소 100% 우선)
   const addPlaceSuggestions = useMemo(() => {
     if (!addSearchInput.trim()) return []
     const query = addSearchInput.toLowerCase().trim()
@@ -166,23 +166,17 @@ export function ResultView() {
           p.tags?.some((t) => t.toLowerCase().includes(query))),
     )
 
+    if (dbMatches.length > 0) {
+      return dbMatches
+    }
+
     const customSuggestion = {
-      name: query.includes('보드게임')
-        ? `🎮 ${addSearchInput} (전주 객사/한옥마을점)`
-        : query.includes('방탈출')
-          ? `🔐 ${addSearchInput} (전주 객리단길점)`
-          : query.includes('인생네컷') || query.includes('사진')
-            ? `📸 ${addSearchInput} (전주 한옥마을점)`
-            : query.includes('노래방') || query.includes('코인')
-              ? `🎤 ${addSearchInput} (전주 객사점)`
-              : query.includes('만화') || query.includes('벌툰')
-                ? `📚 ${addSearchInput} (전주 한옥마을점)`
-                : `📍 ${addSearchInput} (네이버 지도 직접 추가 스팟)`,
-      category: '실시간 검색 추가 스팟',
-      cost: query.includes('보드게임') ? 8000 : query.includes('방탈출') ? 22000 : 0,
-      costLabel: query.includes('보드게임') ? '1시간 8,000원 (음료 포함)' : '입장료/이용료',
+      name: `${addSearchInput} (네이버 지도 검색 장소)`,
+      category: '네이버 지도 연동 스팟',
+      cost: 0,
+      costLabel: '입장료/이용료 개별 확인',
       walkMinutes: 5,
-      reason: `사용자께서 코스 결과 화면에서 직접 네이버 지도로 검색하여 새로 추가하신 스팟 '${addSearchInput}'입니다.`,
+      reason: `사용자께서 네이버 지도로 직접 검색하여 동선에 추가하신 스팟 '${addSearchInput}'입니다.`,
       isMustVisit: true,
       mapX: Math.floor(Math.random() * 40) + 30,
       mapY: Math.floor(Math.random() * 40) + 30,
@@ -190,13 +184,13 @@ export function ResultView() {
       lng: 127.151 + (Math.random() * 0.008 - 0.004),
       address: `전북 전주시 완산구 ${addSearchInput} 부근`,
       operatingHours: '10:00 - 23:00 (네이버 지도 참조)',
-      tags: ['#실시간코스추가', `#${addSearchInput}`, '#최단동선재정렬'],
-      suggestedDuration: '1시간',
+      tags: ['#실시간코스추가', `#${addSearchInput}`, '#네이버지도'],
+      suggestedDuration: '45분',
       tips: `💡 현지인 팁: 추가된 스팟에 맞춰 전체 일정이 최단 지리적 순선으로 자동 재정렬되었습니다.`,
       naverMapUrl: `https://map.naver.com/v5/search/${encodeURIComponent(addSearchInput)}`,
     }
 
-    return [...dbMatches, customSuggestion]
+    return [customSuggestion]
   }, [addSearchInput, places])
 
   // 장소를 코스 중간에 추가하고 최단 순선 동선으로 전체 재정렬하는 함수
@@ -1236,25 +1230,28 @@ export function ResultView() {
                     ({dayPlaces.length}개 스팟 코스)
                   </span>
                 </div>
-                {dayPlaces.map((place) => (
-                  <PlaceCard
-                    key={place.id}
-                    place={place}
-                    transport={transport}
-                    highlighted={activeId === place.id}
-                    canReplace={true}
-                    onHover={setActiveId}
-                    onReplace={handleReplace}
-                  />
-                ))}
+                {dayPlaces.map((place) => {
+                  const globalIdx = places.findIndex((p) => p.id === place.id)
+                  return (
+                    <PlaceCard
+                      key={place.id}
+                      place={{ ...place, order: globalIdx >= 0 ? globalIdx + 1 : place.order }}
+                      transport={transport}
+                      highlighted={activeId === place.id}
+                      canReplace={true}
+                      onHover={setActiveId}
+                      onReplace={handleReplace}
+                    />
+                  )
+                })}
               </div>
             ))
           ) : (
             // 일반 리스트 (1시간, 3시간, 반나절, 하루)
-            places.map((place) => (
+            places.map((place, idx) => (
               <PlaceCard
                 key={place.id}
-                place={place}
+                place={{ ...place, order: idx + 1 }}
                 transport={transport}
                 highlighted={activeId === place.id}
                 canReplace={true}
