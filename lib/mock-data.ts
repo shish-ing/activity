@@ -87,6 +87,14 @@ export type Place = {
   // 지도 플레이스홀더 위 핀 위치 (0~100 %)
   mapX: number
   mapY: number
+  // 네이버 지도 바탕 풍부한 정보
+  address?: string
+  operatingHours?: string
+  phone?: string
+  tags?: string[]
+  suggestedDuration?: string
+  tips?: string
+  naverMapUrl?: string
 }
 
 export const RECOMMENDED_PLACES: Place[] = [
@@ -103,6 +111,13 @@ export const RECOMMENDED_PLACES: Place[] = [
     warning: '우천 시 우산 필요 (야외 정원 구간 있음)',
     mapX: 30,
     mapY: 62,
+    address: '전북 전주시 완산구 태조로 51',
+    operatingHours: '09:00 - 17:00 (일요일 미사시간 제외)',
+    phone: '063-284-3222',
+    tags: ['#사적지', '#사진맛집', '#비잔틴양식', '#한옥마을입구'],
+    suggestedDuration: '30분',
+    tips: '💡 현지인 팁: 성당 본당 정면도 예쁘지만, 뒤편 사제관 건물과 성모상 앞 정원이 한적한 숨은 포토존입니다.',
+    naverMapUrl: 'https://map.naver.com/v5/search/전주%20전동성당',
   },
   {
     id: 'p2',
@@ -116,6 +131,13 @@ export const RECOMMENDED_PLACES: Place[] = [
     isMustVisit: false,
     mapX: 46,
     mapY: 48,
+    address: '전북 전주시 완산구 은행로 65-1',
+    operatingHours: '10:00 - 22:00 (연중무휴)',
+    phone: '063-282-1234',
+    tags: ['#전통차', '#쌍화차', '#마당정원', '#고즈넉함'],
+    suggestedDuration: '45분',
+    tips: '💡 현지인 팁: 툇마루 자리에 앉아 고즈넉한 한옥 마당을 바라보며 수제 유과와 한방차를 즐겨보세요.',
+    naverMapUrl: 'https://map.naver.com/v5/search/전주%20한옥마을%20전통찻집',
   },
   {
     id: 'p3',
@@ -130,6 +152,13 @@ export const RECOMMENDED_PLACES: Place[] = [
     warning: '예산 초과 항목 포함됨',
     mapX: 62,
     mapY: 58,
+    address: '전북 전주시 완산구 한지길 32',
+    operatingHours: '10:00 - 18:00 (매주 월요일 휴무)',
+    phone: '063-288-5678',
+    tags: ['#한지공예', '#이색체험', '#실내액티비티', '#기념품만들기'],
+    suggestedDuration: '1시간 15분',
+    tips: '💡 현지인 팁: 직접 만든 한지 엽서는 당일 말려서 예쁜 봉투에 담아 기념품으로 가져가실 수 있습니다.',
+    naverMapUrl: 'https://map.naver.com/v5/search/전주%20한지체험관',
   },
   {
     id: 'p4',
@@ -143,6 +172,13 @@ export const RECOMMENDED_PLACES: Place[] = [
     isMustVisit: true,
     mapX: 74,
     mapY: 40,
+    address: '전북 전주시 완산구 풍남문2길 63',
+    operatingHours: '09:00 - 22:00 (야시장 금·토 18:00 - 24:00)',
+    phone: '063-284-1344',
+    tags: ['#피순대', '#청년몰', '#전통시장', '#야먹거리'],
+    suggestedDuration: '1시간 30분',
+    tips: '💡 현지인 팁: 2층 청년몰의 핸드메이드 소품샵과 독특한 분위기의 레트로 카페도 함께 둘러보세요.',
+    naverMapUrl: 'https://map.naver.com/v5/search/전주%20남부시장',
   },
 ]
 

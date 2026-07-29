@@ -40,12 +40,19 @@ export function ConditionForm() {
   }
 
   function handleSubmit() {
-    // TODO: API 연동 (백엔드에서 구현 예정) — 조건 기반 추천/경로 계산
     setLoading(true)
-    // 로딩 스피너를 잠깐 보여준 뒤 결과 화면으로 전환 (더미 시뮬레이션)
+    const params = new URLSearchParams()
+    if (mustVisit.length > 0) {
+      params.set('mustVisit', mustVisit.join(','))
+    }
+    if (time) params.set('time', time)
+    if (budget) params.set('budget', budget)
+    if (companion) params.set('companion', companion)
+    if (transport) params.set('transport', transport)
+
     setTimeout(() => {
-      router.push('/result')
-    }, 1400)
+      router.push(`/result?${params.toString()}`)
+    }, 1000)
   }
 
   return (
