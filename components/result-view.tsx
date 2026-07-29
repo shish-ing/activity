@@ -670,27 +670,9 @@ export function ResultView() {
     else if (time === '3days') targetCount = 14
 
     // 3. 예산 범위(0원~50만원+) & 이동수단(도보, 대중교통, 자차) 지리적 필터링
+    // DB 자체가 전주 고유 명소만 포함하므로 별도 프랜차이즈 필터 불필요
     const pureSpotsDatabase = JEONJU_PLACES_DATABASE.filter((p) => {
       if (p.isMeal || p.isDessert) return false
-
-      // 방탈출, 보드게임, 일반 노래방, 만화카페 등 흔한 프랜차이즈/일반 상점은 초안 코스 100% 자동 제외 (사용자 직접 검색 추가 시에만 연동)
-      const name = p.name.toLowerCase()
-      const cat = p.category.toLowerCase()
-      const isGenericStore =
-        name.includes('보드게임') ||
-        name.includes('방탈출') ||
-        name.includes('만화') ||
-        name.includes('벌툰') ||
-        name.includes('레드버튼') ||
-        name.includes('셜록홈즈') ||
-        name.includes('통집') ||
-        cat.includes('보드게임') ||
-        cat.includes('방탈출') ||
-        cat.includes('주점')
-
-      if (isGenericStore && !p.isMustVisit) {
-        return false
-      }
 
       if (userBudgetLimit === 0 && p.cost > 0 && !p.isMustVisit) {
         return false
@@ -828,13 +810,17 @@ export function ResultView() {
     }
 
     // 5. 일차 및 소요시간 정렬 & 맛집3/카페3/특산품3 최종 보장
+    const total = optimizedPlaces.length
     const finalPlaces = optimizedPlaces.map((place, idx) => {
       let day = 1
       if (time === '2days') {
-        day = idx < 5 ? 1 : 2
+        // 이틀: 총 10개 → 1일차 5개, 2일차 5개
+        day = idx < Math.ceil(total / 2) ? 1 : 2
       } else if (time === '3days') {
-        if (idx < 5) day = 1
-        else if (idx < 10) day = 2
+        // 사흘: 총 14개 → 1일차 5개, 2일차 5개, 3일차 4개 (균등 분배)
+        const perDay = Math.ceil(total / 3)
+        if (idx < perDay) day = 1
+        else if (idx < perDay * 2) day = 2
         else day = 3
       }
 
