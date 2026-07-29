@@ -1314,22 +1314,22 @@ export function ResultView() {
           </button>
         </div>
 
-        {/* 이전장 / 다음장 넘기기 화살표 슬라이드 컨트롤 & 2장(코스&지도) 선택 시 사진 속 둥근 알약형 지도 컨트롤 바 배치 */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-border/50 min-h-[42px]">
+        {/* 이전장 / 다음장 넘기기 화살표 슬라이드 컨트롤 & 2장(코스&지도) 선택 시 둥근 알약형 지도 컨트롤 바 배치 (w-full relative 완벽 정중앙 고정!) */}
+        <div className="relative w-full flex items-center justify-between gap-2 pt-1 border-t border-border/50 min-h-[44px]">
           {/* 좌측: 이전 장 */}
           <button
             type="button"
             onClick={() => setActiveTab((prev) => Math.max(0, prev - 1))}
             disabled={activeTab === 0}
-            className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-secondary/60 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed transition-all shrink-0 z-10"
+            className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-secondary/60 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed transition-all shrink-0 z-20"
           >
             <ChevronLeft className="size-4" />
             <span className="hidden sm:inline">◀ 이전 장</span>
           </button>
 
-          {/* 🎯 정중앙: 2장(코스 & 지도) 활성화 시 헤더 바 완벽 정중앙(sm:absolute sm:left-1/2 sm:-translate-x-1/2)에 둥근 알약형 지도 컨트롤 바 배치! */}
+          {/* 🎯 정중앙: 2장(코스 & 지도) 활성화 시 헤더 바 완벽 정중앙(absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2)에 둥근 알약형 지도 컨트롤 바 고정! */}
           {activeTab === 1 && (
-            <div className="flex flex-wrap items-center justify-center gap-2 my-0.5 mx-auto sm:absolute sm:left-1/2 sm:-translate-x-1/2 z-10">
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 flex items-center justify-center gap-1.5 sm:gap-2">
               {/* 알약 용기 1: 직선 vs 도로 길찾기 */}
               <div className="flex items-center gap-1 bg-sky-50/90 p-1 rounded-full border border-sky-300 shadow-sm backdrop-blur-md">
                 <button
@@ -1518,7 +1518,7 @@ export function ResultView() {
             type="button"
             onClick={() => setActiveTab((prev) => Math.min(2, prev + 1))}
             disabled={activeTab === 2}
-            className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-secondary/60 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed transition-all shrink-0 z-10 ml-auto"
+            className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-secondary/60 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed transition-all shrink-0 z-20 ml-auto"
           >
             <span className="hidden sm:inline">다음 장 ▶</span>
             <ChevronRight className="size-4" />
