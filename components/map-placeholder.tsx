@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Place } from '@/lib/mock-data'
 import { Button } from '@/components/ui/button'
-import { ArrowRight, Compass, Maximize2, Navigation, Route } from 'lucide-react'
+import { ArrowRight, CheckCircle2, ChevronDown, ChevronUp, Compass, Maximize2, Navigation, Route } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type MapPlaceholderProps = {
@@ -32,6 +32,9 @@ export function MapPlaceholder({
   // 2. 특정 구간 집중 필터 (null: 전체 코스 보기, 1: 1번➔2번, 2: 2번➔3번 ...)
   const [selectedSegment, setSelectedSegment] = useState<number | null>(null)
 
+  // 3. 구간 선택 드롭다운 열림/닫힘 상태 (클릭 시 펼쳐지고 선택 시 자동 닫힘)
+  const [isSegmentOpen, setIsSegmentOpen] = useState<boolean>(false)
+
   // 실제 도로 OSRM 네비게이션 경로 좌표 캐시 (구간별 latLngs)
   const [osrmRoutes, setOsrmRoutes] = useState<Record<string, [number, number][]>>({})
 
@@ -56,14 +59,12 @@ export function MapPlaceholder({
         const key = `${i + 1}-${i + 2}`
 
         try {
-          // OpenStreetMap OSRM Foot/Driving Routing Engine
           const url = `https://router.project-osrm.org/route/v1/foot/${fromLng},${fromLat};${toLng},${toLat}?overview=full&geometries=geojson`
           const res = await fetch(url)
           if (res.ok) {
             const data = await res.json()
             const coords = data.routes?.[0]?.geometry?.coordinates
             if (coords && coords.length > 0) {
-              // GeoJSON [lng, lat] ➔ Leaflet [lat, lng] 변환
               routesMap[key] = coords.map((c: [number, number]) => [c[1], c[0]])
               continue
             }
@@ -72,7 +73,6 @@ export function MapPlaceholder({
           console.warn(`OSRM Route fetch error for segment ${key}:`, e)
         }
 
-        // API 통신 실패 시 폴백 직선 좌표
         routesMap[key] = [
           [fromLat, fromLng],
           [toLat, toLng],
@@ -99,12 +99,14 @@ export function MapPlaceholder({
       const bounds = L.latLngBounds(routeLatLngs)
       mapRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 })
       setSelectedSegment(null)
+      setIsSegmentOpen(false)
     })
   }
 
-  // 특정 구간 선택 시 해당 2개 장소로 자동 줌인 카메라 이동
+  // 특정 구간 선택 시 해당 2개 장소로 자동 줌인 카메라 이동 + 메뉴 자동 접힘!
   function handleSelectSegment(segIdx: number | null) {
     setSelectedSegment(segIdx)
+    setIsSegmentOpen(false) // 선택 후 드롭다운 자동 닫힘!
 
     if (segIdx === null) {
       handleFitBounds()
@@ -188,9 +190,7 @@ export function MapPlaceholder({
 
       // ─── 1. 경로선 그리기 (직선 모드 vs 실제 네비게이션 도로 모드) ───
       if (routeMode === 'straight') {
-        // [직선 모드]
         if (selectedSegment === null) {
-          // 전체 경로 선명한 점선 표시
           if (routeLatLngs.length > 1) {
             polylineRef.current = L.polyline(routeLatLngs, {
               color: '#f59e0b',
@@ -207,7 +207,7 @@ export function MapPlaceholder({
             polylineRef.current = L.polyline(
               [routeLatLngs[idx], routeLatLngs[idx + 1]],
               {
-                color: '#3b82f6', // 선택된 구간은 진한 파란색 하이라이트
+                color: '#2563eb', // 선택된 구간은 진한 파란색 하이라이트
                 weight: 6,
                 dashArray: '8, 8',
                 opacity: 1.0,
@@ -220,7 +220,6 @@ export function MapPlaceholder({
         // [네비게이션 실제 도로 모드]
         for (let i = 0; i < places.length - 1; i++) {
           const segNum = i + 1
-          // 특정 구간 선택 시 해당 구간이 아니면 무시 (겹침 방지!)
           if (selectedSegment !== null && selectedSegment !== segNum) {
             continue
           }
@@ -228,7 +227,6 @@ export function MapPlaceholder({
           const key = `${i + 1}-${i + 2}`
           const roadPoints = osrmRoutes[key] || [routeLatLngs[i], routeLatLngs[i + 1]]
 
-          // 실제 도로 따라 이어지는 굵은 블루 네비게이션 라인
           const navPolyline = L.polyline(roadPoints, {
             color: selectedSegment === segNum ? '#2563eb' : '#3b82f6',
             weight: selectedSegment === segNum ? 7 : 5,
@@ -309,10 +307,15 @@ export function MapPlaceholder({
     })
   }, [places, activeId, onHover, placesKey, routeMode, selectedSegment, osrmRoutes])
 
+  // 현재 선택된 구간 표시용 텍스트 문구
+  const currentSegmentText = selectedSegment === null
+    ? `🌐 전체 ${places.length}개 코스`
+    : `📍 ${selectedSegment}번 ➔ ${selectedSegment + 1}번 (${places[selectedSegment - 1]?.name || ''} ➔ ${places[selectedSegment]?.name || ''})`
+
   return (
     <div className="relative flex flex-col gap-2.5 h-full w-full">
-      {/* ─── 상단 컨트롤 1: 경로 모드 선택 버튼 (직선 동선 vs 실제 도로 네비게이션) ─── */}
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-sky-200/80 bg-white/95 p-2.5 shadow-md backdrop-blur-md">
+      {/* ─── 상단 컨트롤 1: 경로 모드 스위처 & 펼침형 구간 선택 드롭다운 버튼 ─── */}
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-sky-200/80 bg-white/95 p-2.5 shadow-md backdrop-blur-md relative z-20">
         <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200/80">
           <Button
             type="button"
@@ -326,7 +329,7 @@ export function MapPlaceholder({
             )}
           >
             <Route className="size-3.5 text-amber-400" />
-            <span>📏 간결한 직선 동선</span>
+            <span>📏 간결한 직선</span>
           </Button>
 
           <Button
@@ -341,77 +344,123 @@ export function MapPlaceholder({
             )}
           >
             <Navigation className="size-3.5 text-sky-200" />
-            <span>🚗 🗺️ 실제 도로 길찾기 경로</span>
+            <span>🚗 🗺️ 도로 길찾기</span>
           </Button>
         </div>
 
-        {/* 전체 화면 리셋 버튼 */}
+        {/* 🧭 구간 선택 드롭다운 트리거 버튼 (클릭 시 아래로 펼쳐짐) */}
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => setIsSegmentOpen((prev) => !prev)}
+          className={cn(
+            'h-8 px-3 text-xs font-bold rounded-xl gap-1.5 transition-all shadow-xs cursor-pointer border',
+            selectedSegment !== null
+              ? 'bg-blue-600 text-white border-blue-500 hover:bg-blue-700 shadow-blue-500/20'
+              : 'bg-amber-500 text-slate-950 border-amber-400 hover:bg-amber-600',
+          )}
+        >
+          <Compass className="size-3.5" />
+          <span className="truncate max-w-[180px] sm:max-w-[240px]">{currentSegmentText}</span>
+          {isSegmentOpen ? <ChevronUp className="size-3.5 ml-0.5" /> : <ChevronDown className="size-3.5 ml-0.5" />}
+        </Button>
+      </div>
+
+      {/* ─── 지도 캔버스 & 지도 위로 펼쳐지는 팝오버 드롭다운 ─── */}
+      <div className="relative h-full min-h-[420px] w-full overflow-hidden rounded-2xl border border-sky-200/80 bg-white shadow-lg">
+        {/* 팝오버 드롭다운 메뉴 (지도 위로 오버레이 & 선택 시 자동 접힘!) */}
+        {isSegmentOpen && (
+          <div className="absolute top-3 left-3 right-3 z-30 max-h-[350px] overflow-y-auto rounded-2xl border border-sky-200 bg-white/98 p-3 shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-top-3 duration-200">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
+              <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                <Compass className="size-4 text-sky-600" />
+                원하는 집중 관찰 구간을 선택하세요 (선택 시 자동 접힘)
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsSegmentOpen(false)}
+                className="text-xs text-slate-400 hover:text-slate-700 font-bold px-2 py-0.5"
+              >
+                닫기 ✕
+              </button>
+            </div>
+
+            <div className="grid gap-1.5">
+              {/* 전체 코스 보기 옵션 */}
+              <button
+                type="button"
+                onClick={() => handleSelectSegment(null)}
+                className={cn(
+                  'flex items-center justify-between p-2.5 rounded-xl text-xs font-bold transition-all border text-left cursor-pointer',
+                  selectedSegment === null
+                    ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-xs'
+                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100',
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">🌐</span>
+                  <span>전체 {places.length}개 코스 한눈에 보기</span>
+                </div>
+                {selectedSegment === null && <CheckCircle2 className="size-4 text-slate-950" />}
+              </button>
+
+              {/* 1번➔2번, 2번➔3번, 3번➔4번... 개별 구간 선택 목록 */}
+              {places.slice(0, -1).map((fromP, idx) => {
+                const segNum = idx + 1
+                const toP = places[idx + 1]
+                const isSelected = selectedSegment === segNum
+
+                return (
+                  <button
+                    key={`dropdown-seg-${segNum}`}
+                    type="button"
+                    onClick={() => handleSelectSegment(segNum)}
+                    className={cn(
+                      'flex items-center justify-between p-2.5 rounded-xl text-xs font-bold transition-all border text-left cursor-pointer',
+                      isSelected
+                        ? 'bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-500/20'
+                        : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50 hover:border-slate-300',
+                    )}
+                  >
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      <span className={cn(
+                        'flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-black',
+                        isSelected ? 'bg-white text-blue-700' : 'bg-slate-900 text-white'
+                      )}>
+                        {segNum}
+                      </span>
+                      <span className="truncate">{fromP.name}</span>
+                      <ArrowRight className={cn('size-3.5 shrink-0', isSelected ? 'text-blue-200' : 'text-slate-400')} />
+                      <span className={cn(
+                        'flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-black',
+                        isSelected ? 'bg-white text-blue-700' : 'bg-slate-900 text-white'
+                      )}>
+                        {segNum + 1}
+                      </span>
+                      <span className="truncate">{toP.name}</span>
+                    </div>
+
+                    {isSelected && <CheckCircle2 className="size-4 text-white shrink-0 ml-2" />}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        <div ref={containerRef} className="h-full w-full min-h-[420px] z-0" />
+
+        {/* 하단 전체 코스 보기 수동 리셋 버튼 */}
         <Button
           type="button"
           variant="outline"
           size="sm"
           onClick={handleFitBounds}
-          className="h-8 gap-1.5 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 border-slate-200 rounded-xl shadow-xs"
+          className="absolute bottom-3 right-3 z-10 h-8 gap-1.5 text-xs font-bold text-slate-800 bg-white/95 border-slate-300 hover:bg-slate-100 shadow-md backdrop-blur-md rounded-xl"
         >
           <Maximize2 className="size-3.5 text-amber-600" />
           <span>🎯 전체 코스 보기</span>
         </Button>
-      </div>
-
-      {/* ─── 상단 컨트롤 2: 특정 구간 전용 선택 바 (1번➔2번, 2번➔3번 ... 겹침 완전 방지!) ─── */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none px-1 text-xs">
-        <span className="shrink-0 font-bold text-slate-700 flex items-center gap-1 mr-1">
-          <Compass className="size-3.5 text-sky-600" />
-          구간 선택:
-        </span>
-
-        <button
-          type="button"
-          onClick={() => handleSelectSegment(null)}
-          className={cn(
-            'shrink-0 px-2.5 py-1 rounded-lg font-bold border transition-all cursor-pointer',
-            selectedSegment === null
-              ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-xs'
-              : 'bg-white/90 text-slate-600 border-slate-200 hover:bg-slate-100',
-          )}
-        >
-          🌐 전체 {places.length}개 코스
-        </button>
-
-        {places.slice(0, -1).map((fromP, idx) => {
-          const segNum = idx + 1
-          const toP = places[idx + 1]
-          const isSelected = selectedSegment === segNum
-
-          return (
-            <button
-              key={`segment-${segNum}`}
-              type="button"
-              onClick={() => handleSelectSegment(segNum)}
-              className={cn(
-                'shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg font-bold border transition-all cursor-pointer text-xs',
-                isSelected
-                  ? 'bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-500/20'
-                  : 'bg-white/90 text-slate-700 border-slate-200/90 hover:bg-slate-100',
-              )}
-            >
-              <span className="inline-flex size-4 items-center justify-center rounded-full bg-slate-900 text-white text-[10px] font-black">
-                {segNum}
-              </span>
-              <span>{fromP.name}</span>
-              <ArrowRight className="size-3 text-slate-400" />
-              <span className="inline-flex size-4 items-center justify-center rounded-full bg-slate-900 text-white text-[10px] font-black">
-                {segNum + 1}
-              </span>
-              <span>{toP.name}</span>
-            </button>
-          )
-        })}
-      </div>
-
-      {/* ─── 지도 캔버스 ─── */}
-      <div className="relative h-full min-h-[420px] w-full overflow-hidden rounded-2xl border border-sky-200/80 bg-white shadow-lg">
-        <div ref={containerRef} className="h-full w-full min-h-[420px] z-0" />
       </div>
     </div>
   )
