@@ -921,18 +921,22 @@ export function ResultView() {
         setLastFetchTime('예보 선택')
       } else {
         // 'auto' - 실시간 기상청 API
-        const res = await fetch('/api/weather')
+        const res = await fetch(`/api/weather?t=${Date.now()}`, { cache: 'no-store' })
         if (res.ok) {
           const data = await res.json()
           setWeather({
             condition: data.condition,
             emoji: data.emoji,
-            summary: `🛰️ 실시간: ${data.summary}`,
+            summary: `실시간: ${data.summary}`,
             detail: data.detail,
           })
-          if (data.lastUpdated) {
-            setLastFetchTime(data.lastUpdated)
-          }
+          const nowKst = new Date().toLocaleTimeString('ko-KR', {
+            timeZone: 'Asia/Seoul',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+          })
+          setLastFetchTime(data.lastUpdated || nowKst)
         }
       }
     } catch (err) {
@@ -1180,9 +1184,11 @@ export function ResultView() {
               <p className="text-sm font-bold text-slate-900">
                 {weather.summary}
               </p>
-              <span className="rounded-full bg-amber-100 border border-amber-300/60 px-2 py-0.5 text-[10px] font-bold text-amber-800">
-                {weatherParam === 'auto' ? '실시간 1시간 주기' : '예보 조건 맞춤'}
-              </span>
+              {weatherParam !== 'auto' && (
+                <span className="rounded-full bg-amber-100 border border-amber-300/60 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                  예보 조건 맞춤
+                </span>
+              )}
             </div>
             <p className="text-xs text-slate-600 font-medium">{weather.detail}</p>
           </div>

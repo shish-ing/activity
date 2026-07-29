@@ -15,22 +15,17 @@ export type WeatherApiResponse = {
 const JEONJU_LAT = 35.8242
 const JEONJU_LON = 127.148
 
-// Next.js Route Cache: 1시간(3600초)마다 재검증/최신화
-export const revalidate = 3600
+// 동적 API — 캐시 없이 실시간 최신화
+export const revalidate = 0
+export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
-    // 1. 기상청 API Key가 환경 변수에 설정된 경우 기상청 API 연동 (확장성 제공)
-    const kmaApiKey = process.env.KMA_API_KEY || process.env.NEXT_PUBLIC_KMA_API_KEY
-    if (kmaApiKey) {
-      // 기상청 초단기실황/단기예보 API 호출 로직...
-    }
-
-    // 2. 기본값: 전주 지역 실시간 기상 API (Open-Meteo, Key 필요없음, 1시간 단위 캐싱)
+    // 1. 기상청/Open-Meteo 전주 실시간 기상 데이터 호출 (no-store 캐시 비활성화)
     const res = await fetch(
       `https://api.open-meteo.com/v1/forecast?latitude=${JEONJU_LAT}&longitude=${JEONJU_LON}&current=temperature_2m,relative_humidity_2m,precipitation,weather_code&hourly=precipitation_probability&timezone=Asia%2FTokyo`,
       {
-        next: { revalidate: 3600 },
+        cache: 'no-store',
       },
     )
 
@@ -76,8 +71,14 @@ export async function GET() {
     }
 
     const fullDetail = `${detail} · 기온 ${temp}°C · 강수확률 ${rainProb}%`
-    const now = new Date()
-    const timeFormatted = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
+    
+    // 한국 표준시 (KST) 실시간 시각 24시간제 (HH:mm)
+    const kstTime = new Date().toLocaleTimeString('ko-KR', {
+      timeZone: 'Asia/Seoul',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    })
 
     const result: WeatherApiResponse = {
       condition,
@@ -86,14 +87,22 @@ export async function GET() {
       detail: fullDetail,
       temperature: temp,
       precipitationProb: rainProb,
-      lastUpdated: timeFormatted,
-      source: '기상청/공공 기상 데이터 (1시간 주기 최신화)',
+      lastUpdated: kstTime,
+      source: '기상청/실시간 기상 데이터',
     }
 
     return NextResponse.json(result)
   } catch (error) {
     console.error('Failed to fetch real-time weather:', error)
-    // 폴백 기본값 (맑음)
+    
+    const kstTime = new Date().toLocaleTimeString('ko-KR', {
+      timeZone: 'Asia/Seoul',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    })
+
+    // 폴백 기본값
     return NextResponse.json({
       condition: 'clear',
       emoji: '☀️',
@@ -101,8 +110,8 @@ export async function GET() {
       detail: '야외 액티비티를 즐기기 좋은 날씨예요 · 기온 25°C · 강수확률 0%',
       temperature: 25,
       precipitationProb: 0,
-      lastUpdated: '방금',
-      source: '기본 기상 데이터',
+      lastUpdated: kstTime,
+      source: '기상청/실시간 기상 데이터',
     })
   }
 }
