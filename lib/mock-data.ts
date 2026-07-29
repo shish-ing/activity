@@ -107,6 +107,8 @@ export type Place = {
   naverMapUrl?: string
   isMeal?: boolean
   isDessert?: boolean
+  subCategory?: 'spot' | 'meal' | 'dessert' | 'workshop' | 'activity' | 'museum'
+  suitableCompanions?: string[]
   day?: number
   isIndoor?: boolean
   lat?: number
