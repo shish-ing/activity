@@ -2,11 +2,14 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { AlertCircle, ArrowRight, BookOpen, Bus, Calendar, Car, CheckCircle2, ChevronLeft, ChevronRight, Clock, Footprints, Heart, MapPin, PieChart, Plus, RefreshCw, Search, Share2, Sparkles, SunMedium, Utensils, Wallet } from 'lucide-react'
+import { AlertCircle, ArrowRight, BookOpen, Bookmark, Bus, Calendar, Car, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock, Footprints, Heart, MapPin, PieChart, Plus, RefreshCw, Search, Share2, Sparkles, SunMedium, Utensils, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PlaceCard } from '@/components/place-card'
 import { MapPlaceholder } from '@/components/map-placeholder'
 import { BudgetPieChart } from '@/components/budget-pie-chart'
+import { saveCourseToUser } from '@/lib/course-storage'
+import { AuthModal } from '@/components/auth-modal'
+import { WeatherBackground } from '@/components/weather-background'
 import {
   ALTERNATIVE_PLACES,
   CURRENT_WEATHER,
@@ -137,6 +140,11 @@ export function ResultView() {
   const [addSearchInput, setAddSearchInput] = useState('')
   const [addedToastMessage, setAddedToastMessage] = useState<string | null>(null)
   const [showAddSuggestions, setShowAddSuggestions] = useState(false)
+
+  // 내 정보 마이페이지 저장 관련 state
+  const [isSavedToMyPage, setIsSavedToMyPage] = useState(false)
+  const [saveToastMsg, setSaveToastMsg] = useState('')
+  const [isAuthOpen, setIsAuthOpen] = useState(false)
 
   // 사용자 선택 예산 숫자 (원)
   const userBudgetLimit = useMemo(() => {
@@ -1080,6 +1088,27 @@ export function ResultView() {
     }, 0)
   }, [places, transport])
 
+  // 총 이동 거리 계산 (km 및 m 단위)
+  const totalTravelKm = useMemo(() => {
+    if (places.length < 2) return 0.4
+    let sumKm = 0
+    for (let i = 1; i < places.length; i++) {
+      const prev = places[i - 1]
+      const curr = places[i]
+      const distSq = getPlaceDistance(prev, curr)
+      const km = Math.sqrt(distSq)
+      sumKm += km
+    }
+    return sumKm
+  }, [places])
+
+  const distanceDisplayLabel = useMemo(() => {
+    if (totalTravelKm < 1) {
+      return `약 ${Math.round(totalTravelKm * 1000)}m`
+    }
+    return `약 ${totalTravelKm.toFixed(1)}km`
+  }, [totalTravelKm])
+
   // 일차별로 그룹화 (이틀/사흘 코스 시)
   const groupedByDay = useMemo(() => {
     if (time !== '2days' && time !== '3days') return null
@@ -1092,8 +1121,54 @@ export function ResultView() {
     return days
   }, [places, time])
 
+  const handleSaveCourseToMyPage = () => {
+    try {
+      const savedSession = localStorage.getItem('jeonju_current_user')
+      if (!savedSession) {
+        if (confirm('코스를 내 정보에 저장하려면 로그인이 필요합니다. 지금 로그인하시겠습니까?')) {
+          setIsAuthOpen(true)
+        }
+        return
+      }
+
+      const currentUser = JSON.parse(savedSession)
+      const courseTitle = `전주 ${weather.summary} 맞춤 즉흥 코스`
+
+      const spotsData = places.map((p) => ({
+        name: p.name,
+        category: p.category,
+        costLabel: p.costLabel,
+      }))
+
+      const result = saveCourseToUser(currentUser.email, {
+        title: courseTitle,
+        timeOption: time,
+        weatherSummary: weather.summary,
+        weatherEmoji: weather.emoji,
+        companion: companionParam,
+        transport,
+        totalBudget: userBudgetLimit,
+        totalCost: totalCost,
+        totalTravelMinutes,
+        spots: spotsData,
+      })
+
+      if (result.success) {
+        setIsSavedToMyPage(true)
+        setSaveToastMsg('내 정보 관리(마이페이지)에 코스가 성공적으로 저장되었습니다! 🎉')
+        setTimeout(() => setSaveToastMsg(''), 3500)
+      }
+    } catch (e) {
+      alert('코스 저장 중 오류가 발생했습니다.')
+    }
+  }
+
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 pb-28">
+    <>
+      {/* 사용자가 메인 화면에서 선택한 날씨 수묵화 배경 100% 동일 적용 */}
+      <WeatherBackground weather={weatherParam} realtimeCondition={weather.condition} />
+
+      <div className="relative z-10 mx-auto w-full max-w-5xl px-4 pb-28">
       {/* 실시간 / 선택된 예보 날씨 요약 배지 */}
       <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-sky-200/80 bg-white/85 p-4 shadow-lg backdrop-blur-md">
         <div className="flex items-center gap-3">
@@ -1378,36 +1453,37 @@ export function ResultView() {
         {activeTab === 1 ? (
           <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-right-4 duration-300">
             {/* 시간 및 이동수단 안내 띠 */}
-            <div className="flex flex-col gap-2 rounded-xl bg-card border border-border p-3 text-xs text-foreground">
+            <div className="flex flex-col gap-2.5 rounded-2xl bg-white/95 border border-sky-200/80 p-4 shadow-md backdrop-blur-md text-xs text-slate-900">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="flex items-center gap-1.5 font-semibold text-accent">
-                  <Clock className="size-3.5" />
+                <span className="flex items-center gap-1.5 font-bold text-amber-800">
+                  <Clock className="size-4 text-amber-600" />
                   {timeLabel}
                 </span>
-                <div className="flex items-center gap-3 text-muted-foreground">
-                  <span className="flex items-center gap-1 text-emerald-400 font-medium">
-                    <Utensils className="size-3" />
+                <div className="flex items-center gap-3 text-slate-600">
+                  <span className="flex items-center gap-1 text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/70">
+                    <Utensils className="size-3.5" />
                     각 장소별 주변 맛집 3선 · 카페 3선 · 특산품 3선 풀 탑재
                   </span>
-                  <span>총 {places.length}개 스팟</span>
+                  <span className="font-semibold">총 {places.length}개 스팟</span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 border-t border-border/50 pt-2 text-muted-foreground">
-                <TransportIcon className="size-3.5 text-accent shrink-0" />
-                <span className="font-medium text-foreground">{transportLabel.text}</span>
+              <div className="flex items-center gap-2 border-t border-slate-200/80 pt-2 text-slate-700">
+                <TransportIcon className="size-4 text-sky-600 shrink-0" />
+                <span className="font-medium text-slate-800">{transportLabel.text}</span>
               </div>
             </div>
 
             <div className="grid gap-4 lg:grid-cols-[1fr_minmax(0,45%)]">
               {/* 왼쪽: 추천 카드 리스트 */}
               <section aria-label="추천 장소 목록" className="flex flex-col gap-4">
-                <div className="flex items-baseline justify-between">
-                  <h2 className="font-serif text-lg font-bold text-foreground">
-                    🚩 {startLocationParam} 출발 맞춤 추천 코스
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-2xl border border-sky-200/80 bg-white/95 p-4 shadow-md backdrop-blur-md">
+                  <h2 className="font-serif text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <span className="text-xl">🚩</span>
+                    <span>{startLocationParam} 출발 맞춤 추천 코스</span>
                   </h2>
-                  <span className="text-xs text-muted-foreground">
-                    카드를 누르거나 '다른 장소 변경' 클릭 시 교체돼요
+                  <span className="text-xs text-slate-600 bg-slate-100/90 px-2.5 py-1 rounded-lg border border-slate-200/80 w-fit font-medium">
+                    💡 카드를 누르거나 &apos;다른 장소 변경&apos; 클릭 시 교체돼요
                   </span>
                 </div>
 
@@ -1516,35 +1592,75 @@ export function ResultView() {
             </div>
           </div>
         ) : null}
+
+        {/* Toast Notification for Saving Course */}
+        {saveToastMsg && (
+          <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 rounded-xl bg-amber-950 text-amber-50 px-4 py-3 shadow-2xl border border-amber-800 text-xs font-bold flex items-center gap-2 animate-in slide-in-from-bottom-5">
+            <Check className="size-4 text-amber-400 shrink-0" />
+            <span>{saveToastMsg}</span>
+          </div>
+        )}
       </div>
 
       {/* 하단 고정바 */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/90 backdrop-blur">
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 backdrop-blur shadow-lg">
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-3">
-          <div className="flex items-center gap-4 text-sm">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm">
             <span className="flex items-center gap-1.5">
-              <Wallet className="size-4 text-accent" />
+              <Wallet className="size-4 text-amber-600 shrink-0" />
               <span className="font-semibold text-foreground">
                 한도: {budgetDisplayLabel}
               </span>
             </span>
             <span className="flex items-center gap-1.5">
-              <Clock className="size-4 text-accent" />
+              <Clock className="size-4 text-amber-600 shrink-0" />
               <span className="font-semibold text-foreground">
                 총 {totalTravelMinutes}분 이동
               </span>
             </span>
+            <span className="flex items-center gap-1.5">
+              <MapPin className="size-4 text-sky-600 shrink-0" />
+              <span className="font-semibold text-foreground">
+                총 {distanceDisplayLabel} 이동
+              </span>
+            </span>
           </div>
-          <Button
-            onClick={() => setShared((s) => !s)}
-            variant={shared ? 'secondary' : 'default'}
-            className="rounded-xl"
-          >
-            <Share2 />
-            {shared ? '저장됨!' : '경로 저장/공유'}
-          </Button>
+
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={handleSaveCourseToMyPage}
+              className={cn(
+                'rounded-xl text-xs sm:text-sm font-bold shadow-xs transition-all gap-1.5',
+                isSavedToMyPage
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                  : 'bg-amber-500 hover:bg-amber-600 text-amber-950'
+              )}
+            >
+              <Bookmark className="size-4" />
+              {isSavedToMyPage ? '내 정보에 저장됨!' : '📌 이 코스 내 정보에 저장'}
+            </Button>
+            <Button
+              onClick={() => {
+                if (navigator.clipboard) {
+                  navigator.clipboard.writeText(window.location.href)
+                  alert('추천 코스 링크가 클립보드에 복사되었습니다!')
+                }
+              }}
+              variant="outline"
+              className="rounded-xl text-xs sm:text-sm"
+            >
+              <Share2 className="size-4" /> 공유
+            </Button>
+          </div>
         </div>
       </div>
-    </div>
+
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        initialMode="login"
+      />
+      </div>
+    </>
   )
 }

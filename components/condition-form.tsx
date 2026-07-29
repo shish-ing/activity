@@ -341,18 +341,18 @@ export function ConditionForm() {
         )}
       </Button>
 
-      {/* 2. 📱 화면 하단 항상 고정 스티키 바 (세련된 화이트 글래스 & 딥네이비 럭셔리 버튼) */}
-      <div className="fixed bottom-0 inset-x-0 z-50 p-3 sm:p-4 bg-white/85 backdrop-blur-xl border-t border-slate-200/80 flex justify-center shadow-2xl">
-        <div className="w-full max-w-xl">
+      {/* 2. 📱 화면 하단 플로팅 추천 버튼 (흰색 바탕 제거 & 투명도 적용) */}
+      <div className="fixed bottom-4 inset-x-0 z-50 px-4 flex justify-center pointer-events-none">
+        <div className="w-full max-w-md pointer-events-auto">
           <Button
             size="lg"
             onClick={handleSubmit}
             disabled={loading}
-            className="h-13 w-full rounded-xl text-base sm:text-lg font-serif font-bold tracking-wide bg-slate-900 hover:bg-slate-800 text-white shadow-lg shadow-slate-900/20 border border-slate-800 transition-all cursor-pointer"
+            className="h-13 w-full rounded-2xl text-base sm:text-lg font-serif font-bold tracking-wide bg-slate-950/80 hover:bg-slate-950/95 text-white backdrop-blur-md shadow-2xl border border-white/20 transition-all active:scale-[0.98] cursor-pointer"
           >
             {loading ? (
               <div className="flex items-center gap-2">
-                <Loader2 className="size-5 animate-spin text-white" />
+                <Loader2 className="size-5 animate-spin text-amber-400" />
                 <span>최단 여행 코스 생성 중...</span>
               </div>
             ) : (

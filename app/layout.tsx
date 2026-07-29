@@ -21,20 +21,8 @@ export const metadata: Metadata = {
     '지금 내 위치와 지금 날씨 기준으로, 뭘 할지 어떤 순서로 갈지 바로 보여드려요. 전주 즉흥 여행자를 위한 최소 입력 추천 서비스.',
   generator: 'v0.app',
   icons: {
-    icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
-    ],
+    icon: '/logo.png',
+    shortcut: '/icon.png',
     apple: '/apple-icon.png',
   },
 }

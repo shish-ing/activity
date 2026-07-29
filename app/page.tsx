@@ -9,17 +9,17 @@ export default function HomePage() {
 
       <div className="mx-auto w-full max-w-xl px-4 pb-16">
         {/* Hero */}
-        <section className="pt-8 pb-6 text-center">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/15 px-3 py-1 text-xs font-medium text-foreground">
-            <span className="size-1.5 rounded-full bg-accent" aria-hidden />
+        <section className="pt-6 pb-6 text-center">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 border border-amber-500/20 px-3.5 py-1 text-xs font-semibold text-amber-950">
+            <span className="size-1.5 rounded-full bg-amber-500" aria-hidden />
             전주 즉흥 여행자를 위한 실시간 추천
           </span>
-          <h1 className="mt-4 font-serif text-3xl font-bold tracking-tight text-balance text-foreground sm:text-4xl">
+          <h1 className="mt-4 font-handwriting text-3xl font-bold tracking-tight text-balance text-slate-900 sm:text-4xl">
             지금 내 위치, 지금 날씨로
             <br />
             뭘 할지 바로 정해요
           </h1>
-          <p className="mx-auto mt-3 max-w-md text-pretty leading-relaxed text-muted-foreground">
+          <p className="mx-auto mt-3 max-w-md text-pretty text-sm leading-relaxed text-slate-700 font-sans">
             계획 없이 떠난 전주. 최소한의 입력만 하면 지금 할 활동과 이동
             순서를 한눈에 보여드려요.
           </p>
