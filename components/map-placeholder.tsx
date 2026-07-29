@@ -250,43 +250,34 @@ export function MapPlaceholder({
         return [lat, lng]
       })
 
-      // ─── 1. 경로선 그리기 (임의 2개 핀 선택 > 순차 구간 > 전체 모드) ───
-      if (customPinPair) {
-        // 🎯 [임의 2개 핀 선택 모드: 예 1번➔5번]
-        const [pinA, pinB] = customPinPair
-        const customKey = `custom-${pinA}-${pinB}`
-        const points = osrmRoutes[customKey] || [routeLatLngs[pinA - 1], routeLatLngs[pinB - 1]]
-
-        const customPolyline = L.polyline(points, {
-          color: '#2563eb', // 시원한 네비게이션 파란선
-          weight: 7,
-          opacity: 1.0,
-          lineCap: 'round',
-          lineJoin: 'round',
-        }).addTo(map)
-
-        navPolylinesRef.current.push(customPolyline)
-      } else if (selectedSegment !== null) {
-        // [특정 순차 구간 선택 모드: 예 2번➔3번]
-        const idx = selectedSegment - 1
-        const key = `${selectedSegment}-${selectedSegment + 1}`
-        const points = routeMode === 'navigation'
-          ? (osrmRoutes[key] || [routeLatLngs[idx], routeLatLngs[idx + 1]])
-          : [routeLatLngs[idx], routeLatLngs[idx + 1]]
-
-        const segPolyline = L.polyline(points, {
-          color: '#2563eb',
-          weight: 7,
-          dashArray: routeMode === 'straight' ? '8, 8' : undefined,
-          opacity: 1.0,
-          lineCap: 'round',
-          lineJoin: 'round',
-        }).addTo(map)
-
-        navPolylinesRef.current.push(segPolyline)
-      } else {
-        // [전체 코스 모드]
-        if (routeMode === 'straight') {
+      // ─── 1. 경로선 그리기 (routeMode === 'straight' vs routeMode === 'navigation') ───
+      if (routeMode === 'straight') {
+        // [📏 간결한 직선 동선 모드]
+        if (customPinPair) {
+          const [pinA, pinB] = customPinPair
+          const startPt = routeLatLngs[pinA - 1]
+          const endPt = routeLatLngs[pinB - 1]
+          if (startPt && endPt) {
+            polylineRef.current = L.polyline([startPt, endPt], {
+              color: '#f59e0b',
+              weight: 6,
+              dashArray: '8, 8',
+              opacity: 1.0,
+              lineJoin: 'round',
+            }).addTo(map)
+          }
+        } else if (selectedSegment !== null) {
+          const idx = selectedSegment - 1
+          if (routeLatLngs[idx] && routeLatLngs[idx + 1]) {
+            polylineRef.current = L.polyline([routeLatLngs[idx], routeLatLngs[idx + 1]], {
+              color: '#f59e0b',
+              weight: 6,
+              dashArray: '8, 8',
+              opacity: 1.0,
+              lineJoin: 'round',
+            }).addTo(map)
+          }
+        } else {
           if (routeLatLngs.length > 1) {
             polylineRef.current = L.polyline(routeLatLngs, {
               color: '#f59e0b',
@@ -296,8 +287,38 @@ export function MapPlaceholder({
               lineJoin: 'round',
             }).addTo(map)
           }
+        }
+      } else {
+        // [🚗 🗺️ 실제 도로 길찾기 네비게이션 모드]
+        if (customPinPair) {
+          const [pinA, pinB] = customPinPair
+          const customKey = `custom-${pinA}-${pinB}`
+          const points = osrmRoutes[customKey] || [routeLatLngs[pinA - 1], routeLatLngs[pinB - 1]]
+
+          const customPolyline = L.polyline(points, {
+            color: '#2563eb',
+            weight: 7,
+            opacity: 1.0,
+            lineCap: 'round',
+            lineJoin: 'round',
+          }).addTo(map)
+
+          navPolylinesRef.current.push(customPolyline)
+        } else if (selectedSegment !== null) {
+          const idx = selectedSegment - 1
+          const key = `${selectedSegment}-${selectedSegment + 1}`
+          const points = osrmRoutes[key] || [routeLatLngs[idx], routeLatLngs[idx + 1]]
+
+          const segPolyline = L.polyline(points, {
+            color: '#2563eb',
+            weight: 7,
+            opacity: 1.0,
+            lineCap: 'round',
+            lineJoin: 'round',
+          }).addTo(map)
+
+          navPolylinesRef.current.push(segPolyline)
         } else {
-          // [실제 도로 네비게이션 모드]
           for (let i = 0; i < places.length - 1; i++) {
             const key = `${i + 1}-${i + 2}`
             const roadPoints = osrmRoutes[key] || [routeLatLngs[i], routeLatLngs[i + 1]]
