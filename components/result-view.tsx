@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Bus, Calendar, Car, Clock, Footprints, RefreshCw, Share2, Utensils, Wallet } from 'lucide-react'
+import { Bus, Calendar, Car, Clock, Footprints, RefreshCw, Share2, SunMedium, Utensils, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PlaceCard } from '@/components/place-card'
 import { MapPlaceholder } from '@/components/map-placeholder'
@@ -66,7 +66,18 @@ export function ResultView() {
     }
   }, [time])
 
-  // 선택한 남은 시간 및 필수 방문지 기반 동적 코스 자동 생성
+  // 날씨 기반 폭염/우천 자동 배치 판단
+  const isHotOrRain = useMemo(() => {
+    return (
+      weather.condition === 'rain' ||
+      weather.detail.includes('30°C') ||
+      weather.detail.includes('29°C') ||
+      weather.detail.includes('28°C') ||
+      weather.summary.includes('맑음')
+    )
+  }, [weather])
+
+  // 선택한 남은 시간, 날씨 및 필수 방문지 기반 동적 코스 자동 생성
   useEffect(() => {
     const mustVisitNames = rawMustVisit
       ? rawMustVisit
@@ -87,12 +98,17 @@ export function ResultView() {
 
       if (foundInDb && !addedNames.has(foundInDb.name.toLowerCase())) {
         addedNames.add(foundInDb.name.toLowerCase())
+        // 만약 폭염 날씨인데 야외 명소(오목대 등)가 필수 방문지에 포함되어 있다면 폭염 경고 추가
+        const isOutdoorHot = isHotOrRain && foundInDb.isIndoor === false
         generated.push({
           ...foundInDb,
           id: `mv-${orderCounter}`,
           order: orderCounter++,
           isMustVisit: true,
           reason: `사용자께서 직접 검색하여 추가하신 필수 방문지 '${name}'입니다.`,
+          warning: isOutdoorHot
+            ? `☀️ 폭염 주의 (기온 30°C): 땡볕 경사 구간입니다. 양산/손선풍기 필수 및 시원한 실내 공방/카페 휴식을 병행하세요.`
+            : foundInDb.warning,
         })
       } else if (!addedNames.has(name.toLowerCase())) {
         addedNames.add(name.toLowerCase())
@@ -132,10 +148,25 @@ export function ResultView() {
     // 3. 점심 식사/맛집 포함 여부
     const needsMeal = time !== '1h'
 
+    // 날씨(폭염/우천)일 때 실내 스팟(공방, 박물관, 빙수, 찻집 등)을 땡볕 야외 스팟보다 우선순위 높게 배치
+    const candidateDatabase = [...JEONJU_PLACES_DATABASE].sort((a, b) => {
+      if (isHotOrRain) {
+        if (a.isIndoor && !b.isIndoor) return -1
+        if (!a.isIndoor && b.isIndoor) return 1
+      }
+      return 0
+    })
+
     // DB에서 조건에 부합하는 장소들 채우기
-    JEONJU_PLACES_DATABASE.forEach((placeItem) => {
+    candidateDatabase.forEach((placeItem) => {
       if (generated.length >= targetCount) return
       if (addedNames.has(placeItem.name.toLowerCase())) return
+
+      // 폭염 시 야외 전용 장소(오목대, 자만벽화마을 등)는 비필수일 때 자동 제외/대체
+      if (isHotOrRain && placeItem.isIndoor === false && !placeItem.isMustVisit) {
+        // 폭염 날씨일 경우 야외 언덕 코스(오목대 등) 대신 실내 공방/박물관 우선 추천
+        return
+      }
 
       // 반나절 이상 코스일 때 점심 맛집이 아직 없으면 맛집 우선 추가
       if (
@@ -148,7 +179,7 @@ export function ResultView() {
           ...placeItem,
           id: `db-${orderCounter}`,
           order: orderCounter++,
-          reason: `네이버 지도 추천 전주 3대 점심/미식 맛집입니다.`,
+          reason: `네이버 지도 추천 시원한 전주 3대 점심/미식 맛집입니다.`,
         })
         return
       }
@@ -160,6 +191,20 @@ export function ResultView() {
         order: orderCounter++,
       })
     })
+
+    // 목표 장소 수에 미달하면 남은 장소들로 보충
+    if (generated.length < targetCount) {
+      JEONJU_PLACES_DATABASE.forEach((placeItem) => {
+        if (generated.length >= targetCount) return
+        if (addedNames.has(placeItem.name.toLowerCase())) return
+        addedNames.add(placeItem.name.toLowerCase())
+        generated.push({
+          ...placeItem,
+          id: `db-fill-${orderCounter}`,
+          order: orderCounter++,
+        })
+      })
+    }
 
     // 4. 이틀(1박2일), 사흘(2박3일) 일차(day: 1, 2, 3) 부여 및 보정
     const finalPlaces = generated.map((place, idx) => {
@@ -180,7 +225,7 @@ export function ResultView() {
     })
 
     setPlaces(finalPlaces)
-  }, [rawMustVisit, time])
+  }, [rawMustVisit, time, isHotOrRain])
 
   async function loadRealtimeWeather() {
     setWeatherLoading(true)
@@ -295,6 +340,19 @@ export function ResultView() {
           </span>
         </button>
       </div>
+
+      {/* 폭염/더위 날씨 맞춤 큐레이션 안내 배지 */}
+      {isHotOrRain ? (
+        <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3.5 py-2.5 text-xs text-foreground">
+          <SunMedium className="size-4 shrink-0 text-amber-400 mt-0.5" />
+          <div>
+            <span className="font-semibold text-amber-400">☀️ 폭염 날씨 케어 큐레이션:</span>{' '}
+            <span>
+              오늘처럼 기온이 높은 날(30°C) 땡볕 야외 언덕(오목대 등)을 피하고, 에어컨이 완비된 <strong>시원한 수제 공방(한지·부채·도자기), 지하 어진박물관, 빙수 카페</strong> 위주로 코스를 자동 배치했습니다.
+            </span>
+          </div>
+        </div>
+      ) : null}
 
       {/* 시간 및 이동수단 안내 띠 */}
       <div className="mt-3 flex flex-col gap-2 rounded-xl bg-card border border-border p-3 text-xs text-foreground">
