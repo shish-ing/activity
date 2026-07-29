@@ -15,10 +15,23 @@ import {
 } from '@/lib/mock-data'
 import { cn } from '@/lib/utils'
 
+// 자주 찾는 전주 주요 출발지 퀵 선택 칩
+const QUICK_START_LOCATIONS = [
+  { label: '🎯 실시간 GPS', value: 'GPS' },
+  { label: '🚉 전주역', value: '전주역' },
+  { label: '🚌 전주고속버스터미널', value: '전주고속버스터미널' },
+  { label: '🏛️ 전주 한옥마을 (전동성당)', value: '전주 한옥마을' },
+  { label: '🎓 전북대학교', value: '전북대학교' },
+  { label: '🛍️ 전주 객사', value: '전주 객사' },
+]
+
 export function ConditionForm() {
   const router = useRouter()
 
+  const [startLocation, setStartLocation] = useState<string>('전주 한옥마을')
+  const [isGpsLoading, setIsGpsLoading] = useState(false)
   const [locationGranted, setLocationGranted] = useState(false)
+
   const [time, setTime] = useState<string | null>('3h')
   const [budgetValue, setBudgetValue] = useState<number>(50000) // 0원 ~ 500,000원 슬라이더
   const [companion, setCompanion] = useState<string | null>('couple')
@@ -27,8 +40,36 @@ export function ConditionForm() {
   const [mustVisit, setMustVisit] = useState<string[]>(['전동성당'])
   const [loading, setLoading] = useState(false)
 
-  function grantLocation() {
-    setLocationGranted(true)
+  function handleGetRealGpsLocation() {
+    if (typeof window !== 'undefined' && 'geolocation' in navigator) {
+      setIsGpsLoading(true)
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setIsGpsLoading(false)
+          setLocationGranted(true)
+          const { latitude, longitude } = pos.coords
+          setStartLocation(`🎯 실시간 GPS 위치 (위도 ${latitude.toFixed(4)}, 경도 ${longitude.toFixed(4)})`)
+        },
+        (err) => {
+          setIsGpsLoading(false)
+          setLocationGranted(true)
+          setStartLocation('전주 한옥마을 (현재 위치)')
+        },
+        { enableHighAccuracy: true, timeout: 5000 },
+      )
+    } else {
+      setLocationGranted(true)
+      setStartLocation('전주 한옥마을 (현재 위치)')
+    }
+  }
+
+  function handleQuickLocationSelect(val: string) {
+    if (val === 'GPS') {
+      handleGetRealGpsLocation()
+    } else {
+      setStartLocation(val)
+      setLocationGranted(true)
+    }
   }
 
   function addMustVisit(name: string) {
@@ -42,6 +83,7 @@ export function ConditionForm() {
   function handleSubmit() {
     setLoading(true)
     const params = new URLSearchParams()
+    if (startLocation) params.set('startLocation', startLocation)
     if (mustVisit.length > 0) {
       params.set('mustVisit', mustVisit.join(','))
     }
@@ -64,43 +106,57 @@ export function ConditionForm() {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* 위치 권한 */}
-      <button
-        type="button"
-        onClick={grantLocation}
-        aria-pressed={locationGranted}
-        className={cn(
-          'flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-all outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
-          locationGranted
-            ? 'border-accent/50 bg-accent/10'
-            : 'border-dashed border-primary/40 bg-card hover:bg-secondary',
-        )}
-      >
-        <span
-          className={cn(
-            'flex size-9 shrink-0 items-center justify-center rounded-full',
-            locationGranted
-              ? 'bg-accent text-accent-foreground'
-              : 'bg-primary/10 text-primary',
-          )}
-        >
-          {locationGranted ? (
-            <MapPin className="size-4.5" />
-          ) : (
-            <LocateFixed className="size-4.5" />
-          )}
-        </span>
-        <span className="flex flex-col">
-          <span className="text-sm font-semibold text-foreground">
-            {locationGranted ? MOCK_LOCATION : '현재 위치 사용하기'}
-          </span>
-          <span className="text-xs text-muted-foreground">
-            {locationGranted
-              ? '이 위치를 기준으로 추천해 드릴게요'
-              : '탭하면 내 주변을 기준으로 추천해요'}
-          </span>
-        </span>
-      </button>
+      {/* 출발 장소 / 현재 위치 입력 & 실시간 GPS 카드 */}
+      <div className="flex flex-col gap-3 rounded-2xl border border-primary/40 bg-card p-4 sm:p-5 shadow-xs">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 font-semibold text-sm text-foreground">
+            <MapPin className="size-4.5 text-primary" />
+            <span>출발 장소 / 현재 위치 설정</span>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleGetRealGpsLocation}
+            disabled={isGpsLoading}
+            className="h-8 text-xs gap-1.5 text-primary border-primary/40 bg-primary/10 hover:bg-primary/20 rounded-xl"
+          >
+            <LocateFixed className={cn('size-3.5', isGpsLoading && 'animate-spin')} />
+            {isGpsLoading ? 'GPS 위치 조회 중...' : '🎯 실시간 내 GPS 위치 찾기'}
+          </Button>
+        </div>
+
+        {/* 직접 출발지 입력창 */}
+        <div className="relative">
+          <input
+            type="text"
+            value={startLocation}
+            onChange={(e) => setStartLocation(e.target.value)}
+            placeholder="출발하고 싶은 장소명을 입력하세요 (예: 전주역, 터미널, 전동성당, 전북대)"
+            className="w-full rounded-xl border border-border bg-secondary/60 px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+          />
+        </div>
+
+        {/* 주요 출발지 퀵 선택 칩 */}
+        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+          <span className="text-xs text-muted-foreground mr-1">빠른 선택:</span>
+          {QUICK_START_LOCATIONS.map((loc) => (
+            <button
+              key={loc.label}
+              type="button"
+              onClick={() => handleQuickLocationSelect(loc.value)}
+              className={cn(
+                'rounded-lg px-2.5 py-1 text-xs font-medium transition-all',
+                startLocation.includes(loc.value)
+                  ? 'bg-accent text-accent-foreground font-bold shadow-xs'
+                  : 'bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground',
+              )}
+            >
+              {loc.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* 조건 입력 카드 */}
       <div className="flex flex-col gap-5 rounded-2xl border border-border bg-card p-4 sm:p-5">
@@ -111,12 +167,12 @@ export function ConditionForm() {
           onChange={setTime}
         />
 
-        {/* 예서 슬라이더 (막대바) 카드 UI */}
+        {/* 예산 슬라이더 (막대바) 카드 UI */}
         <div className="flex flex-col gap-2.5 rounded-xl border border-accent/30 bg-accent/5 p-3.5">
           <div className="flex flex-wrap items-center justify-between gap-1">
             <div className="flex items-center gap-1.5 font-semibold text-sm text-foreground">
               <Wallet className="size-4 text-accent" />
-              <span>1인당 여행 예서 (슬라이더 막대바로 조정)</span>
+              <span>1인당 여행 예산 (막대바로 조정)</span>
             </div>
             <span className="text-sm font-bold text-accent bg-accent/15 px-2.5 py-0.5 rounded-lg">
               {budgetDisplayLabel}
@@ -135,7 +191,7 @@ export function ConditionForm() {
             />
           </div>
 
-          {/* 주요 예서 프리셋 클릭 조절 칩 */}
+          {/* 주요 예산 프리셋 클릭 조절 칩 */}
           <div className="flex flex-wrap items-center justify-between text-xs text-muted-foreground pt-1 gap-1">
             <button
               type="button"
@@ -237,7 +293,7 @@ export function ConditionForm() {
         {loading ? (
           <>
             <Loader2 className="size-5 animate-spin" />
-            예산 및 맞춤 코스 계산 중...
+            출발지 및 맞춤 코스 계산 중...
           </>
         ) : (
           <>

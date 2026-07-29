@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Bus, Calendar, Car, Clock, Footprints, Heart, RefreshCw, Share2, Sparkles, SunMedium, Utensils, Wallet } from 'lucide-react'
+import { Bus, Calendar, Car, Clock, Footprints, Heart, MapPin, RefreshCw, Share2, Sparkles, SunMedium, Utensils, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PlaceCard } from '@/components/place-card'
 import { MapPlaceholder } from '@/components/map-placeholder'
@@ -39,6 +39,7 @@ export function ResultView() {
   const weatherParam = searchParams.get('weather') || 'auto' // 'auto' | 'clear' | 'rain' | 'cloudy' | 'snow' | 'wind'
   const companionParam = searchParams.get('companion') || 'couple' // 'solo' | 'couple' | 'friends' | 'family' | 'kids' | 'pet'
   const rawBudget = searchParams.get('budget')
+  const startLocationParam = searchParams.get('startLocation') || '전주 한옥마을'
 
   const [places, setPlaces] = useState<Place[]>(RECOMMENDED_PLACES)
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -159,7 +160,7 @@ export function ResultView() {
         return {
           icon: weather.emoji,
           title: `🛰️ 실시간 날씨(${weather.summary}) 큐레이션:`,
-          text: '선택한 예산 슬라이더(0원~50만원+) 범위 내에서 최적의 장소와 최단 순선 경로가 제공됩니다.',
+          text: '선택한 출발지 및 예산 슬라이더 범위 내에서 최적의 장소와 최단 순선 경로가 제공됩니다.',
           bannerColor: 'border-accent/40 bg-accent/10 text-accent',
         }
     }
@@ -177,7 +178,7 @@ export function ResultView() {
     )
   }, [weather, weatherParam])
 
-  // 선택한 남은 시간, 예산, 이동수단, 동행 유형, 날씨 및 최단 경로 정렬
+  // 선택한 출발지, 남은 시간, 예산, 이동수단, 동행 유형, 날씨 및 최단 경로 정렬
   useEffect(() => {
     const mustVisitNames = rawMustVisit
       ? rawMustVisit
@@ -257,7 +258,6 @@ export function ResultView() {
     const pureSpotsDatabase = JEONJU_PLACES_DATABASE.filter((p) => {
       if (p.isMeal || p.isDessert) return false
 
-      // 예산이 0원(무료 명소 전용)인 경우: cost === 0 인 장소만 선택!
       if (userBudgetLimit === 0 && p.cost > 0 && !p.isMustVisit) {
         return false
       }
@@ -279,12 +279,10 @@ export function ResultView() {
       }
       return true
     }).sort((a, b) => {
-      // 1순위: 선택한 동행 유형 맞춤
       const aCompMatch = a.suitableCompanions?.includes(companionParam) ? 1 : 0
       const bCompMatch = b.suitableCompanions?.includes(companionParam) ? 1 : 0
       if (aCompMatch !== bCompMatch) return bCompMatch - aCompMatch
 
-      // 2순위: 실내/날씨
       if (isIndoorPriority) {
         if (a.isIndoor && !b.isIndoor) return -1
         if (!a.isIndoor && b.isIndoor) return 1
@@ -304,7 +302,6 @@ export function ResultView() {
         return
       }
 
-      // 예산 초과 방지 (유료 항목이 총 예산 상한을 과도하게 넘으면 무료 스팟으로 우선 구성)
       if (userBudgetLimit > 0 && currentCostSum + placeItem.cost > userBudgetLimit && placeItem.cost > 0) {
         return
       }
@@ -318,7 +315,7 @@ export function ResultView() {
       })
     })
 
-    // 목표 장소 수 미달 시 무료 스팟 중심으로 보충
+    // 목표 장소 수 미달 시 보충
     if (generated.length < targetCount) {
       const fallbackPool = JEONJU_PLACES_DATABASE.filter((p) => !p.isMeal && !p.isDessert)
       fallbackPool.forEach((placeItem) => {
@@ -333,12 +330,51 @@ export function ResultView() {
       })
     }
 
-    // 4. 지리적 최단 동선 최적화 알고리즘 (Nearest-Neighbor TSP Route Optimization)
+    // 4. 출발 장소(startLocationParam) 기준 최단 순선 동선 정렬 알고리즘 (Nearest-Neighbor TSP)
     const optimizedPlaces: Place[] = []
     const unvisitedPool = [...generated]
 
     if (unvisitedPool.length > 0) {
-      let currentPlace = unvisitedPool.shift()!
+      // 출발지와 가장 가까운 스팟을 1번으로 선택
+      const startPointAnchor: Place = {
+        id: 'start-anchor',
+        order: 0,
+        name: startLocationParam,
+        category: '출발지',
+        cost: 0,
+        costLabel: '0원',
+        walkMinutes: 0,
+        reason: '출발지',
+        isMustVisit: false,
+        mapX: 50,
+        mapY: 50,
+        lat: startLocationParam.includes('전주역')
+          ? 35.8490
+          : startLocationParam.includes('터미널')
+            ? 35.8360
+            : startLocationParam.includes('전북대')
+              ? 35.8470
+              : 35.8133,
+        lng: startLocationParam.includes('전주역')
+          ? 127.1615
+          : startLocationParam.includes('터미널')
+            ? 127.1320
+            : startLocationParam.includes('전북대')
+              ? 127.1290
+              : 127.1492,
+      }
+
+      let nearestToStartIdx = 0
+      let minStartDist = Infinity
+      for (let i = 0; i < unvisitedPool.length; i++) {
+        const dist = getPlaceDistance(startPointAnchor, unvisitedPool[i])
+        if (dist < minStartDist) {
+          minStartDist = dist
+          nearestToStartIdx = i
+        }
+      }
+
+      let currentPlace = unvisitedPool.splice(nearestToStartIdx, 1)[0]
       optimizedPlaces.push(currentPlace)
 
       while (unvisitedPool.length > 0) {
@@ -358,7 +394,7 @@ export function ResultView() {
       }
     }
 
-    // 5. 이틀(1박2일), 사흘(2박3일) 일차(day: 1, 2, 3) 및 실제 이동 소요시간 계산
+    // 5. 일차 및 소요시간 정렬
     const finalPlaces = optimizedPlaces.map((place, idx) => {
       let day = 1
       if (time === '2days') {
@@ -390,7 +426,7 @@ export function ResultView() {
     })
 
     setPlaces(finalPlaces)
-  }, [rawMustVisit, time, isIndoorPriority, weatherParam, companionParam, transport, userBudgetLimit])
+  }, [rawMustVisit, time, isIndoorPriority, weatherParam, companionParam, transport, userBudgetLimit, startLocationParam])
 
   async function loadRealtimeWeather() {
     setWeatherLoading(true)
@@ -464,7 +500,7 @@ export function ResultView() {
     return () => clearInterval(timer)
   }, [weatherParam])
 
-  // 클릭 시 장소 교체 처리 함수 (예산 및 이동수단 반경 고려 교체)
+  // 클릭 시 장소 교체 처리 함수
   function handleReplace(id: string) {
     setPlaces((prev) => {
       const targetPlace = prev.find((p) => p.id === id)
@@ -496,7 +532,7 @@ export function ResultView() {
               id: `${p.id}-replaced-${Date.now()}`,
               order: p.order,
               day: p.day,
-              reason: `선택하신 예산(${budgetDisplayLabel}) 범위 내 새로운 장소로 교체되었습니다.`,
+              reason: `선택하신 출발지 및 예산 범위 내 새로운 장소로 교체되었습니다.`,
             }
           : p,
       )
@@ -607,6 +643,12 @@ export function ResultView() {
         ) : null}
       </div>
 
+      {/* 출발지 선택 표시 배지 */}
+      <div className="mt-3 flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/10 p-3 text-xs text-primary font-semibold">
+        <MapPin className="size-4 shrink-0 text-primary" />
+        <span>🚩 설정된 출발지: <strong className="text-foreground">{startLocationParam}</strong> (이 출발지를 기준으로 최단 지리적 순선 코스가 연동되었습니다)</span>
+      </div>
+
       {/* 예산 및 동행 유형 맞춤 안내 배지 */}
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3 text-xs text-emerald-300">
         <div className="flex items-center gap-2">
@@ -640,7 +682,7 @@ export function ResultView() {
           <div className="flex items-center gap-3 text-muted-foreground">
             <span className="flex items-center gap-1 text-emerald-400 font-medium">
               <Utensils className="size-3" />
-              예산({budgetDisplayLabel}) 맞춤 코스
+              출발지 기준 최단 순선 동선
             </span>
             <span>총 {places.length}개 스팟</span>
           </div>
@@ -657,9 +699,7 @@ export function ResultView() {
         <section aria-label="추천 장소 목록" className="flex flex-col gap-4">
           <div className="flex items-baseline justify-between">
             <h2 className="font-serif text-lg font-bold text-foreground">
-              {userBudgetLimit === 0
-                ? '💰 0원 100% 무료 명소 전용 추천 코스'
-                : '💰 예산 맞춤 추천 코스'}
+              🚩 {startLocationParam} 출발 맞춤 추천 코스
             </h2>
             <span className="text-xs text-muted-foreground">
               카드를 누르거나 '다른 장소 변경' 클릭 시 교체돼요
