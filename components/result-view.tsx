@@ -673,6 +673,25 @@ export function ResultView() {
     const pureSpotsDatabase = JEONJU_PLACES_DATABASE.filter((p) => {
       if (p.isMeal || p.isDessert) return false
 
+      // 방탈출, 보드게임, 일반 노래방, 만화카페 등 흔한 프랜차이즈/일반 상점은 초안 코스 100% 자동 제외 (사용자 직접 검색 추가 시에만 연동)
+      const name = p.name.toLowerCase()
+      const cat = p.category.toLowerCase()
+      const isGenericStore =
+        name.includes('보드게임') ||
+        name.includes('방탈출') ||
+        name.includes('만화') ||
+        name.includes('벌툰') ||
+        name.includes('레드버튼') ||
+        name.includes('셜록홈즈') ||
+        name.includes('통집') ||
+        cat.includes('보드게임') ||
+        cat.includes('방탈출') ||
+        cat.includes('주점')
+
+      if (isGenericStore && !p.isMustVisit) {
+        return false
+      }
+
       if (userBudgetLimit === 0 && p.cost > 0 && !p.isMustVisit) {
         return false
       }
