@@ -327,22 +327,22 @@ export function ConditionForm() {
         />
       </div>
 
-      {/* 추천받기 버튼 */}
+      {/* 추천받기 버튼 — 크고 돋보이는 골든 앰버 메인 CTA 버튼 */}
       <Button
         size="lg"
         onClick={handleSubmit}
         disabled={loading}
-        className="h-13 w-full rounded-2xl text-base"
+        className="h-14 w-full rounded-2xl text-lg font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-lg shadow-amber-500/30 transition-all active:scale-[0.99] cursor-pointer mt-2 border-2 border-amber-300/50"
       >
         {loading ? (
           <>
-            <Loader2 className="size-5 animate-spin" />
-            출발 주소 및 1번 장소 버스 노선 계산 중...
+            <Loader2 className="size-6 animate-spin text-slate-950" />
+            출발 주소 및 1번 장소 최단 코스 계산 중...
           </>
         ) : (
           <>
-            <Sparkles className="size-5" />
-            맞춤 코스 추천받기
+            <Sparkles className="size-6 text-slate-950" />
+            ✨ 맞춤 코스 추천받기 (결과 보기)
           </>
         )}
       </Button>
