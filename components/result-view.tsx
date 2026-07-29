@@ -6,6 +6,7 @@ import { AlertCircle, Bus, Calendar, Car, Clock, Footprints, Heart, MapPin, Refr
 import { Button } from '@/components/ui/button'
 import { PlaceCard } from '@/components/place-card'
 import { MapPlaceholder } from '@/components/map-placeholder'
+import { BudgetPieChart } from '@/components/budget-pie-chart'
 import {
   ALTERNATIVE_PLACES,
   CURRENT_WEATHER,
@@ -342,7 +343,7 @@ export function ResultView() {
       return Math.random() - 0.5
     })
 
-    // DB에서 조건에 부합하는 장소들 채우기
+    // DB에서 조건에 부합하는 장소들 채우기 (유료 체험/공방도 포함하여 예산의 80%를 알차게 활용)
     let currentCostSum = generated.reduce((s, p) => s + p.cost, 0)
 
     pureSpotsDatabase.forEach((placeItem) => {
@@ -823,6 +824,13 @@ export function ResultView() {
         </section>
       </div>
 
+      {/* 하단: 예산 사용 분석 원형 그래프 (Budget Utilization & SVG Pie Chart) */}
+      <BudgetPieChart
+        userBudgetLimit={userBudgetLimit}
+        totalPlaceCost={totalCost}
+        transport={transport}
+      />
+
       {/* 하단 고정바 */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/90 backdrop-blur">
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-3">
@@ -830,7 +838,7 @@ export function ResultView() {
             <span className="flex items-center gap-1.5">
               <Wallet className="size-4 text-accent" />
               <span className="font-semibold text-foreground">
-                총 {formatWon(totalCost)} (한도: {budgetDisplayLabel})
+                한도: {budgetDisplayLabel}
               </span>
             </span>
             <span className="flex items-center gap-1.5">
