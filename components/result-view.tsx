@@ -1314,8 +1314,8 @@ export function ResultView() {
           </button>
         </div>
 
-        {/* 이전장 / 다음장 넘기기 화살표 슬라이드 컨트롤 & 2장(코스&지도) 선택 시 3개 점 옆(우측)에 사진의 둥근 알약형 컨트롤 바 배치 */}
-        <div className="relative flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-border/50 min-h-[42px]">
+        {/* 이전장 / 다음장 넘기기 화살표 슬라이드 컨트롤 & 2장(코스&지도) 선택 시 사진 속 둥근 알약형 지도 컨트롤 바 배치 */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-border/50 min-h-[42px]">
           {/* 좌측: 이전 장 */}
           <button
             type="button"
@@ -1327,220 +1327,202 @@ export function ResultView() {
             <span className="hidden sm:inline">◀ 이전 장</span>
           </button>
 
-          {/* 🎯 정중앙: ● ▬ ● 페이지 인디케이터 (헤더 바의 중앙 고정!) */}
-          <div className="flex items-center gap-1.5 z-10 mx-auto sm:absolute sm:left-1/2 sm:-translate-x-1/2">
-            {[0, 1, 2].map((idx) => (
-              <button
-                key={`page-indicator-${idx}`}
-                type="button"
-                onClick={() => setActiveTab(idx)}
-                title={`${idx + 1}장으로 이동`}
-                className={cn(
-                  "size-2.5 rounded-full transition-all cursor-pointer",
-                  activeTab === idx ? "w-6 bg-accent shadow-xs" : "bg-muted-foreground/30 hover:bg-muted-foreground"
-                )}
-              />
-            ))}
-          </div>
-
-          {/* 우측: 2장 선택 시 3개 점(인디케이터) 바로 오른쪽에 사진 속 둥근 알약형 버튼 디자인 배치! */}
-          <div className="flex items-center gap-2 z-10 ml-auto mr-1">
-            {activeTab === 1 && (
-              <div className="flex flex-wrap items-center gap-2">
-                {/* 사진 1: 둥근 외곽선 테두리 알약 용기 (직선 vs 도로 길찾기) */}
-                <div className="flex items-center gap-1 bg-sky-50/90 p-1 rounded-full border border-sky-300 shadow-sm backdrop-blur-md">
-                  <button
-                    type="button"
-                    onClick={() => setMapRouteMode('straight')}
-                    className={cn(
-                      'h-7 px-3 text-xs font-bold rounded-full transition-all gap-1.5 flex items-center cursor-pointer',
-                      mapRouteMode === 'straight'
-                        ? 'bg-slate-900 text-white shadow-md scale-[1.02]'
-                        : 'bg-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-200/50',
-                    )}
-                  >
-                    <Route className="size-3.5 text-amber-400" />
-                    <span>직선</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setMapRouteMode('navigation')}
-                    className={cn(
-                      'h-7 px-3.5 text-xs font-extrabold rounded-full transition-all gap-1.5 flex items-center cursor-pointer',
-                      mapRouteMode === 'navigation'
-                        ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30 scale-[1.02]'
-                        : 'bg-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-200/50',
-                    )}
-                  >
-                    <Navigation className="size-3.5 text-sky-200" />
-                    <span>🚗 🗺️ 도로 길찾기</span>
-                  </button>
-                </div>
-
-                {/* 사진 2: 주황색/파란색 둥근 알약형 구간 선택 버튼 */}
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setIsMapSegmentOpen((prev) => !prev)}
-                    className={cn(
-                      'h-8 px-3.5 text-xs font-black rounded-full gap-1.5 transition-all shadow-md cursor-pointer border flex items-center',
-                      mapCustomPinPair || mapSelectedSegment !== null
-                        ? 'bg-blue-600 text-white border-blue-500 hover:bg-blue-700 shadow-blue-500/20'
-                        : mapCustomStartPin !== null
-                        ? 'bg-amber-400 text-slate-950 border-amber-300 animate-pulse'
-                        : 'bg-amber-500 text-slate-950 border-amber-400 hover:bg-amber-600',
-                    )}
-                  >
-                    <Compass className="size-3.5" />
-                    <span className="text-sky-200">🌐</span>
-                    <span className="truncate max-w-[110px] sm:max-w-[160px]">{mapCurrentSegmentText}</span>
-                    {isMapSegmentOpen ? <ChevronUp className="size-3.5 ml-0.5" /> : <ChevronDown className="size-3.5 ml-0.5" />}
-                  </button>
-
-                  {(mapCustomPinPair || mapSelectedSegment !== null || mapCustomStartPin !== null) && (
-                    <button
-                      type="button"
-                      onClick={handleResetAllMap}
-                      className="absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full bg-slate-800 text-white hover:bg-slate-950 text-[10px] font-bold shadow-md cursor-pointer border border-white"
-                      title="전체 코스로 해제"
-                    >
-                      ✕
-                    </button>
+          {/* 중앙/우측: 2장(코스 & 지도) 활성화 시 노출되는 둥근 알약형 지도 경로 & 구간 선택 컨트롤 바 */}
+          {activeTab === 1 && (
+            <div className="flex flex-wrap items-center justify-center gap-2 my-0.5">
+              {/* 알약 용기 1: 직선 vs 도로 길찾기 */}
+              <div className="flex items-center gap-1 bg-sky-50/90 p-1 rounded-full border border-sky-300 shadow-sm backdrop-blur-md">
+                <button
+                  type="button"
+                  onClick={() => setMapRouteMode('straight')}
+                  className={cn(
+                    'h-7 px-3 text-xs font-bold rounded-full transition-all gap-1.5 flex items-center cursor-pointer',
+                    mapRouteMode === 'straight'
+                      ? 'bg-slate-900 text-white shadow-md scale-[1.02]'
+                      : 'bg-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-200/50',
                   )}
+                >
+                  <Route className="size-3.5 text-amber-400" />
+                  <span>직선</span>
+                </button>
 
-                  {/* 드롭다운 오버레이 팝오버 메뉴 */}
-                  {isMapSegmentOpen && (
-                    <div className="absolute top-full right-0 mt-2 z-50 w-[295px] sm:w-[360px] max-h-[350px] overflow-y-auto rounded-2xl border border-sky-300 bg-white p-3 shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-top-2">
-                      <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
-                        <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                          <Sparkles className="size-3.5 text-amber-500" />
-                          구간선택 (지도 핀 2개 직접 클릭 OR 아래 목록)
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setIsMapSegmentOpen(false)}
-                          className="text-xs text-slate-400 hover:text-slate-700 font-bold px-1.5 py-0.5 cursor-pointer"
-                        >
-                          닫기 ✕
-                        </button>
-                      </div>
+                <button
+                  type="button"
+                  onClick={() => setMapRouteMode('navigation')}
+                  className={cn(
+                    'h-7 px-3.5 text-xs font-extrabold rounded-full transition-all gap-1.5 flex items-center cursor-pointer',
+                    mapRouteMode === 'navigation'
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30 scale-[1.02]'
+                      : 'bg-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-200/50',
+                  )}
+                >
+                  <Navigation className="size-3.5 text-sky-200" />
+                  <span>🚗 🗺️ 도로 길찾기</span>
+                </button>
+              </div>
 
-                      <div className="grid gap-1.5">
-                        <button
-                          type="button"
-                          onClick={handleResetAllMap}
-                          className={cn(
-                            'flex items-center justify-between p-2 rounded-xl text-xs font-bold transition-all border text-left cursor-pointer',
-                            mapSelectedSegment === null && mapCustomPinPair === null
-                              ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-xs'
-                              : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100',
-                          )}
-                        >
-                          <div className="flex items-center gap-2">
-                            <span>🌐</span>
-                            <span>전체 {places.length}개 코스 한눈에 보기</span>
-                          </div>
-                          {mapSelectedSegment === null && mapCustomPinPair === null && <CheckCircle2 className="size-4 text-slate-950" />}
-                        </button>
+              {/* 알약 용기 2: 주황/파랑 구간 선택 드롭다운 버튼 */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsMapSegmentOpen((prev) => !prev)}
+                  className={cn(
+                    'h-8 px-3.5 text-xs font-black rounded-full gap-1.5 transition-all shadow-md cursor-pointer border flex items-center',
+                    mapCustomPinPair || mapSelectedSegment !== null
+                      ? 'bg-blue-600 text-white border-blue-500 hover:bg-blue-700 shadow-blue-500/20'
+                      : mapCustomStartPin !== null
+                      ? 'bg-amber-400 text-slate-950 border-amber-300 animate-pulse'
+                      : 'bg-amber-500 text-slate-950 border-amber-400 hover:bg-amber-600',
+                  )}
+                >
+                  <Compass className="size-3.5" />
+                  <span className="text-sky-200">🌐</span>
+                  <span className="truncate max-w-[120px] sm:max-w-[180px]">{mapCurrentSegmentText}</span>
+                  {isMapSegmentOpen ? <ChevronUp className="size-3.5 ml-0.5" /> : <ChevronDown className="size-3.5 ml-0.5" />}
+                </button>
 
-                        {places.length >= 5 && (
-                          <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-2 space-y-1">
-                            <p className="text-[11px] font-bold text-blue-900 flex items-center gap-1">
-                              <Navigation className="size-3 text-blue-600" /> 🎯 주요 임의 경로 바로보기:
-                            </p>
-                            <div className="flex flex-wrap gap-1">
+                {(mapCustomPinPair || mapSelectedSegment !== null || mapCustomStartPin !== null) && (
+                  <button
+                    type="button"
+                    onClick={handleResetAllMap}
+                    className="absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full bg-slate-800 text-white hover:bg-slate-950 text-[10px] font-bold shadow-md cursor-pointer border border-white"
+                    title="전체 코스로 해제"
+                  >
+                    ✕
+                  </button>
+                )}
+
+                {/* 드롭다운 오버레이 팝오버 메뉴 */}
+                {isMapSegmentOpen && (
+                  <div className="absolute top-full right-0 mt-2 z-50 w-[295px] sm:w-[360px] max-h-[350px] overflow-y-auto rounded-2xl border border-sky-300 bg-white p-3 shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-top-2">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
+                      <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                        <Sparkles className="size-3.5 text-amber-500" />
+                        구간선택 (지도 핀 2개 직접 클릭 OR 아래 목록)
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setIsMapSegmentOpen(false)}
+                        className="text-xs text-slate-400 hover:text-slate-700 font-bold px-1.5 py-0.5 cursor-pointer"
+                      >
+                        닫기 ✕
+                      </button>
+                    </div>
+
+                    <div className="grid gap-1.5">
+                      <button
+                        type="button"
+                        onClick={handleResetAllMap}
+                        className={cn(
+                          'flex items-center justify-between p-2 rounded-xl text-xs font-bold transition-all border text-left cursor-pointer',
+                          mapSelectedSegment === null && mapCustomPinPair === null
+                            ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-xs'
+                            : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100',
+                        )}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span>🌐</span>
+                          <span>전체 {places.length}개 코스 한눈에 보기</span>
+                        </div>
+                        {mapSelectedSegment === null && mapCustomPinPair === null && <CheckCircle2 className="size-4 text-slate-950" />}
+                      </button>
+
+                      {places.length >= 5 && (
+                        <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-2 space-y-1">
+                          <p className="text-[11px] font-bold text-blue-900 flex items-center gap-1">
+                            <Navigation className="size-3 text-blue-600" /> 🎯 주요 임의 경로 바로보기:
+                          </p>
+                          <div className="flex flex-wrap gap-1">
+                            <button
+                              type="button"
+                              onClick={() => handleSelectMapCustomPair([1, 5])}
+                              className={cn(
+                                'px-2 py-0.5 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center gap-1',
+                                mapCustomPinPair?.[0] === 1 && mapCustomPinPair?.[1] === 5
+                                  ? 'bg-blue-600 text-white border-blue-500 shadow-xs'
+                                  : 'bg-white text-blue-900 border-blue-200 hover:bg-blue-100',
+                              )}
+                            >
+                              <span>1번 ➔ 5번</span>
+                            </button>
+
+                            {places.length >= 8 && (
                               <button
                                 type="button"
-                                onClick={() => handleSelectMapCustomPair([1, 5])}
+                                onClick={() => handleSelectMapCustomPair([2, 8])}
                                 className={cn(
                                   'px-2 py-0.5 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center gap-1',
-                                  mapCustomPinPair?.[0] === 1 && mapCustomPinPair?.[1] === 5
+                                  mapCustomPinPair?.[0] === 2 && mapCustomPinPair?.[1] === 8
                                     ? 'bg-blue-600 text-white border-blue-500 shadow-xs'
                                     : 'bg-white text-blue-900 border-blue-200 hover:bg-blue-100',
                                 )}
                               >
-                                <span>1번 ➔ 5번</span>
+                                <span>2번 ➔ 8번</span>
                               </button>
-
-                              {places.length >= 8 && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleSelectMapCustomPair([2, 8])}
-                                  className={cn(
-                                    'px-2 py-0.5 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center gap-1',
-                                    mapCustomPinPair?.[0] === 2 && mapCustomPinPair?.[1] === 8
-                                      ? 'bg-blue-600 text-white border-blue-500 shadow-xs'
-                                      : 'bg-white text-blue-900 border-blue-200 hover:bg-blue-100',
-                                  )}
-                                >
-                                  <span>2번 ➔ 8번</span>
-                                </button>
-                              )}
-                            </div>
+                            )}
                           </div>
-                        )}
-
-                        <div className="space-y-1 pt-1">
-                          <p className="text-[11px] font-bold text-slate-500">📍 순차 구간별 보기:</p>
-                          {places.slice(0, -1).map((fromP, idx) => {
-                            const segNum = idx + 1
-                            const toP = places[idx + 1]
-                            const isSelected = mapSelectedSegment === segNum && mapCustomPinPair === null
-
-                            return (
-                              <button
-                                key={`map-dropdown-seg-${segNum}`}
-                                type="button"
-                                onClick={() => handleSelectMapSegment(segNum)}
-                                className={cn(
-                                  'w-full flex items-center justify-between p-2 rounded-xl text-xs font-bold transition-all border text-left cursor-pointer',
-                                  isSelected
-                                    ? 'bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-500/20'
-                                    : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50 hover:border-slate-300',
-                                )}
-                              >
-                                <div className="flex items-center gap-2 overflow-hidden">
-                                  <span className={cn(
-                                    'flex size-4.5 shrink-0 items-center justify-center rounded-full text-[10px] font-black',
-                                    isSelected ? 'bg-white text-blue-700' : 'bg-slate-900 text-white'
-                                  )}>
-                                    {segNum}
-                                  </span>
-                                  <span className="truncate">{fromP.name}</span>
-                                  <ArrowRight className={cn('size-3 shrink-0', isSelected ? 'text-blue-200' : 'text-slate-400')} />
-                                  <span className={cn(
-                                    'flex size-4.5 shrink-0 items-center justify-center rounded-full text-[10px] font-black',
-                                    isSelected ? 'bg-white text-blue-700' : 'bg-slate-900 text-white'
-                                  )}>
-                                    {segNum + 1}
-                                  </span>
-                                  <span className="truncate">{toP.name}</span>
-                                </div>
-
-                                {isSelected && <CheckCircle2 className="size-4 text-white shrink-0 ml-1.5" />}
-                              </button>
-                            )
-                          })}
                         </div>
+                      )}
+
+                      <div className="space-y-1 pt-1">
+                        <p className="text-[11px] font-bold text-slate-500">📍 순차 구간별 보기:</p>
+                        {places.slice(0, -1).map((fromP, idx) => {
+                          const segNum = idx + 1
+                          const toP = places[idx + 1]
+                          const isSelected = mapSelectedSegment === segNum && mapCustomPinPair === null
+
+                          return (
+                            <button
+                              key={`map-dropdown-seg-${segNum}`}
+                              type="button"
+                              onClick={() => handleSelectMapSegment(segNum)}
+                              className={cn(
+                                'w-full flex items-center justify-between p-2 rounded-xl text-xs font-bold transition-all border text-left cursor-pointer',
+                                isSelected
+                                  ? 'bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-500/20'
+                                  : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50 hover:border-slate-300',
+                              )}
+                            >
+                              <div className="flex items-center gap-2 overflow-hidden">
+                                <span className={cn(
+                                  'flex size-4.5 shrink-0 items-center justify-center rounded-full text-[10px] font-black',
+                                  isSelected ? 'bg-white text-blue-700' : 'bg-slate-900 text-white'
+                                )}>
+                                  {segNum}
+                                </span>
+                                <span className="truncate">{fromP.name}</span>
+                                <ArrowRight className={cn('size-3 shrink-0', isSelected ? 'text-blue-200' : 'text-slate-400')} />
+                                <span className={cn(
+                                  'flex size-4.5 shrink-0 items-center justify-center rounded-full text-[10px] font-black',
+                                  isSelected ? 'bg-white text-blue-700' : 'bg-slate-900 text-white'
+                                )}>
+                                  {segNum + 1}
+                                </span>
+                                <span className="truncate">{toP.name}</span>
+                              </div>
+
+                              {isSelected && <CheckCircle2 className="size-4 text-white shrink-0 ml-1.5" />}
+                            </button>
+                          )
+                        })}
                       </div>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
+          )}
 
-            {/* 우측: 다음 장 */}
-            <button
-              type="button"
-              onClick={() => setActiveTab((prev) => Math.min(2, prev + 1))}
-              disabled={activeTab === 2}
-              className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-secondary/60 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed transition-all shrink-0"
-            >
-              <span className="hidden sm:inline">다음 장 ▶</span>
-              <ChevronRight className="size-4" />
-            </button>
-          </div>
+          {/* 우측: 다음 장 */}
+          <button
+            type="button"
+            onClick={() => setActiveTab((prev) => Math.min(2, prev + 1))}
+            disabled={activeTab === 2}
+            className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-secondary/60 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed transition-all shrink-0 z-10 ml-auto"
+          >
+            <span className="hidden sm:inline">다음 장 ▶</span>
+            <ChevronRight className="size-4" />
+          </button>
         </div>
       </div>
 
