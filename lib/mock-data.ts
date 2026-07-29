@@ -108,6 +108,8 @@ export type Place = {
   isMeal?: boolean
   day?: number
   isIndoor?: boolean
+  lat?: number
+  lng?: number
   distanceText?: string
   travelMinutes?: number
   transitInfo?: string

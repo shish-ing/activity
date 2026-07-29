@@ -57,6 +57,13 @@ export default function RootLayout({
       lang="ko"
       className={`bg-background ${notoSansKr.variable} ${gowunBatang.variable}`}
     >
+      <head>
+        <link
+          rel="stylesheet"
+          href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          crossOrigin=""
+        />
+      </head>
       <body className="font-sans antialiased">
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}

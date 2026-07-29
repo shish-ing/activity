@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Bus, Calendar, Car, Clock, Footprints, RefreshCw, Share2, SunMedium, Utensils, Wallet } from 'lucide-react'
+import { Bus, Calendar, Car, Clock, Footprints, RefreshCw, Share2, Utensils, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PlaceCard } from '@/components/place-card'
 import { MapPlaceholder } from '@/components/map-placeholder'
@@ -67,18 +67,66 @@ export function ResultView() {
     }
   }, [time])
 
-  // 날씨 기반 폭염/우천/한파 자동 배치 판단
-  const isHotOrRain = useMemo(() => {
+  // 선택된 날씨 옵션별 큐레이션 타이틀 및 가이드 메시지
+  const weatherCareMessage = useMemo(() => {
+    switch (weatherParam) {
+      case 'wind':
+        return {
+          icon: '🥶',
+          title: '🥶 한파·찬 바람 맞춤 큐레이션:',
+          text: '매서운 찬 바람과 추위를 피할 수 있도록 뜨끈한 한옥 전통 찻집(쌍화차·한방차), 몸을 녹여주는 전주 콩나물국밥/순대국밥, 따뜻한 실내 공방(한지/부채/도자기) 위주로 코스를 큐레이션했습니다.',
+          bannerColor: 'border-blue-500/40 bg-blue-500/10 text-blue-300',
+        }
+      case 'snow':
+        return {
+          icon: '❄️',
+          title: '❄️ 한옥 설경·눈 오는 날 큐레이션:',
+          text: '하얀 눈이 내려앉은 고즈넉한 한옥 풍경을 온돌 툇마루에서 감상할 수 있는 전통 찻집, 뜨끈한 전주 콩나물국밥, 쾌적한 실내 공방 위주로 코스를 구성했습니다.',
+          bannerColor: 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300',
+        }
+      case 'rain':
+        return {
+          icon: '☔',
+          title: '☔ 비 오는 날 낭만 큐레이션:',
+          text: '빗소리를 들으며 즐길 수 있는 고즈넉한 전통 찻집, 수제 한지/도자기 실내 공방, 지하 어진박물관 위주로 우천 맞춤 동선을 구성했습니다.',
+          bannerColor: 'border-teal-500/40 bg-teal-500/10 text-teal-300',
+        }
+      case 'clear':
+        return {
+          icon: '☀️',
+          title: '☀️ 폭염·더위 맞춤 큐레이션:',
+          text: '무더위 땡볕 야외 언덕(오목대 등)을 피하고, 에어컨이 완비된 시원한 수제 공방(한지·부채·도자기), 지하 어진박물관, 흑임자 팥빙수 카페 위주로 코스를 자동 배치했습니다.',
+          bannerColor: 'border-amber-500/40 bg-amber-500/10 text-amber-300',
+        }
+      case 'cloudy':
+        return {
+          icon: '☁️',
+          title: '☁️ 선선한 날씨 맞춤 큐레이션:',
+          text: '햇살이 적당하고 선선해 한옥마을 돌담길과 경기전 대나무 숲, 골목 공방 산책을 즐기기 딱 좋은 밸런스 코스입니다.',
+          bannerColor: 'border-sky-500/40 bg-sky-500/10 text-sky-300',
+        }
+      default:
+        // auto
+        return {
+          icon: weather.emoji,
+          title: `🛰️ 실시간 날씨(${weather.summary}) 큐레이션:`,
+          text: weather.detail.includes('30°C')
+            ? '실시간 무더위를 피할 시원한 수제 공방, 지하 어진박물관, 팥빙수 카페 위주로 큐레이션되었습니다.'
+            : '실시간 전주 기상 조건에 맞춘 최적 동선입니다.',
+          bannerColor: 'border-accent/40 bg-accent/10 text-accent',
+        }
+    }
+  }, [weatherParam, weather])
+
+  // 날씨 기반 폭염/우천/한파 실내 스팟 우선배치 여부
+  const isIndoorPriority = useMemo(() => {
     return (
+      weatherParam === 'wind' ||
+      weatherParam === 'snow' ||
       weatherParam === 'rain' ||
       weatherParam === 'clear' ||
-      weatherParam === 'snow' ||
-      weatherParam === 'wind' ||
       weather.condition === 'rain' ||
-      weather.detail.includes('30°C') ||
-      weather.detail.includes('29°C') ||
-      weather.detail.includes('28°C') ||
-      weather.summary.includes('맑음')
+      weather.detail.includes('30°C')
     )
   }, [weather, weatherParam])
 
@@ -103,15 +151,15 @@ export function ResultView() {
 
       if (foundInDb && !addedNames.has(foundInDb.name.toLowerCase())) {
         addedNames.add(foundInDb.name.toLowerCase())
-        const isOutdoorHot = isHotOrRain && foundInDb.isIndoor === false
+        const isOutdoorExtreme = isIndoorPriority && foundInDb.isIndoor === false
         generated.push({
           ...foundInDb,
           id: `mv-${orderCounter}`,
           order: orderCounter++,
           isMustVisit: true,
           reason: `사용자께서 직접 검색하여 추가하신 필수 방문지 '${name}'입니다.`,
-          warning: isOutdoorHot
-            ? `☀️ 폭염/악천후 주의: 땡볕 야외 또는 경사 구간입니다. 양산/손선풍기 필수 및 시원한 실내 공방/카페 휴식을 병행하세요.`
+          warning: isOutdoorExtreme
+            ? `⚠️ 악천후/한파 주의: 야외 땡볕 또는 찬 바람 구간입니다. 따뜻한 음료 지참 및 실내 공방/찻집 휴식을 병행하세요.`
             : foundInDb.warning,
         })
       } else if (!addedNames.has(name.toLowerCase())) {
@@ -128,6 +176,8 @@ export function ResultView() {
           isMustVisit: true,
           mapX: Math.floor(Math.random() * 50) + 25,
           mapY: Math.floor(Math.random() * 50) + 25,
+          lat: 35.8140 + (Math.random() * 0.006 - 0.003),
+          lng: 127.1510 + (Math.random() * 0.006 - 0.003),
           address: `전북 전주시 완산구 ${name} 부근`,
           operatingHours: '네이버 지도 참조',
           tags: ['#직접검색추가', '#필수방문지', '#네이버지도'],
@@ -152,9 +202,16 @@ export function ResultView() {
     // 3. 점심 식사/맛집 포함 여부
     const needsMeal = time !== '1h'
 
-    // 날씨(폭염/우천)일 때 실내 스팟(공방, 박물관, 빙수, 찻집 등)을 땡볕 야외 스팟보다 우선순위 높게 배치
+    // 날씨(한파/폭염/우천)에 맞춰 따뜻한 찻집, 뜨끈한 국밥, 실내 공방 우선순위 정렬
     const candidateDatabase = [...JEONJU_PLACES_DATABASE].sort((a, b) => {
-      if (isHotOrRain) {
+      // 한파 / 찬 바람 선택 시: 따뜻한 찻집, 뜨끈한 국밥 우선
+      if (weatherParam === 'wind' || weatherParam === 'snow') {
+        const aColdMatch = a.name.includes('찻집') || a.name.includes('국밥') || a.name.includes('피순대')
+        const bColdMatch = b.name.includes('찻집') || b.name.includes('국밥') || b.name.includes('피순대')
+        if (aColdMatch && !bColdMatch) return -1
+        if (!aColdMatch && bColdMatch) return 1
+      }
+      if (isIndoorPriority) {
         if (a.isIndoor && !b.isIndoor) return -1
         if (!a.isIndoor && b.isIndoor) return 1
       }
@@ -166,8 +223,8 @@ export function ResultView() {
       if (generated.length >= targetCount) return
       if (addedNames.has(placeItem.name.toLowerCase())) return
 
-      // 폭염/우천 시 야외 전용 장소(오목대, 자만벽화마을 등)는 비필수일 때 자동 제외/대체
-      if (isHotOrRain && placeItem.isIndoor === false && !placeItem.isMustVisit) {
+      // 한파/폭염/우천 시 야외 전용 장소(오목대, 자만벽화마을 등)는 비필수일 때 자동 제외/대체
+      if (isIndoorPriority && placeItem.isIndoor === false && !placeItem.isMustVisit) {
         return
       }
 
@@ -182,7 +239,9 @@ export function ResultView() {
           ...placeItem,
           id: `db-${orderCounter}`,
           order: orderCounter++,
-          reason: `네이버 지도 추천 전주 3대 점심/미식 맛집입니다.`,
+          reason: weatherParam === 'wind' || weatherParam === 'snow'
+            ? `몸을 따뜻하게 녹여주는 네이버 지도 추천 뜨끈한 국밥/미식 맛집입니다.`
+            : `네이버 지도 추천 전주 3대 점심/미식 맛집입니다.`,
         })
         return
       }
@@ -228,7 +287,7 @@ export function ResultView() {
     })
 
     setPlaces(finalPlaces)
-  }, [rawMustVisit, time, isHotOrRain])
+  }, [rawMustVisit, time, isIndoorPriority, weatherParam])
 
   async function loadRealtimeWeather() {
     setWeatherLoading(true)
@@ -270,7 +329,7 @@ export function ResultView() {
           condition: 'wind',
           emoji: '🥶',
           summary: '🥶 한파 · 찬 바람 (선택한 예보 날씨)',
-          detail: '매서운 바람을 피할 따뜻한 실내 공방 체험과 얼큰한 남부시장 순대국밥 코스를 추천해 드려요 · 기온 -5°C · 강수확률 10%',
+          detail: '매서운 바람을 피할 따뜻한 한방 쌍화차 찻집과 뜨끈한 남부시장 순대국밥/콩나물국밥 코스를 추천해 드려요 · 기온 -5°C · 강수확률 10%',
         })
         setLastFetchTime('예보 선택')
       } else {
@@ -389,18 +448,16 @@ export function ResultView() {
         ) : null}
       </div>
 
-      {/* 폭염/더위 날씨 맞춤 큐레이션 안내 배지 */}
-      {isHotOrRain ? (
-        <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3.5 py-2.5 text-xs text-foreground">
-          <SunMedium className="size-4 shrink-0 text-amber-400 mt-0.5" />
-          <div>
-            <span className="font-semibold text-amber-400">☀️ 날씨 케어 큐레이션:</span>{' '}
-            <span>
-              선택하신 기상 환경에 맞춰 땡볕 야외 언덕(오목대 등)을 피하고, 에어컨이 완비된 <strong>시원한 수제 공방(한지·부채·도자기), 지하 어진박물관, 빙수 카페</strong> 위주로 코스를 자동 배치했습니다.
-            </span>
-          </div>
+      {/* 날씨 맞춤 큐레이션 안내 배지 (한파/폭염/우천/설경 각각 정확히 표시) */}
+      <div
+        className={`mt-3 flex items-start gap-2.5 rounded-xl border p-3.5 text-xs ${weatherCareMessage.bannerColor}`}
+      >
+        <span className="text-base leading-none">{weatherCareMessage.icon}</span>
+        <div>
+          <span className="font-bold">{weatherCareMessage.title}</span>{' '}
+          <span className="leading-relaxed">{weatherCareMessage.text}</span>
         </div>
-      ) : null}
+      </div>
 
       {/* 시간 및 이동수단 안내 띠 */}
       <div className="mt-3 flex flex-col gap-2 rounded-xl bg-card border border-border p-3 text-xs text-foreground">
