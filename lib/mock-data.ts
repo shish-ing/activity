@@ -119,6 +119,7 @@ export type Place = {
   parkingInfo?: string
   nearbyDining?: { name: string; distance: string; menu: string; naverMapUrl?: string }[]
   nearbyCafes?: { name: string; distance: string; menu: string; naverMapUrl?: string }[]
+  nearbySpecialties?: { name: string; distance: string; item: string; naverMapUrl?: string }[]
 }
 
 export const RECOMMENDED_PLACES: Place[] = [

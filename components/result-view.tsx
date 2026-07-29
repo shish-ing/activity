@@ -32,7 +32,7 @@ function getPlaceDistance(a: Place, b: Place): number {
   return dX * dX + dY * dY
 }
 
-// 모든 방문 장소에 대해 항상 3개의 맛집과 3개의 감성 카페를 풍성하게 보장하는 헬퍼 함수
+// 모든 방문 장소에 대해 항상 3개의 맛집, 3개의 감성 카페, 3개의 대표 특산품을 풍성하게 보장하는 헬퍼 함수
 function ensureThreeDiningAndCafes(place: Place): Place {
   const diningPool = [
     { name: '한국집 (전주 3대 비빔밥/미슐랭)', distance: '도보 3분 이내', menu: '미슐랭 육회비빔밥', naverMapUrl: 'https://map.naver.com/v5/search/전주한국집' },
@@ -56,6 +56,16 @@ function ensureThreeDiningAndCafes(place: Place): Place {
     { name: '연화정 호수 뷰 한옥 카페', distance: '도보 2분 이내', menu: '말차 라떼 & 아인슈페너', naverMapUrl: 'https://map.naver.com/v5/search/연화정카페' },
     { name: '써니 카페 (팔복예술공장)', distance: '도보 1분 이내', menu: '시그니처 팔복 라떼 & 디저트', naverMapUrl: 'https://map.naver.com/v5/search/써니카페' },
     { name: '꼬지따뽕 (자만벽화마을)', distance: '도보 2분 이내', menu: '생과일 에이드 & 디저트', naverMapUrl: 'https://map.naver.com/v5/search/꼬지따뽕' },
+  ]
+
+  const specialtyPool = [
+    { name: 'PNB 풍년제과 본점', distance: '도보 3분 이내', item: '전주 수제 오리지널 초코파이 & 붓세 선물세트', naverMapUrl: 'https://map.naver.com/v5/search/PNB풍년제과본점' },
+    { name: '교동 한지공예관 / 한지체험관', distance: '도보 2분 이내', item: '천년 전통 수제 한지 등, 한지 붓글씨 노트 & 부채', naverMapUrl: 'https://map.naver.com/v5/search/전주한지공예관' },
+    { name: '전주 전통 모주도가', distance: '도보 4분 이내', item: '8가지 한약재 수제 전통 모주 1L / 선물세트', naverMapUrl: 'https://map.naver.com/v5/search/전주모주' },
+    { name: '외할머니솜씨 수제 찰떡', distance: '도보 3분 이내', item: '당일 방앗간 수제 인절미 & 흑임자 찰떡', naverMapUrl: 'https://map.naver.com/v5/search/외할머니솜씨' },
+    { name: '서학동 작가 공예샵', distance: '도보 2분 이내', item: '서학동 예술마을 작가 수제 도자기 컵 & 악세서리', naverMapUrl: 'https://map.naver.com/v5/search/서학동공예' },
+    { name: '전주 전통 합죽선 명인관', distance: '도보 4분 이내', item: '수제 합죽선 부채 & 캘리그라피 손부채', naverMapUrl: 'https://map.naver.com/v5/search/전주합죽선' },
+    { name: '전주 팔복 수제 과일청/통조림', distance: '도보 5분 이내', item: '전주 과수원 수제 복숭아 잼 & 통조림 세트', naverMapUrl: 'https://map.naver.com/v5/search/전주특산품' },
   ]
 
   const existingDining = place.nearbyDining || []
@@ -82,10 +92,23 @@ function ensureThreeDiningAndCafes(place: Place): Place {
     }
   }
 
+  const existingSpecialties = place.nearbySpecialties || []
+  const specialtyNames = new Set(existingSpecialties.map((s) => s.name))
+  const finalSpecialties = [...existingSpecialties]
+
+  for (const s of specialtyPool) {
+    if (finalSpecialties.length >= 3) break
+    if (!specialtyNames.has(s.name)) {
+      specialtyNames.add(s.name)
+      finalSpecialties.push(s)
+    }
+  }
+
   return {
     ...place,
     nearbyDining: finalDining.slice(0, 3),
     nearbyCafes: finalCafes.slice(0, 3),
+    nearbySpecialties: finalSpecialties.slice(0, 3),
   }
 }
 
@@ -953,7 +976,7 @@ export function ResultView() {
           <div className="flex items-center gap-3 text-muted-foreground">
             <span className="flex items-center gap-1 text-emerald-400 font-medium">
               <Utensils className="size-3" />
-              각 장소별 주변 맛집 3곳 & 카페 3곳 풀 탑재
+              각 장소별 주변 맛집 3선 · 카페 3선 · 특산품 3선 풀 탑재
             </span>
             <span>총 {places.length}개 스팟</span>
           </div>

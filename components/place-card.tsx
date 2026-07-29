@@ -11,6 +11,7 @@ import {
   Clock,
   Coffee,
   Footprints,
+  Gift,
   Heart,
   Info,
   MapPin,
@@ -163,7 +164,7 @@ export function PlaceCard({
           onClick={() => setShowDetails((d) => !d)}
           className="flex items-center gap-1 text-xs font-semibold text-accent hover:underline"
         >
-          <span>{showDetails ? '간략히 접기' : '주변 맛집3 · 카페3 & 네이버 상세 지도'}</span>
+          <span>{showDetails ? '간략히 접기' : '주변 맛집3 · 카페3 · 특산품3 & 네이버 상세 지도'}</span>
           {showDetails ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
         </button>
       </div>
@@ -239,18 +240,18 @@ export function PlaceCard({
             {place.reason}
           </p>
 
-          {/* 장소 바로 근처 추천 맛집 3곳 & 카페 3곳 서브 큐레이션 */}
-          {place.nearbyDining || place.nearbyCafes ? (
+          {/* 장소 바로 근처 추천 맛집 3곳, 카페 3곳, 특산품 3곳 서브 큐레이션 */}
+          {place.nearbyDining || place.nearbyCafes || place.nearbySpecialties ? (
             <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 text-xs">
               <div className="flex items-center justify-between font-bold text-foreground mb-2">
                 <div className="flex items-center gap-1.5">
                   <MapPin className="size-3.5 text-primary" />
-                  <span>📍 {place.name} 바로 근처 추천 맛집 3곳 & 감성 카페 3곳</span>
+                  <span>📍 {place.name} 바로 근처 추천 맛집 3선 · 감성 카페 3선 · 대표 특산품 3선</span>
                 </div>
                 <span className="text-[10px] font-normal text-emerald-400">네이버 지도 기준</span>
               </div>
 
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid gap-2 md:grid-cols-3">
                 {place.nearbyDining ? (
                   <div className="rounded-lg bg-card border border-border p-2.5">
                     <div className="flex items-center gap-1 font-semibold text-emerald-400 text-xs mb-1.5 pb-1 border-b border-border/50">
@@ -279,7 +280,24 @@ export function PlaceCard({
                           <span>{item.name}</span>
                           <span className="text-[10px] text-amber-400 font-normal">{item.distance}</span>
                         </div>
-                        <div className="text-[11px] text-muted-foreground mt-0.5">대표 시그니처: {item.menu}</div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5">시그니처: {item.menu}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
+                {place.nearbySpecialties ? (
+                  <div className="rounded-lg bg-card border border-border p-2.5">
+                    <div className="flex items-center gap-1 font-semibold text-purple-400 text-xs mb-1.5 pb-1 border-b border-border/50">
+                      <Gift className="size-3.5 text-purple-400" /> 인근 특산품 & 기념품 3선
+                    </div>
+                    {place.nearbySpecialties.map((item) => (
+                      <div key={item.name} className="text-xs leading-tight text-foreground py-1.5 border-b border-border/40 last:border-0">
+                        <div className="flex items-center justify-between font-semibold">
+                          <span>{item.name}</span>
+                          <span className="text-[10px] text-purple-400 font-normal">{item.distance}</span>
+                        </div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5">추천 선물: {item.item}</div>
                       </div>
                     ))}
                   </div>
