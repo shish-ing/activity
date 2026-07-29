@@ -1327,9 +1327,9 @@ export function ResultView() {
             <span className="hidden sm:inline">◀ 이전 장</span>
           </button>
 
-          {/* 중앙/우측: 2장(코스 & 지도) 활성화 시 노출되는 둥근 알약형 지도 경로 & 구간 선택 컨트롤 바 */}
+          {/* 🎯 정중앙: 2장(코스 & 지도) 활성화 시 헤더 바 완벽 정중앙(sm:absolute sm:left-1/2 sm:-translate-x-1/2)에 둥근 알약형 지도 컨트롤 바 배치! */}
           {activeTab === 1 && (
-            <div className="flex flex-wrap items-center justify-center gap-2 my-0.5">
+            <div className="flex flex-wrap items-center justify-center gap-2 my-0.5 mx-auto sm:absolute sm:left-1/2 sm:-translate-x-1/2 z-10">
               {/* 알약 용기 1: 직선 vs 도로 길찾기 */}
               <div className="flex items-center gap-1 bg-sky-50/90 p-1 rounded-full border border-sky-300 shadow-sm backdrop-blur-md">
                 <button
