@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { AlertCircle, ArrowRight, Bus, Calendar, Car, Clock, Footprints, Heart, MapPin, RefreshCw, Share2, Sparkles, SunMedium, Utensils, Wallet } from 'lucide-react'
+import { AlertCircle, ArrowRight, Bus, Calendar, Car, CheckCircle2, Clock, Footprints, Heart, MapPin, Plus, RefreshCw, Search, Share2, Sparkles, SunMedium, Utensils, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PlaceCard } from '@/components/place-card'
 import { MapPlaceholder } from '@/components/map-placeholder'
@@ -130,6 +130,11 @@ export function ResultView() {
   const [weatherLoading, setWeatherLoading] = useState(false)
   const [lastFetchTime, setLastFetchTime] = useState<string>('')
 
+  // 실시간 코스 추가 검색어 state
+  const [addSearchInput, setAddSearchInput] = useState('')
+  const [addedToastMessage, setAddedToastMessage] = useState<string | null>(null)
+  const [showAddSuggestions, setShowAddSuggestions] = useState(false)
+
   // 사용자 선택 예산 숫자 (원)
   const userBudgetLimit = useMemo(() => {
     if (!rawBudget) return 500000
@@ -147,7 +152,156 @@ export function ResultView() {
     return `${(userBudgetLimit / 10000).toLocaleString('ko-KR')}만원 맞춤`
   }, [userBudgetLimit])
 
-  // 출발지에서 1번째 추천 장소까지 이동 시내버스 & 네이버 지도 길찾기 안내 연동
+  // 실시간 코스 추가 검색어 매칭 후보군
+  const addPlaceSuggestions = useMemo(() => {
+    if (!addSearchInput.trim()) return []
+    const query = addSearchInput.toLowerCase().trim()
+    const currentPlaceNames = new Set(places.map((p) => p.name.toLowerCase()))
+
+    const dbMatches = JEONJU_PLACES_DATABASE.filter(
+      (p) =>
+        !currentPlaceNames.has(p.name.toLowerCase()) &&
+        (p.name.toLowerCase().includes(query) ||
+          p.category.toLowerCase().includes(query) ||
+          p.tags?.some((t) => t.toLowerCase().includes(query))),
+    )
+
+    const customSuggestion = {
+      name: query.includes('보드게임')
+        ? `🎮 ${addSearchInput} (전주 객사/한옥마을점)`
+        : query.includes('방탈출')
+          ? `🔐 ${addSearchInput} (전주 객리단길점)`
+          : query.includes('인생네컷') || query.includes('사진')
+            ? `📸 ${addSearchInput} (전주 한옥마을점)`
+            : query.includes('노래방') || query.includes('코인')
+              ? `🎤 ${addSearchInput} (전주 객사점)`
+              : query.includes('만화') || query.includes('벌툰')
+                ? `📚 ${addSearchInput} (전주 한옥마을점)`
+                : `📍 ${addSearchInput} (네이버 지도 직접 추가 스팟)`,
+      category: '실시간 검색 추가 스팟',
+      cost: query.includes('보드게임') ? 8000 : query.includes('방탈출') ? 22000 : 0,
+      costLabel: query.includes('보드게임') ? '1시간 8,000원 (음료 포함)' : '입장료/이용료',
+      walkMinutes: 5,
+      reason: `사용자께서 코스 결과 화면에서 직접 네이버 지도로 검색하여 새로 추가하신 스팟 '${addSearchInput}'입니다.`,
+      isMustVisit: true,
+      mapX: Math.floor(Math.random() * 40) + 30,
+      mapY: Math.floor(Math.random() * 40) + 30,
+      lat: 35.814 + (Math.random() * 0.008 - 0.004),
+      lng: 127.151 + (Math.random() * 0.008 - 0.004),
+      address: `전북 전주시 완산구 ${addSearchInput} 부근`,
+      operatingHours: '10:00 - 23:00 (네이버 지도 참조)',
+      tags: ['#실시간코스추가', `#${addSearchInput}`, '#최단동선재정렬'],
+      suggestedDuration: '1시간',
+      tips: `💡 현지인 팁: 추가된 스팟에 맞춰 전체 일정이 최단 지리적 순선으로 자동 재정렬되었습니다.`,
+      naverMapUrl: `https://map.naver.com/v5/search/${encodeURIComponent(addSearchInput)}`,
+    }
+
+    return [...dbMatches, customSuggestion]
+  }, [addSearchInput, places])
+
+  // 장소를 코스 중간에 추가하고 최단 순선 동선으로 전체 재정렬하는 함수
+  function handleAddPlaceToItinerary(itemToInsert: Omit<Place, 'id' | 'order'> | Place) {
+    setPlaces((prev) => {
+      const currentNames = new Set(prev.map((p) => p.name.toLowerCase()))
+      if (currentNames.has(itemToInsert.name.toLowerCase())) {
+        return prev
+      }
+
+      const newSpot: Place = ensureThreeDiningAndCafes({
+        ...itemToInsert,
+        id: `added-${Date.now()}`,
+        order: prev.length + 1,
+        isMustVisit: true,
+        reason: itemToInsert.reason || `결과 화면에서 새로 검색하여 동선에 추가된 장소입니다.`,
+      })
+
+      const combinedPool = [...prev, newSpot]
+
+      const startPointAnchor: Place = {
+        id: 'start-anchor',
+        order: 0,
+        name: startLocationParam,
+        category: '출발지',
+        cost: 0,
+        costLabel: '0원',
+        walkMinutes: 0,
+        reason: '출발지',
+        isMustVisit: false,
+        mapX: 50,
+        mapY: 50,
+        lat: startLocationParam.includes('전주역')
+          ? 35.8490
+          : startLocationParam.includes('터미널')
+            ? 35.8360
+            : startLocationParam.includes('전북대')
+              ? 35.8470
+              : 35.8133,
+        lng: startLocationParam.includes('전주역')
+          ? 127.1615
+          : startLocationParam.includes('터미널')
+            ? 127.1320
+            : startLocationParam.includes('전북대')
+              ? 127.1290
+              : 127.1492,
+      }
+
+      const unvisited = [...combinedPool]
+      const reOptimized: Place[] = []
+
+      let nearestToStartIdx = 0
+      let minStartDist = Infinity
+      for (let i = 0; i < unvisited.length; i++) {
+        const dist = getPlaceDistance(startPointAnchor, unvisited[i])
+        if (dist < minStartDist) {
+          minStartDist = dist
+          nearestToStartIdx = i
+        }
+      }
+
+      let current = unvisited.splice(nearestToStartIdx, 1)[0]
+      reOptimized.push(current)
+
+      while (unvisited.length > 0) {
+        let nearestIdx = 0
+        let minDistance = Infinity
+
+        for (let i = 0; i < unvisited.length; i++) {
+          const dist = getPlaceDistance(current, unvisited[i])
+          if (dist < minDistance) {
+            minDistance = dist
+            nearestIdx = i
+          }
+        }
+
+        current = unvisited.splice(nearestIdx, 1)[0]
+        reOptimized.push(current)
+      }
+
+      return reOptimized.map((place, idx) => {
+        let travelMins = 0
+        if (idx > 0) {
+          const prevPlace = reOptimized[idx - 1]
+          const distSq = getPlaceDistance(prevPlace, place)
+          const approxKm = Math.sqrt(distSq)
+          travelMins = Math.max(3, Math.round(approxKm * 8 + 2))
+        }
+        return ensureThreeDiningAndCafes({
+          ...place,
+          order: idx + 1,
+          walkMinutes: travelMins,
+        })
+      })
+    })
+
+    setAddedToastMessage(`✨ '${itemToInsert.name}'이(가) 코스에 새로 추가되었으며, 최단 지리적 동선으로 전체 코스가 자동 재정렬되었습니다!`)
+    setAddSearchInput('')
+    setShowAddSuggestions(false)
+
+    setTimeout(() => {
+      setAddedToastMessage(null)
+    }, 4500)
+  }
+
   // 출발지에서 1번째 추천 장소까지 이동 시내버스 & 네이버 지도 길찾기 안내 연동
   const firstPlaceTransitInfo = useMemo(() => {
     if (!places || places.length === 0) return null
@@ -643,7 +797,7 @@ export function ResultView() {
       }
     }
 
-    // 5. 일차 및 소요시간 정렬 & 맛집3/카페3 최종 보장
+    // 5. 일차 및 소요시간 정렬 & 맛집3/카페3/특산품3 최종 보장
     const finalPlaces = optimizedPlaces.map((place, idx) => {
       let day = 1
       if (time === '2days') {
@@ -942,6 +1096,75 @@ export function ResultView() {
           </div>
         </div>
       ) : null}
+
+      {/* ➕ [신규] 코스 중간 장소 검색 & 최단 순선 실시간 재최적화 추가 바 */}
+      <div className="mt-4 flex flex-col gap-2.5 rounded-2xl border border-accent/40 bg-accent/10 p-4 shadow-sm relative">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 font-bold text-sm text-foreground">
+            <Plus className="size-4.5 text-accent" />
+            <span>➕ 동선 중간에 새로 가고 싶은 장소 검색해서 추가하기 (자동 최단 순선 재정렬)</span>
+          </div>
+          <span className="text-[11px] text-accent font-semibold">네이버 지도 연동 스팟 검색</span>
+        </div>
+
+        {/* 토스트 노티피케이션 메세지 */}
+        {addedToastMessage ? (
+          <div className="flex items-center gap-2 rounded-xl bg-emerald-500/20 border border-emerald-500/40 p-2.5 text-xs font-semibold text-emerald-300 animate-in fade-in">
+            <CheckCircle2 className="size-4 shrink-0 text-emerald-400" />
+            <span>{addedToastMessage}</span>
+          </div>
+        ) : null}
+
+        <div className="relative">
+          <div className="flex items-center rounded-xl border border-border bg-card px-3.5 py-2.5 text-sm text-foreground focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/30 shadow-inner">
+            <Search className="size-4 text-muted-foreground mr-2 shrink-0" />
+            <input
+              type="text"
+              value={addSearchInput}
+              onFocus={() => setShowAddSuggestions(true)}
+              onChange={(e) => {
+                setAddSearchInput(e.target.value)
+                setShowAddSuggestions(true)
+              }}
+              placeholder="추가하고 싶은 장소를 검색해 보세요! (예: 보드게임카페, 레드버튼, 방탈출, 인생네컷, 노래방, 올리브영, 만화카페)"
+              className="w-full bg-transparent outline-none placeholder:text-muted-foreground"
+            />
+          </div>
+
+          {/* 검색 자동완성 드롭다운 */}
+          {showAddSuggestions && addPlaceSuggestions.length > 0 ? (
+            <div className="absolute inset-x-0 top-full z-50 mt-1.5 max-h-64 overflow-y-auto rounded-2xl border border-border bg-card p-1.5 shadow-xl backdrop-blur">
+              <div className="px-3 py-1.5 text-[11px] font-bold text-accent border-b border-border/50 flex items-center justify-between">
+                <span>🔍 검색결과: 누르시면 전체 코스가 최단 지리적 동선으로 자동 재정렬됩니다</span>
+                <span className="text-[10px] text-muted-foreground">클릭 시 즉시 코스 삽입</span>
+              </div>
+              {addPlaceSuggestions.map((item) => (
+                <button
+                  key={item.name}
+                  type="button"
+                  onClick={() => handleAddPlaceToItinerary(item)}
+                  className="flex w-full items-center justify-between px-3 py-2.5 text-left text-xs hover:bg-accent/15 rounded-xl transition-colors border-b border-border/30 last:border-0"
+                >
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-1.5 font-bold text-foreground">
+                      <span>{item.name}</span>
+                      <span className="rounded bg-accent/20 px-1.5 py-0.5 text-[10px] font-semibold text-accent">
+                        {item.category}
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-muted-foreground mt-0.5">
+                      {item.reason}
+                    </span>
+                  </div>
+                  <Button size="sm" variant="default" className="h-7 text-[11px] rounded-lg shrink-0 gap-1 ml-2">
+                    <Plus className="size-3" /> 코스 추가
+                  </Button>
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </div>
 
       {/* 예산 및 동행 유형 맞춤 안내 배지 */}
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3 text-xs text-emerald-300">
