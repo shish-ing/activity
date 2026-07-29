@@ -195,26 +195,9 @@ export function ConditionForm() {
           ) : null}
         </div>
 
-        {/* 선택한 출발 주소 서브 디스플레이 */}
-        {selectedAddress ? (
-          <div className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20">
-            <Check className="size-3.5 shrink-0" />
-            <span>선택된 출발 주소: <strong>{selectedAddress}</strong> (1번 장소까지 시내버스/길안내 연동)</span>
-          </div>
-        ) : null}
 
-        {/* 위치 조회 미작동 시 한옥마을 기본값 명확 안내 */}
-        {isFallbackToHanok ? (
-          <div className="flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-2.5 text-xs text-amber-300">
-            <AlertCircle className="size-4 shrink-0 text-amber-400 mt-0.5" />
-            <div>
-              <span className="font-bold">📌 출발지 기본 기준 안내:</span>{' '}
-              <span>
-                실시간 위치 권한이 미승인되었거나 조회가 어려운 환경인 경우, 전주 대표 중심지인 <strong>'전주 한옥마을 (전동성당)'을 기본 출발지 기준</strong>으로 추천해 드립니다 (원하시는 출발 주소가 있다면 위 입력창에 입력해 주세요).
-              </span>
-            </div>
-          </div>
-        ) : null}
+
+
       </div>
 
       {/* 조건 입력 카드 */}
