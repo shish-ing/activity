@@ -15,7 +15,6 @@ import {
   type Weather,
 } from '@/lib/mock-data'
 import { JEONJU_PLACES_DATABASE } from '@/app/api/places/search/route'
-import { WeatherBackground } from '@/components/weather-background'
 
 function formatWon(value: number) {
   return `${value.toLocaleString('ko-KR')}원`
@@ -1092,7 +1091,6 @@ export function ResultView() {
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 pb-28">
-      <WeatherBackground weather={weatherParam} realtimeCondition={weather.condition} />
       {/* 실시간 / 선택된 예보 날씨 요약 배지 */}
       <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-accent/40 bg-accent/10 px-4 py-3">
         <div className="flex items-center gap-3">
