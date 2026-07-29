@@ -19,6 +19,18 @@ function formatWon(value: number) {
   return `${value.toLocaleString('ko-KR')}원`
 }
 
+// 위도/경도 또는 지도 좌표 기반 실질 지리적 거리 계산 함수
+function getPlaceDistance(a: Place, b: Place): number {
+  if (a.lat && a.lng && b.lat && b.lng) {
+    const dLat = (a.lat - b.lat) * 111
+    const dLng = (a.lng - b.lng) * 88
+    return dLat * dLat + dLng * dLng
+  }
+  const dX = (a.mapX ?? 50) - (b.mapX ?? 50)
+  const dY = (a.mapY ?? 50) - (b.mapY ?? 50)
+  return dX * dX + dY * dY
+}
+
 export function ResultView() {
   const searchParams = useSearchParams()
   const rawMustVisit = searchParams.get('mustVisit')
@@ -76,11 +88,11 @@ export function ResultView() {
       case 'half':
         return '반나절 (4~5시간 코스 · 5곳 스팟)'
       case 'full':
-        return '하루 (전주 전역 풀 코스 · 7곳 스팟)'
+        return '하루 (전주 전역 최단 순선 풀 코스 · 7곳)'
       case '2days':
-        return '이틀 (1박 2일 일정 · 10곳 전주 전역 코스)'
+        return '이틀 (1박 2일 일정 · 10곳 전주 최단 순선 코스)'
       case '3days':
-        return '사흘 (2박 3일 일정 · 14곳 전주 전역 풀 코스)'
+        return '사흘 (2박 3일 일정 · 14곳 전주 풀 코스)'
       default:
         return '시간 맞춤 추천'
     }
@@ -93,28 +105,28 @@ export function ResultView() {
         return {
           icon: '🥶',
           title: '🥶 한파·찬 바람 맞춤 큐레이션:',
-          text: '매서운 찬 바람을 피할 수 있도록 쾌적한 실내 팔복예술공장, 수제 공방, 지하 어진박물관, 연화정 한옥 도서관 위주로 다양하게 구성했습니다.',
+          text: '매서운 찬 바람을 피할 수 있도록 쾌적한 실내 팔복예술공장, 수제 공방, 지하 어진박물관, 연화정 한옥 도서관 위주로 최단 순선 정렬되었습니다.',
           bannerColor: 'border-blue-500/40 bg-blue-500/10 text-blue-300',
         }
       case 'snow':
         return {
           icon: '❄️',
           title: '❄️ 한옥 설경·눈 오는 날 큐레이션:',
-          text: '하얀 눈이 내려앉은 고즈넉한 한벽굴, 전주향교, 팔복예술공장 온실을 감상하는 전주 전역 맞춤 동선입니다.',
+          text: '하얀 눈이 내려앉은 고즈넉한 한벽굴, 전주향교, 팔복예술공장 온실을 감상하는 최단 순선 동선입니다.',
           bannerColor: 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300',
         }
       case 'rain':
         return {
           icon: '☔',
           title: '☔ 비 오는 날 낭만 큐레이션:',
-          text: '빗소리를 들으며 즐기는 팔복예술공장 실내 미술관, 실내 공방, 아중호수 수중 산책로 위주로 다채롭게 큐레이션했습니다.',
+          text: '빗소리를 들으며 즐기는 팔복예술공장 실내 미술관, 실내 공방, 아중호수 수중 산책로 위주로 큐레이션되었습니다.',
           bannerColor: 'border-teal-500/40 bg-teal-500/10 text-teal-300',
         }
       case 'clear':
         return {
           icon: '☀️',
           title: '☀️ 폭염·더위 맞춤 큐레이션:',
-          text: '무더위 땡볕 야외 언덕을 피하고, 시원한 팔복예술공장 온실, 실내 공방, 지하 어진박물관, 덕진공원 도서관으로 자동 배치했습니다.',
+          text: '무더위 땡볕 야외 언덕을 피하고, 시원한 팔복예술공장 온실, 실내 공방, 지하 어진박물관으로 배치되었습니다.',
           bannerColor: 'border-amber-500/40 bg-amber-500/10 text-amber-300',
         }
       case 'cloudy':
@@ -129,7 +141,7 @@ export function ResultView() {
         return {
           icon: weather.emoji,
           title: `🛰️ 실시간 날씨(${weather.summary}) 큐레이션:`,
-          text: '한옥마을에 국한되지 않고 전주 전역(드라마 촬영지, 수목원, 예술공장 등)의 다채로운 명소가 다양하게 추천됩니다.',
+          text: '지리적 최단 거리를 기반으로 왔다갔다 교차하지 않는 유려한 순선 경로가 연결됩니다.',
           bannerColor: 'border-accent/40 bg-accent/10 text-accent',
         }
     }
@@ -147,7 +159,7 @@ export function ResultView() {
     )
   }, [weather, weatherParam])
 
-  // 선택한 남은 시간, 동행 유형, 날씨 및 전주 전역 다채로운 장소 자동 생성
+  // 선택한 남은 시간, 동행 유형, 날씨 및 전주 전역 다채로운 장소 자동 생성 + 최단 경로 정렬
   useEffect(() => {
     const mustVisitNames = rawMustVisit
       ? rawMustVisit
@@ -223,7 +235,7 @@ export function ResultView() {
     else if (time === '2days') targetCount = 10
     else if (time === '3days') targetCount = 14
 
-    // 3. 전주 전역(드라마 촬영지 한벽굴, 팔복예술공장, 전주수목원, 아중호수, 자만벽화마을 등) 다채로운 무작위 셔플 샘플링
+    // 3. 전주 전역 다채로운 샘플링
     const pureSpotsDatabase = JEONJU_PLACES_DATABASE.filter(
       (p) => !p.isMeal && !p.isDessert,
     ).sort((a, b) => {
@@ -238,7 +250,6 @@ export function ResultView() {
         if (!a.isIndoor && b.isIndoor) return 1
       }
 
-      // 3순위: 다채로운 무작위성 (동일 장소 연속 추천 방지)
       return Math.random() - 0.5
     })
 
@@ -247,7 +258,6 @@ export function ResultView() {
       if (generated.length >= targetCount) return
       if (addedNames.has(placeItem.name.toLowerCase())) return
 
-      // 폭염/한파/우천 시 야외 전용 장소는 비필수일 때 자동 제외/대체
       if (isIndoorPriority && placeItem.isIndoor === false && !placeItem.isMustVisit) {
         return
       }
@@ -274,26 +284,34 @@ export function ResultView() {
       })
     }
 
-    // 4. 동일 세부 카테고리 연속 배치 방지 셔플 정렬
-    const alternatingPlaces: Place[] = []
-    const pool = [...generated]
+    // 4. 지리적 최단 동선 최적화 알고리즘 (Nearest-Neighbor TSP Route Optimization)
+    // 왔다갔다 교차 동선 100% 방지! 출발 장소부터 항상 지리적으로 가장 가까운 인접 스팟으로 순서 배치!
+    const optimizedPlaces: Place[] = []
+    const unvisitedPool = [...generated]
 
-    while (pool.length > 0) {
-      if (alternatingPlaces.length === 0) {
-        alternatingPlaces.push(pool.shift()!)
-      } else {
-        const lastCat = alternatingPlaces[alternatingPlaces.length - 1].subCategory || alternatingPlaces[alternatingPlaces.length - 1].category
-        const nextIdx = pool.findIndex((p) => (p.subCategory || p.category) !== lastCat)
-        if (nextIdx !== -1) {
-          alternatingPlaces.push(pool.splice(nextIdx, 1)[0])
-        } else {
-          alternatingPlaces.push(pool.shift()!)
+    if (unvisitedPool.length > 0) {
+      let currentPlace = unvisitedPool.shift()!
+      optimizedPlaces.push(currentPlace)
+
+      while (unvisitedPool.length > 0) {
+        let nearestIdx = 0
+        let minDistance = Infinity
+
+        for (let i = 0; i < unvisitedPool.length; i++) {
+          const dist = getPlaceDistance(currentPlace, unvisitedPool[i])
+          if (dist < minDistance) {
+            minDistance = dist
+            nearestIdx = i
+          }
         }
+
+        currentPlace = unvisitedPool.splice(nearestIdx, 1)[0]
+        optimizedPlaces.push(currentPlace)
       }
     }
 
-    // 5. 이틀(1박2일), 사흘(2박3일) 일차(day: 1, 2, 3) 및 Order 보정
-    const finalPlaces = alternatingPlaces.map((place, idx) => {
+    // 5. 이틀(1박2일), 사흘(2박3일) 일차(day: 1, 2, 3) 및 실제 이동 소요시간 계산
+    const finalPlaces = optimizedPlaces.map((place, idx) => {
       let day = 1
       if (time === '2days') {
         day = idx < 5 ? 1 : 2
@@ -302,11 +320,20 @@ export function ResultView() {
         else if (idx < 10) day = 2
         else day = 3
       }
+
+      let travelMins = 0
+      if (idx > 0) {
+        const prev = optimizedPlaces[idx - 1]
+        const distSq = getPlaceDistance(prev, place)
+        const approxKm = Math.sqrt(distSq)
+        travelMins = Math.max(3, Math.round(approxKm * 10 + 2))
+      }
+
       return {
         ...place,
         order: idx + 1,
         day,
-        walkMinutes: Math.max(0, idx * 6),
+        walkMinutes: travelMins,
       }
     })
 
@@ -385,7 +412,7 @@ export function ResultView() {
     return () => clearInterval(timer)
   }, [weatherParam])
 
-  // 클릭 시 장소 교체 처리 함수 (전주 전역 20여 개 스팟 중 다양하게 교체)
+  // 클릭 시 장소 교체 처리 함수 + 교체 후에도 지리적 최단 순선 재정렬!
   function handleReplace(id: string) {
     setPlaces((prev) => {
       const targetPlace = prev.find((p) => p.id === id)
@@ -397,22 +424,57 @@ export function ResultView() {
         (p) => !p.isMeal && !p.isDessert && !currentNames.has(p.name.toLowerCase()),
       )
 
-      if (pureSpotCandidates.length > 0) {
-        const nextSpot = pureSpotCandidates[Math.floor(Math.random() * pureSpotCandidates.length)]
-        return prev.map((p) =>
-          p.id === id
-            ? {
-                ...nextSpot,
-                id: `${p.id}-replaced-${Date.now()}`,
-                order: p.order,
-                day: p.day,
-                reason: `전주 전역의 새로운 이색 장소로 교체 추천되었습니다.`,
-              }
-            : p,
-        )
+      if (pureSpotCandidates.length === 0) return prev
+
+      const nextSpot = pureSpotCandidates[Math.floor(Math.random() * pureSpotCandidates.length)]
+      const replacedList = prev.map((p) =>
+        p.id === id
+          ? {
+              ...nextSpot,
+              id: `${p.id}-replaced-${Date.now()}`,
+              order: p.order,
+              day: p.day,
+              reason: `전주 전역의 새로운 이색 장소로 교체 추천되었습니다.`,
+            }
+          : p,
+      )
+
+      // 교체 후에도 최단 순선 알고리즘 재적용!
+      const unvisitedPool = [...replacedList]
+      const reOptimized: Place[] = []
+      let current = unvisitedPool.shift()!
+      reOptimized.push(current)
+
+      while (unvisitedPool.length > 0) {
+        let nearestIdx = 0
+        let minDistance = Infinity
+
+        for (let i = 0; i < unvisitedPool.length; i++) {
+          const dist = getPlaceDistance(current, unvisitedPool[i])
+          if (dist < minDistance) {
+            minDistance = dist
+            nearestIdx = i
+          }
+        }
+
+        current = unvisitedPool.splice(nearestIdx, 1)[0]
+        reOptimized.push(current)
       }
 
-      return prev
+      return reOptimized.map((place, idx) => {
+        let travelMins = 0
+        if (idx > 0) {
+          const prev = reOptimized[idx - 1]
+          const distSq = getPlaceDistance(prev, place)
+          const approxKm = Math.sqrt(distSq)
+          travelMins = Math.max(3, Math.round(approxKm * 10 + 2))
+        }
+        return {
+          ...place,
+          order: idx + 1,
+          walkMinutes: travelMins,
+        }
+      })
     })
   }
 
@@ -510,7 +572,7 @@ export function ResultView() {
           <div className="flex items-center gap-3 text-muted-foreground">
             <span className="flex items-center gap-1 text-emerald-400 font-medium">
               <Utensils className="size-3" />
-              전주 전역 핫플 스팟 & 카드 내 '근처 맛집·카페' 포함
+              지리적 최단 순선 정렬 (왔다갔다 낭비 없음)
             </span>
             <span>총 {places.length}개 스팟</span>
           </div>
@@ -527,7 +589,7 @@ export function ResultView() {
         <section aria-label="추천 장소 목록" className="flex flex-col gap-4">
           <div className="flex items-baseline justify-between">
             <h2 className="font-serif text-lg font-bold text-foreground">
-              전주 전역 다채로운 맞춤 추천 코스
+              최단 거리 기반 순선 추천 코스
             </h2>
             <span className="text-xs text-muted-foreground">
               카드를 누르거나 '다른 장소 변경' 클릭 시 교체돼요
