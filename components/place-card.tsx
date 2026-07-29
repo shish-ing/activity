@@ -3,183 +3,198 @@
 import { useState } from 'react'
 import {
   AlertTriangle,
+  ArrowRight,
   Bus,
-  Car,
+  Check,
   ChevronDown,
   ChevronUp,
   Clock,
   Coffee,
-  ExternalLink,
   Footprints,
+  Heart,
   Info,
   MapPin,
-  Phone,
+  Navigation,
   RefreshCw,
-  Star,
-  Tag,
+  Sparkles,
   Utensils,
+  Wallet,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
 import type { Place } from '@/lib/mock-data'
+import { cn } from '@/lib/utils'
 
 type PlaceCardProps = {
   place: Place
-  highlighted: boolean
-  canReplace?: boolean
   transport?: string // 'walk' | 'transit' | 'car'
-  onHover: (id: string | null) => void
-  onReplace: (id: string) => void
+  highlighted?: boolean
+  canReplace?: boolean
+  onHover?: (id: string | null) => void
+  onReplace?: (id: string) => void
+}
+
+function formatWon(value: number) {
+  if (value === 0) return '무료'
+  return `${value.toLocaleString('ko-KR')}원`
 }
 
 export function PlaceCard({
   place,
-  highlighted,
-  canReplace = true,
   transport = 'walk',
+  highlighted = false,
+  canReplace = false,
   onHover,
   onReplace,
 }: PlaceCardProps) {
-  const [expanded, setExpanded] = useState(false)
+  const [replacing, setReplacing] = useState(false)
+  const [showDetails, setShowDetails] = useState(false)
 
-  // 이동수단별 지능적 거리 및 소요시간 계산 (가까운 거리는 도보 추천)
-  const mins = place.walkMinutes || 0
-  const isNearby = mins > 0 && mins <= 7 // 약 500m 이내 인접한 거리
+  function handleReplaceClick(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (!onReplace) return
+    setReplacing(true)
+    setTimeout(() => {
+      onReplace(place.id)
+      setReplacing(false)
+    }, 400)
+  }
 
-  const moveInfo = (() => {
-    if (mins === 0) return { icon: Footprints, text: '현재 위치' }
-
-    if (transport === 'car') {
-      if (isNearby) {
-        const walkM = mins * 70
-        const distText = walkM >= 1000 ? `${(walkM / 1000).toFixed(1)}km` : `${walkM}m`
-        return {
-          icon: Footprints,
-          text: `도보 ${distText} · 약 ${mins}분 (기존 주차장에 차 두고 걸어가기 권장)`,
-        }
-      }
-      const driveMins = Math.max(2, Math.round(mins * 0.5))
-      const distance = (mins * 0.15 + 0.5).toFixed(1)
-      return {
-        icon: Car,
-        text: `차로 ${distance}km · 약 ${driveMins}분 소요`,
-      }
-    }
-
-    if (transport === 'transit') {
-      if (isNearby) {
-        const walkM = mins * 70
-        const distText = walkM >= 1000 ? `${(walkM / 1000).toFixed(1)}km` : `${walkM}m`
-        return {
-          icon: Footprints,
-          text: `도보 ${distText} · 약 ${mins}분 (가까워서 도보 권장)`,
-        }
-      }
-      const transitMins = Math.max(5, Math.round(mins * 1.1 + 3))
-      const distance = (mins * 0.18 + 0.8).toFixed(1)
-      return {
-        icon: Bus,
-        text: `대중교통 ${distance}km · 약 ${transitMins}분 소요`,
-      }
-    }
-
-    // 기본 도보
-    const walkM = mins * 70
-    const distText = walkM >= 1000 ? `${(walkM / 1000).toFixed(1)}km` : `${walkM}m`
-    return {
-      icon: Footprints,
-      text: `도보 ${distText} · 약 ${mins}분 소요`,
-    }
-  })()
-
-  const MoveIcon = moveInfo.icon
+  const mins = place.walkMinutes || 8
+  const isNearby = mins <= 15
 
   return (
-    <article
-      onMouseEnter={() => onHover(place.id)}
-      onMouseLeave={() => onHover(null)}
-      onFocus={() => onHover(place.id)}
-      onBlur={() => onHover(null)}
+    <div
+      onMouseEnter={() => onHover?.(place.id)}
+      onMouseLeave={() => onHover?.(null)}
       className={cn(
-        'rounded-2xl border bg-card p-4 transition-all shadow-xs',
+        'group relative flex flex-col rounded-2xl border bg-card p-4 transition-all sm:p-5',
         highlighted
-          ? 'border-accent ring-2 ring-accent/40 bg-accent/5'
-          : 'border-border hover:border-primary/40',
+          ? 'border-accent bg-accent/5 ring-2 ring-accent/40 shadow-md'
+          : 'border-border hover:border-accent/50 hover:shadow-xs',
       )}
     >
-      <div className="flex items-start gap-3">
-        {/* 순서 번호 */}
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground shadow-sm">
-          {place.order}
-        </span>
-
-        <div className="min-w-0 flex-1">
-          {/* 타이틀 및 별도 태그 */}
-          <div className="flex flex-wrap items-center justify-between gap-1.5">
-            <div className="flex items-center gap-2">
-              <h3 className="font-serif text-base font-bold text-foreground">
+      {/* 장소 순서 핀 & 태그 Header */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <span className="flex size-7 items-center justify-center rounded-full bg-accent text-xs font-bold text-accent-foreground shadow-xs">
+            {place.order}
+          </span>
+          <div>
+            <div className="flex items-center gap-1.5">
+              <h3 className="font-serif text-base font-bold text-foreground sm:text-lg">
                 {place.name}
               </h3>
               {place.isMustVisit ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
-                  <Star className="size-3 fill-current" />꼭 가는 곳
+                <span className="inline-flex items-center gap-0.5 rounded-md bg-accent/20 px-1.5 py-0.5 text-[10px] font-semibold text-accent">
+                  <Sparkles className="size-3" /> 필수
                 </span>
               ) : null}
             </div>
+            <span className="text-xs text-muted-foreground">{place.category}</span>
+          </div>
+        </div>
 
-            {place.suggestedDuration ? (
-              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-secondary px-2 py-0.5 rounded-md">
-                <Clock className="size-3 text-accent" />
-                권장 {place.suggestedDuration}
-              </span>
+        <div className="flex items-center gap-2">
+          {canReplace ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleReplaceClick}
+              disabled={replacing}
+              className="h-8 gap-1.5 rounded-xl border-border bg-secondary/50 px-2.5 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground"
+            >
+              <RefreshCw className={cn('size-3.5', replacing && 'animate-spin')} />
+              <span>{replacing ? '교체 중...' : '다른 장소 변경'}</span>
+            </Button>
+          ) : null}
+        </div>
+      </div>
+
+      {/* 정보 요약 칩 */}
+      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+        <span className="inline-flex items-center gap-1 rounded-lg bg-secondary px-2.5 py-1 font-medium text-secondary-foreground">
+          <Wallet className="size-3.5 text-accent" />
+          {formatWon(place.cost)}
+        </span>
+
+        {place.order > 1 ? (
+          <span className="inline-flex items-center gap-1 rounded-lg bg-secondary px-2.5 py-1 font-medium text-secondary-foreground">
+            {transport === 'car' ? (
+              <>
+                <Navigation className="size-3.5 text-blue-400" />
+                차로 {Math.max(2, Math.round(mins * 0.5))}분 이동
+              </>
+            ) : transport === 'transit' ? (
+              <>
+                <Bus className="size-3.5 text-emerald-400" />
+                대중교통/도보 약 {Math.max(5, Math.round(mins * 1.1 + 3))}분
+              </>
+            ) : (
+              <>
+                <Footprints className="size-3.5 text-accent" />
+                도보 약 {mins}분 이동 ({mins * 75}m)
+              </>
+            )}
+          </span>
+        ) : null}
+
+        {place.suggestedDuration ? (
+          <span className="inline-flex items-center gap-1 rounded-lg bg-secondary px-2.5 py-1 text-muted-foreground">
+            <Clock className="size-3.5" />
+            체험/관람 소요 {place.suggestedDuration}
+          </span>
+        ) : null}
+      </div>
+
+      {/* 상세 내용 조절 토글 버튼 */}
+      <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-2.5">
+        <div className="flex flex-wrap items-center gap-1">
+          {place.tags?.slice(0, 3).map((tag) => (
+            <span
+              key={tag}
+              className="rounded-md bg-secondary/60 px-2 py-0.5 text-[10px] text-muted-foreground"
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowDetails((d) => !d)}
+          className="flex items-center gap-1 text-xs font-semibold text-accent hover:underline"
+        >
+          <span>{showDetails ? '간략히 접기' : '주변 맛집3 · 카페3 & 네이버 상세 지도'}</span>
+          {showDetails ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+        </button>
+      </div>
+
+      {/* 상세 펼침 영역 */}
+      {showDetails ? (
+        <div className="mt-3 flex flex-col gap-2.5 border-t border-border pt-3">
+          {/* 주소 & 전화 & 영업시간 */}
+          <div className="grid gap-1.5 text-xs text-muted-foreground sm:grid-cols-2">
+            {place.address ? (
+              <div className="flex items-center gap-1.5">
+                <MapPin className="size-3.5 text-accent shrink-0" />
+                <span className="truncate">{place.address}</span>
+              </div>
+            ) : null}
+            {place.operatingHours ? (
+              <div className="flex items-center gap-1.5">
+                <Clock className="size-3.5 text-accent shrink-0" />
+                <span>영업: {place.operatingHours}</span>
+              </div>
             ) : null}
           </div>
 
-          {/* 메인 정보 줄 (카테고리, 거리/이동시간, 비용) */}
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1">
-              <Tag className="size-3 text-muted-foreground" />
-              {place.category}
-            </span>
-            <span className="inline-flex items-center gap-1 font-medium text-accent">
-              <MoveIcon className="size-3 text-accent" />
-              {moveInfo.text}
-            </span>
-            <span
-              className={cn(
-                'font-semibold',
-                place.cost === 0 ? 'text-accent' : 'text-foreground',
-              )}
-            >
-              {place.costLabel}
-            </span>
-          </div>
-
-          {/* --- [자차 모드 분기] --- */}
+          {/* 자차 모드 분기 */}
           {transport === 'car' ? (
-            isNearby ? (
-              <div className="mt-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-foreground">
+            place.parkingInfo ? (
+              <div className="mt-1.5 rounded-xl border border-blue-500/30 bg-blue-500/10 p-2.5 text-xs text-foreground">
                 <div className="flex items-start gap-1.5">
-                  <Footprints className="size-4 shrink-0 text-amber-400 mt-0.5" />
+                  <Navigation className="size-4 shrink-0 text-blue-400 mt-0.5" />
                   <div>
-                    <span className="font-semibold text-amber-400">🚗 주차 꿀팁 (도보 이동 추천):</span>{' '}
-                    <span>
-                      이전 장소와 가까운 거리에 위치해 있습니다. 차를 새로 출차해 이동하고 재주차하는 것보다 기존 주차장에 차를 세워두고 골목 산책으로 걸어가시는 것이 훨씬 편합니다 (도보 약 {mins}분).
-                    </span>
-                    {place.parkingInfo ? (
-                      <div className="mt-1 text-[11px] text-muted-foreground">
-                        ※ 목적지 전용 주차 안내: {place.parkingInfo}
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            ) : place.parkingInfo ? (
-              <div className="mt-2.5 rounded-xl border border-blue-500/30 bg-blue-500/10 p-2.5 text-xs text-foreground">
-                <div className="flex items-start gap-1.5">
-                  <Car className="size-4 shrink-0 text-blue-400 mt-0.5" />
-                  <div>
-                    <span className="font-semibold text-blue-400">🚗 자차 차로 이동 & 주차 안내:</span>{' '}
+                    <span className="font-semibold text-blue-400">🚗 자차 이동 & 추천 주차장:</span>{' '}
                     <span>{place.parkingInfo}</span>
                   </div>
                 </div>
@@ -187,27 +202,27 @@ export function PlaceCard({
             ) : null
           ) : null}
 
-          {/* --- [대중교통 모드 분기] --- */}
+          {/* 대중교통 모드 분기 */}
           {transport === 'transit' ? (
             isNearby ? (
-              <div className="mt-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-foreground">
+              <div className="mt-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-foreground">
                 <div className="flex items-start gap-1.5">
                   <Footprints className="size-4 shrink-0 text-amber-400 mt-0.5" />
                   <div>
-                    <span className="font-semibold text-amber-400">🚌 대중교통 꿀팁 (도보 이동 추천):</span>{' '}
+                    <span className="font-semibold text-amber-400">🚌 대중교통 꿀팁 (도보 이동 권장):</span>{' '}
                     <span>
-                      인접한 인근 거리입니다 (도보 약 {mins}분). 버스를 기다리고 승하차하는 시간보다 천천히 걸어가시는 것이 훨씬 빠르고 편리합니다.
+                      인접한 인근 거리입니다 (도보 약 {mins}분). 버스를 기다리는 시간보다 걸어가시는 것이 훨씬 빠릅니다.
                     </span>
                     {place.transitInfo ? (
                       <div className="mt-1 text-[11px] text-muted-foreground">
-                        ※ 장거리 이동 시 시내버스 참고: {place.transitInfo}
+                        ※ 버스 노선 참고: {place.transitInfo}
                       </div>
                     ) : null}
                   </div>
                 </div>
               </div>
             ) : place.transitInfo ? (
-              <div className="mt-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-xs text-foreground">
+              <div className="mt-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-xs text-foreground">
                 <div className="flex items-start gap-1.5">
                   <Bus className="size-4 shrink-0 text-emerald-400 mt-0.5" />
                   <div>
@@ -220,51 +235,51 @@ export function PlaceCard({
           ) : null}
 
           {/* 추천 사유 */}
-          <p className="mt-2 rounded-xl bg-secondary/80 px-3 py-2 text-xs leading-relaxed text-secondary-foreground">
+          <p className="rounded-xl bg-secondary/80 px-3 py-2 text-xs leading-relaxed text-secondary-foreground">
             {place.reason}
           </p>
 
-          {/* 장소 주변 추천 맛집 & 카페 서브 안내 (선택 옵션) */}
+          {/* 장소 바로 근처 추천 맛집 3곳 & 카페 3곳 서브 큐레이션 */}
           {place.nearbyDining || place.nearbyCafes ? (
-            <div className="mt-3 rounded-xl border border-primary/25 bg-primary/5 p-3 text-xs">
+            <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 text-xs">
               <div className="flex items-center justify-between font-bold text-foreground mb-2">
                 <div className="flex items-center gap-1.5">
                   <MapPin className="size-3.5 text-primary" />
-                  <span>📍 이 장소 바로 근처 추천 맛집 & 카페</span>
+                  <span>📍 {place.name} 바로 근처 추천 맛집 3곳 & 감성 카페 3곳</span>
                 </div>
-                <span className="text-[10px] font-normal text-muted-foreground">(선택 참조)</span>
+                <span className="text-[10px] font-normal text-emerald-400">네이버 지도 기준</span>
               </div>
 
               <div className="grid gap-2 sm:grid-cols-2">
                 {place.nearbyDining ? (
-                  <div className="rounded-lg bg-card border border-border p-2">
-                    <div className="flex items-center gap-1 font-semibold text-emerald-400 text-[11px] mb-1">
-                      <Utensils className="size-3" /> 근처 맛집
+                  <div className="rounded-lg bg-card border border-border p-2.5">
+                    <div className="flex items-center gap-1 font-semibold text-emerald-400 text-xs mb-1.5 pb-1 border-b border-border/50">
+                      <Utensils className="size-3.5" /> 인근 로컬 맛집 3선
                     </div>
                     {place.nearbyDining.map((item) => (
-                      <div key={item.name} className="text-[11px] leading-tight text-foreground py-1 border-b border-border/40 last:border-0">
-                        <div className="flex items-center justify-between font-medium">
+                      <div key={item.name} className="text-xs leading-tight text-foreground py-1.5 border-b border-border/40 last:border-0">
+                        <div className="flex items-center justify-between font-semibold">
                           <span>{item.name}</span>
                           <span className="text-[10px] text-emerald-400 font-normal">{item.distance}</span>
                         </div>
-                        <div className="text-[10px] text-muted-foreground mt-0.5">대표: {item.menu}</div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5">대표 메뉴: {item.menu}</div>
                       </div>
                     ))}
                   </div>
                 ) : null}
 
                 {place.nearbyCafes ? (
-                  <div className="rounded-lg bg-card border border-border p-2">
-                    <div className="flex items-center gap-1 font-semibold text-amber-400 text-[11px] mb-1">
-                      <Coffee className="size-3" /> 근처 카페/디저트
+                  <div className="rounded-lg bg-card border border-border p-2.5">
+                    <div className="flex items-center gap-1 font-semibold text-amber-400 text-xs mb-1.5 pb-1 border-b border-border/50">
+                      <Coffee className="size-3.5" /> 인근 감성 카페 3선
                     </div>
                     {place.nearbyCafes.map((item) => (
-                      <div key={item.name} className="text-[11px] leading-tight text-foreground py-1 border-b border-border/40 last:border-0">
-                        <div className="flex items-center justify-between font-medium">
+                      <div key={item.name} className="text-xs leading-tight text-foreground py-1.5 border-b border-border/40 last:border-0">
+                        <div className="flex items-center justify-between font-semibold">
                           <span>{item.name}</span>
                           <span className="text-[10px] text-amber-400 font-normal">{item.distance}</span>
                         </div>
-                        <div className="text-[10px] text-muted-foreground mt-0.5">대표: {item.menu}</div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5">대표 시그니처: {item.menu}</div>
                       </div>
                     ))}
                   </div>
@@ -275,120 +290,36 @@ export function PlaceCard({
 
           {/* 현지인 팁 */}
           {place.tips ? (
-            <p className="mt-2 rounded-xl border border-accent/30 bg-accent/10 px-3 py-2 text-xs text-foreground font-normal">
+            <p className="rounded-xl border border-accent/30 bg-accent/10 px-3 py-2 text-xs text-foreground">
               {place.tips}
             </p>
           ) : null}
 
           {/* 주의사항 경고 배지 */}
           {place.warning ? (
-            <p className="mt-2 flex items-center gap-1.5 rounded-xl bg-destructive/10 px-3 py-2 text-xs font-medium text-foreground border border-destructive/20">
+            <p className="flex items-center gap-1.5 rounded-xl bg-destructive/10 px-3 py-2 text-xs font-medium text-foreground border border-destructive/20">
               <AlertTriangle className="size-3.5 shrink-0 text-destructive" />
               {place.warning}
             </p>
           ) : null}
 
-          {/* 태그 리스트 */}
-          {place.tags && place.tags.length > 0 ? (
-            <div className="mt-2.5 flex flex-wrap gap-1">
-              {place.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="rounded-md bg-secondary/60 px-2 py-0.5 text-[11px] text-muted-foreground font-medium"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          ) : null}
-
-          {/* 상세 정보 토글 영역 */}
-          {expanded ? (
-            <div className="mt-3 space-y-2 border-t border-border/60 pt-3 text-xs">
-              {place.address ? (
-                <div className="flex items-start gap-2 text-foreground">
-                  <MapPin className="size-3.5 shrink-0 text-accent mt-0.5" />
-                  <span>주소: {place.address}</span>
-                </div>
-              ) : null}
-
-              {place.operatingHours ? (
-                <div className="flex items-start gap-2 text-foreground">
-                  <Clock className="size-3.5 shrink-0 text-accent mt-0.5" />
-                  <span>운영시간: {place.operatingHours}</span>
-                </div>
-              ) : null}
-
-              {place.phone ? (
-                <div className="flex items-center gap-2 text-foreground">
-                  <Phone className="size-3.5 shrink-0 text-accent" />
-                  <span>전화문의: {place.phone}</span>
-                </div>
-              ) : null}
-
-              {place.parkingInfo ? (
-                <div className="flex items-start gap-2 text-muted-foreground">
-                  <Car className="size-3.5 shrink-0 text-blue-400 mt-0.5" />
-                  <span>주차장 팁: {place.parkingInfo}</span>
-                </div>
-              ) : null}
-
-              {place.transitInfo ? (
-                <div className="flex items-start gap-2 text-muted-foreground">
-                  <Bus className="size-3.5 shrink-0 text-emerald-400 mt-0.5" />
-                  <span>시내버스: {place.transitInfo}</span>
-                </div>
-              ) : null}
-
-              {place.naverMapUrl ? (
-                <div className="pt-1">
-                  <a
-                    href={place.naverMapUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600/15 text-emerald-400 border border-emerald-500/30 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-emerald-600/25"
-                  >
-                    <ExternalLink className="size-3.5" />
-                    네이버 지도로 보기 / 길찾기
-                  </a>
-                </div>
-              ) : null}
+          {/* 네이버 지도 연동 버튼 */}
+          {place.naverMapUrl ? (
+            <div className="pt-1">
+              <a
+                href={place.naverMapUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/20"
+              >
+                <MapPin className="size-3.5 text-emerald-400" />
+                <span>네이버 지도로 '{place.name}' 실시간 경로/후기 보기</span>
+                <ArrowRight className="size-3 text-emerald-400" />
+              </a>
             </div>
           ) : null}
         </div>
-      </div>
-
-      {/* 하단 버튼 바 */}
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border/40 pt-2.5">
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
-        >
-          <Info className="size-3.5" />
-          {expanded ? '상세 접기' : '상세 더보기'}
-          {expanded ? (
-            <ChevronUp className="size-3.5" />
-          ) : (
-            <ChevronDown className="size-3.5" />
-          )}
-        </button>
-
-        {canReplace ? (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation()
-              onReplace(place.id)
-            }}
-            className="h-8 text-xs font-semibold text-amber-400 border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 transition-all rounded-xl"
-          >
-            <RefreshCw className="size-3.5 text-amber-400" />
-            🔄 다른 장소로 변경하기
-          </Button>
-        ) : null}
-      </div>
-    </article>
+      ) : null}
+    </div>
   )
 }

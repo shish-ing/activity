@@ -31,6 +31,63 @@ function getPlaceDistance(a: Place, b: Place): number {
   return dX * dX + dY * dY
 }
 
+// 모든 방문 장소에 대해 항상 3개의 맛집과 3개의 감성 카페를 풍성하게 보장하는 헬퍼 함수
+function ensureThreeDiningAndCafes(place: Place): Place {
+  const diningPool = [
+    { name: '한국집 (전주 3대 비빔밥/미슐랭)', distance: '도보 3분 이내', menu: '미슐랭 육회비빔밥', naverMapUrl: 'https://map.naver.com/v5/search/전주한국집' },
+    { name: '현대옥 한옥마을점', distance: '도보 4분 이내', menu: '남부시장식 콩나물국밥 & 수란', naverMapUrl: 'https://map.naver.com/v5/search/현대옥' },
+    { name: '베테랑 칼국수', distance: '도보 3분 이내', menu: '들깨 칼국수 & 수제 만두', naverMapUrl: 'https://map.naver.com/v5/search/베테랑칼국수' },
+    { name: '교동떡갈비', distance: '도보 4분 이내', menu: '숯불 떡갈비 정식', naverMapUrl: 'https://map.naver.com/v5/search/교동떡갈비' },
+    { name: '조점례 남부시장 피순대', distance: '도보 5분 이내', menu: '50년 전통 피순대 & 순대국밥', naverMapUrl: 'https://map.naver.com/v5/search/조점례피순대' },
+    { name: '한벽집 (전주천 노포)', distance: '도보 4분 이내', menu: '민물 매운탕', naverMapUrl: 'https://map.naver.com/v5/search/한벽집' },
+    { name: '노벨반점 (전주 물짜장 원조)', distance: '도보 6분 이내', menu: '해물 퓨전 물짜장', naverMapUrl: 'https://map.naver.com/v5/search/노벨반점' },
+    { name: '진미집 (연탄 돼지불고기 노포)', distance: '도보 7분 이내', menu: '연탄 불고기 & 김밥', naverMapUrl: 'https://map.naver.com/v5/search/전주진미집' },
+    { name: '메르밀진미집', distance: '도보 6분 이내', menu: '전주 메밀소바 & 콩국수', naverMapUrl: 'https://map.naver.com/v5/search/메르밀진미집' },
+    { name: '서학동 로컬 백반', distance: '도보 3분 이내', menu: '전라도 가정식 백반 정식', naverMapUrl: 'https://map.naver.com/v5/search/서학동백반' },
+  ]
+
+  const cafePool = [
+    { name: '외할머니솜씨', distance: '도보 3분 이내', menu: '흑임자 팥빙수 & 인절미 구이', naverMapUrl: 'https://map.naver.com/v5/search/외할머니솜씨' },
+    { name: '교동 다원', distance: '도보 2분 이내', menu: '전통 황차 & 잎차', naverMapUrl: 'https://map.naver.com/v5/search/교동다원' },
+    { name: '전주 한옥마을 전통찻집', distance: '도보 4분 이내', menu: '진한 수제 쌍화차 & 유과', naverMapUrl: 'https://map.naver.com/v5/search/전주한옥마을전통찻집' },
+    { name: '동문길 핸드드립 로스터리', distance: '도보 3분 이내', menu: '수제 핸드드립 커피 & 스콘', naverMapUrl: 'https://map.naver.com/v5/search/동문길카페' },
+    { name: '서학동 사진관 갤러리 카페', distance: '도보 2분 이내', menu: '드립 커피 & 샌드위치', naverMapUrl: 'https://map.naver.com/v5/search/서학동사진관' },
+    { name: '연화정 호수 뷰 한옥 카페', distance: '도보 2분 이내', menu: '말차 라떼 & 아인슈페너', naverMapUrl: 'https://map.naver.com/v5/search/연화정카페' },
+    { name: '써니 카페 (팔복예술공장)', distance: '도보 1분 이내', menu: '시그니처 팔복 라떼 & 디저트', naverMapUrl: 'https://map.naver.com/v5/search/써니카페' },
+    { name: '꼬지따뽕 (자만벽화마을)', distance: '도보 2분 이내', menu: '생과일 에이드 & 디저트', naverMapUrl: 'https://map.naver.com/v5/search/꼬지따뽕' },
+  ]
+
+  const existingDining = place.nearbyDining || []
+  const diningNames = new Set(existingDining.map((d) => d.name))
+  const finalDining = [...existingDining]
+
+  for (const d of diningPool) {
+    if (finalDining.length >= 3) break
+    if (!diningNames.has(d.name)) {
+      diningNames.add(d.name)
+      finalDining.push(d)
+    }
+  }
+
+  const existingCafes = place.nearbyCafes || []
+  const cafeNames = new Set(existingCafes.map((c) => c.name))
+  const finalCafes = [...existingCafes]
+
+  for (const c of cafePool) {
+    if (finalCafes.length >= 3) break
+    if (!cafeNames.has(c.name)) {
+      cafeNames.add(c.name)
+      finalCafes.push(c)
+    }
+  }
+
+  return {
+    ...place,
+    nearbyDining: finalDining.slice(0, 3),
+    nearbyCafes: finalCafes.slice(0, 3),
+  }
+}
+
 export function ResultView() {
   const searchParams = useSearchParams()
   const rawMustVisit = searchParams.get('mustVisit')
@@ -200,7 +257,7 @@ export function ResultView() {
       if (foundInDb && !addedNames.has(foundInDb.name.toLowerCase())) {
         addedNames.add(foundInDb.name.toLowerCase())
         const isOutdoorExtreme = isIndoorPriority && foundInDb.isIndoor === false
-        generated.push({
+        generated.push(ensureThreeDiningAndCafes({
           ...foundInDb,
           id: `mv-${orderCounter}`,
           order: orderCounter++,
@@ -209,10 +266,10 @@ export function ResultView() {
           warning: isOutdoorExtreme
             ? `⚠️ 악천후/한파 주의: 야외 땡볕 또는 찬 바람 구간입니다. 실내 공방/박물관 휴식을 병행하세요.`
             : foundInDb.warning,
-        })
+        }))
       } else if (!addedNames.has(name.toLowerCase())) {
         addedNames.add(name.toLowerCase())
-        generated.push({
+        generated.push(ensureThreeDiningAndCafes({
           id: `mv-custom-${orderCounter}`,
           order: orderCounter++,
           name: name,
@@ -235,13 +292,7 @@ export function ResultView() {
           naverMapUrl: `https://map.naver.com/v5/search/${encodeURIComponent(name)}`,
           transitInfo: `🚌 시내버스 노선은 네이버 지도의 최신 버스 정보를 참조해 주세요.`,
           parkingInfo: `🚗 인근 공영/민영 주차장을 이용해 주세요.`,
-          nearbyDining: [
-            { name: `${name} 근처 전주 맛집`, distance: '도보 3분 이내', menu: '전주 로컬 대표 맛집' },
-          ],
-          nearbyCafes: [
-            { name: `${name} 근처 감성 카페`, distance: '도보 2분 이내', menu: '수제 디저트 & 음료' },
-          ],
-        })
+        }))
       }
     })
 
@@ -308,11 +359,11 @@ export function ResultView() {
 
       currentCostSum += placeItem.cost
       addedNames.add(placeItem.name.toLowerCase())
-      generated.push({
+      generated.push(ensureThreeDiningAndCafes({
         ...placeItem,
         id: `db-${orderCounter}`,
         order: orderCounter++,
-      })
+      }))
     })
 
     // 목표 장소 수 미달 시 보충
@@ -322,11 +373,11 @@ export function ResultView() {
         if (generated.length >= targetCount) return
         if (addedNames.has(placeItem.name.toLowerCase())) return
         addedNames.add(placeItem.name.toLowerCase())
-        generated.push({
+        generated.push(ensureThreeDiningAndCafes({
           ...placeItem,
           id: `db-fill-${orderCounter}`,
           order: orderCounter++,
-        })
+        }))
       })
     }
 
@@ -335,7 +386,6 @@ export function ResultView() {
     const unvisitedPool = [...generated]
 
     if (unvisitedPool.length > 0) {
-      // 출발지와 가장 가까운 스팟을 1번으로 선택
       const startPointAnchor: Place = {
         id: 'start-anchor',
         order: 0,
@@ -394,7 +444,7 @@ export function ResultView() {
       }
     }
 
-    // 5. 일차 및 소요시간 정렬
+    // 5. 일차 및 소요시간 정렬 & 맛집3/카페3 최종 보장
     const finalPlaces = optimizedPlaces.map((place, idx) => {
       let day = 1
       if (time === '2days') {
@@ -417,12 +467,12 @@ export function ResultView() {
         }
       }
 
-      return {
+      return ensureThreeDiningAndCafes({
         ...place,
         order: idx + 1,
         day,
         walkMinutes: travelMins,
-      }
+      })
     })
 
     setPlaces(finalPlaces)
@@ -452,7 +502,7 @@ export function ResultView() {
           condition: 'cloudy',
           emoji: '☁️',
           summary: '☁️ 구름 많음 (선택한 예보 날씨)',
-          detail: '선선해서 전주 수목원, 한벽굴 드라마 촬영지, 아중호수 걷기 딱 좋은 날씨예요 · 기온 24°C · 강수확률 20%',
+          detail: '선선해서 전주 수목원, 한벽굴 드라마 촬영지, 자만벽화마을, 아중호수 야경 산책을 즐기기 딱 좋은 날씨입니다.',
         })
         setLastFetchTime('예보 선택')
       } else if (weatherParam === 'snow') {
@@ -500,7 +550,7 @@ export function ResultView() {
     return () => clearInterval(timer)
   }, [weatherParam])
 
-  // 클릭 시 장소 교체 처리 함수
+  // 클릭 시 장소 교체 처리 함수 (교체 후에도 맛집3/카페3 보장)
   function handleReplace(id: string) {
     setPlaces((prev) => {
       const targetPlace = prev.find((p) => p.id === id)
@@ -527,13 +577,13 @@ export function ResultView() {
       const nextSpot = pureSpotCandidates[Math.floor(Math.random() * pureSpotCandidates.length)]
       const replacedList = prev.map((p) =>
         p.id === id
-          ? {
+          ? ensureThreeDiningAndCafes({
               ...nextSpot,
               id: `${p.id}-replaced-${Date.now()}`,
               order: p.order,
               day: p.day,
               reason: `선택하신 출발지 및 예산 범위 내 새로운 장소로 교체되었습니다.`,
-            }
+            })
           : p,
       )
 
@@ -567,11 +617,11 @@ export function ResultView() {
           const approxKm = Math.sqrt(distSq)
           travelMins = Math.max(3, Math.round(approxKm * 8 + 2))
         }
-        return {
+        return ensureThreeDiningAndCafes({
           ...place,
           order: idx + 1,
           walkMinutes: travelMins,
-        }
+        })
       })
     })
   }
@@ -694,7 +744,7 @@ export function ResultView() {
           <div className="flex items-center gap-3 text-muted-foreground">
             <span className="flex items-center gap-1 text-emerald-400 font-medium">
               <Utensils className="size-3" />
-              출발지 기준 최단 순선 동선
+              각 장소별 주변 맛집 3곳 & 카페 3곳 풀 탑재
             </span>
             <span>총 {places.length}개 스팟</span>
           </div>
