@@ -1146,15 +1146,20 @@ export function ResultView() {
 
       const result = saveCourseToUser(currentUser.email, {
         title: courseTitle,
+        startLocation: startLocationParam,
+        startAddress: searchParams.get('startAddress') || '',
+        mustVisit: mustVisitParam,
         timeOption: time,
         weatherSummary: weather.summary,
         weatherEmoji: weather.emoji,
+        weatherParam: weatherParam,
         companion: companionParam,
         transport,
         totalBudget: userBudgetLimit,
         totalCost: totalCost,
         totalTravelMinutes,
         spots: spotsData,
+        savedPlaces: places,
       })
 
       if (result.success) {

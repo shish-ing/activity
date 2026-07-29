@@ -8,15 +8,20 @@ export interface SavedCourse {
   id: string
   title: string
   savedAt: string
+  startLocation?: string
+  startAddress?: string
+  mustVisit?: string
   timeOption: string
   weatherSummary: string
   weatherEmoji: string
+  weatherParam?: string
   companion: string
   transport: string
   totalBudget: number
   totalCost: number
   totalTravelMinutes: number
   spots: SavedCourseSpot[]
+  savedPlaces?: any[]
 }
 
 export const getSavedCourses = (userEmail: string): SavedCourse[] => {
