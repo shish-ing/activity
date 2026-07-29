@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, LocateFixed, MapPin, Sparkles, Wallet } from 'lucide-react'
+import { AlertCircle, Loader2, LocateFixed, MapPin, Sparkles, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ChipSelect } from '@/components/chip-select'
 import { MustVisitSearch } from '@/components/must-visit-search'
@@ -18,9 +18,9 @@ import { cn } from '@/lib/utils'
 // 자주 찾는 전주 주요 출발지 퀵 선택 칩
 const QUICK_START_LOCATIONS = [
   { label: '🎯 실시간 GPS', value: 'GPS' },
-  { label: '🚉 전주역', value: '전주역' },
+  { label: '🏛️ 한옥마을 (기본값)', value: '전주 한옥마을' },
+  { label: 'Station 전주역', value: '전주역' },
   { label: '🚌 전주고속버스터미널', value: '전주고속버스터미널' },
-  { label: '🏛️ 전주 한옥마을 (전동성당)', value: '전주 한옥마을' },
   { label: '🎓 전북대학교', value: '전북대학교' },
   { label: '🛍️ 전주 객사', value: '전주 객사' },
 ]
@@ -28,9 +28,9 @@ const QUICK_START_LOCATIONS = [
 export function ConditionForm() {
   const router = useRouter()
 
-  const [startLocation, setStartLocation] = useState<string>('전주 한옥마을')
+  const [startLocation, setStartLocation] = useState<string>('전주 한옥마을 (기본 출발지)')
   const [isGpsLoading, setIsGpsLoading] = useState(false)
-  const [locationGranted, setLocationGranted] = useState(false)
+  const [isFallbackToHanok, setIsFallbackToHanok] = useState(true)
 
   const [time, setTime] = useState<string | null>('3h')
   const [budgetValue, setBudgetValue] = useState<number>(50000) // 0원 ~ 500,000원 슬라이더
@@ -46,20 +46,20 @@ export function ConditionForm() {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           setIsGpsLoading(false)
-          setLocationGranted(true)
+          setIsFallbackToHanok(false)
           const { latitude, longitude } = pos.coords
           setStartLocation(`🎯 실시간 GPS 위치 (위도 ${latitude.toFixed(4)}, 경도 ${longitude.toFixed(4)})`)
         },
         (err) => {
           setIsGpsLoading(false)
-          setLocationGranted(true)
-          setStartLocation('전주 한옥마을 (현재 위치)')
+          setIsFallbackToHanok(true)
+          setStartLocation('전주 한옥마을 (기본 출발지)')
         },
         { enableHighAccuracy: true, timeout: 5000 },
       )
     } else {
-      setLocationGranted(true)
-      setStartLocation('전주 한옥마을 (현재 위치)')
+      setIsFallbackToHanok(true)
+      setStartLocation('전주 한옥마을 (기본 출발지)')
     }
   }
 
@@ -68,7 +68,7 @@ export function ConditionForm() {
       handleGetRealGpsLocation()
     } else {
       setStartLocation(val)
-      setLocationGranted(true)
+      setIsFallbackToHanok(val.includes('한옥마을'))
     }
   }
 
@@ -131,11 +131,27 @@ export function ConditionForm() {
           <input
             type="text"
             value={startLocation}
-            onChange={(e) => setStartLocation(e.target.value)}
+            onChange={(e) => {
+              setStartLocation(e.target.value)
+              setIsFallbackToHanok(e.target.value.includes('한옥마을'))
+            }}
             placeholder="출발하고 싶은 장소명을 입력하세요 (예: 전주역, 터미널, 전동성당, 전북대)"
             className="w-full rounded-xl border border-border bg-secondary/60 px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
           />
         </div>
+
+        {/* 위치 조회 미작동 시 한옥마을 기본값 명확 안내 */}
+        {isFallbackToHanok ? (
+          <div className="flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-2.5 text-xs text-amber-300">
+            <AlertCircle className="size-4 shrink-0 text-amber-400 mt-0.5" />
+            <div>
+              <span className="font-bold">📌 출발지 기본 기준 안내:</span>{' '}
+              <span>
+                실시간 위치 권한이 미승인되었거나 조회가 어려운 환경인 경우, 전주 대표 중심지인 <strong>'전주 한옥마을'을 기본 출발지 기준</strong>으로 추천해 드립니다 (원하시는 출발지가 있다면 위 입력창에 직접 입력해 주세요).
+              </span>
+            </div>
+          </div>
+        ) : null}
 
         {/* 주요 출발지 퀵 선택 칩 */}
         <div className="flex flex-wrap items-center gap-1.5 pt-1">

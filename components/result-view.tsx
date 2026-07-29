@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Bus, Calendar, Car, Clock, Footprints, Heart, MapPin, RefreshCw, Share2, Sparkles, SunMedium, Utensils, Wallet } from 'lucide-react'
+import { AlertCircle, Bus, Calendar, Car, Clock, Footprints, Heart, MapPin, RefreshCw, Share2, Sparkles, SunMedium, Utensils, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PlaceCard } from '@/components/place-card'
 import { MapPlaceholder } from '@/components/map-placeholder'
@@ -643,11 +643,23 @@ export function ResultView() {
         ) : null}
       </div>
 
-      {/* 출발지 선택 표시 배지 */}
-      <div className="mt-3 flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/10 p-3 text-xs text-primary font-semibold">
-        <MapPin className="size-4 shrink-0 text-primary" />
-        <span>🚩 설정된 출발지: <strong className="text-foreground">{startLocationParam}</strong> (이 출발지를 기준으로 최단 지리적 순선 코스가 연동되었습니다)</span>
-      </div>
+      {/* 출발지 선택 및 한옥마을 기본 기준 노티피케이션 */}
+      {startLocationParam.includes('한옥마을') ? (
+        <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-300">
+          <MapPin className="size-4 shrink-0 text-amber-400 mt-0.5" />
+          <div>
+            <span className="font-bold">📍 출발 기준지 안내:</span>{' '}
+            <span>
+              실시간 위치 수신 불가 환경(또는 미승인)으로 인해, 전주 대표 중심지인 <strong>'전주 한옥마을(전동성당)'을 기본 출발지 기준</strong>으로 설정하여 주변 및 최단 지리적 순선 코스를 안내해 드립니다.
+            </span>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-3 flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/10 p-3 text-xs text-primary font-semibold">
+          <MapPin className="size-4 shrink-0 text-primary" />
+          <span>🚩 설정된 출발지: <strong className="text-foreground">{startLocationParam}</strong> (이 출발지를 기준으로 최단 지리적 순선 코스가 연동되었습니다)</span>
+        </div>
+      )}
 
       {/* 예산 및 동행 유형 맞춤 안내 배지 */}
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3 text-xs text-emerald-300">
