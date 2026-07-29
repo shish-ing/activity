@@ -87,7 +87,7 @@ export type Place = {
   // 지도 플레이스홀더 위 핀 위치 (0~100 %)
   mapX: number
   mapY: number
-  // 네이버 지도 바탕 풍부한 정보
+  // 네이버 지도 바탕 풍부한 정보 및 이동수단별 경로 정보
   address?: string
   operatingHours?: string
   phone?: string
@@ -97,6 +97,10 @@ export type Place = {
   naverMapUrl?: string
   isMeal?: boolean
   day?: number
+  distanceText?: string
+  travelMinutes?: number
+  transitInfo?: string
+  parkingInfo?: string
 }
 
 export const RECOMMENDED_PLACES: Place[] = [

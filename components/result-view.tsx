@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Calendar, Clock, RefreshCw, Share2, Utensils, Wallet } from 'lucide-react'
+import { Bus, Calendar, Car, Clock, Footprints, RefreshCw, Share2, Utensils, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PlaceCard } from '@/components/place-card'
 import { MapPlaceholder } from '@/components/map-placeholder'
@@ -23,6 +23,7 @@ export function ResultView() {
   const searchParams = useSearchParams()
   const rawMustVisit = searchParams.get('mustVisit')
   const time = searchParams.get('time') || '3h'
+  const transport = searchParams.get('transport') || 'walk' // 'walk' | 'transit' | 'car'
 
   const [places, setPlaces] = useState<Place[]>(RECOMMENDED_PLACES)
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -30,6 +31,20 @@ export function ResultView() {
   const [weather, setWeather] = useState<Weather>(CURRENT_WEATHER)
   const [weatherLoading, setWeatherLoading] = useState(false)
   const [lastFetchTime, setLastFetchTime] = useState<string>('')
+
+  // 이동수단 라벨 & 아이콘
+  const transportLabel = useMemo(() => {
+    switch (transport) {
+      case 'car':
+        return { text: '자차 이동 (목적지별 추천 주차장 안내)', icon: Car }
+      case 'transit':
+        return { text: '대중교통 이동 (시내버스 번호 & 승하차 정류장)', icon: Bus }
+      default:
+        return { text: '도보 이동 (산책로 중심 동선)', icon: Footprints }
+    }
+  }, [transport])
+
+  const TransportIcon = transportLabel.icon
 
   // 시간 옵션 텍스트 라벨
   const timeLabel = useMemo(() => {
@@ -99,6 +114,8 @@ export function ResultView() {
           suggestedDuration: '45분',
           tips: `💡 현지인 팁: 네이버 지도로 '${name}'의 운영시간과 정기휴무일을 확인해 주세요.`,
           naverMapUrl: `https://map.naver.com/v5/search/${encodeURIComponent(name)}`,
+          transitInfo: `🚌 시내버스 노선은 네이버 지도의 최신 버스 정보를 참조해 주세요.`,
+          parkingInfo: `🚗 인근 공영/민영 주차장을 이용해 주세요.`,
         })
       }
     })
@@ -112,7 +129,7 @@ export function ResultView() {
     else if (time === '2days') targetCount = 10
     else if (time === '3days') targetCount = 14
 
-    // 3. 점심 식사/맛집 포함 여부 (3h, half, full, 2days, 3days)
+    // 3. 점심 식사/맛집 포함 여부
     const needsMeal = time !== '1h'
 
     // DB에서 조건에 부합하는 장소들 채우기
@@ -213,10 +230,17 @@ export function ResultView() {
     () => places.reduce((sum, p) => sum + p.cost, 0),
     [places],
   )
-  const totalWalk = useMemo(
-    () => places.reduce((sum, p) => sum + p.walkMinutes, 0),
-    [places],
-  )
+
+  // 이동수단별 총 이동 소요시간 계산
+  const totalTravelMinutes = useMemo(() => {
+    return places.reduce((sum, p) => {
+      const m = p.walkMinutes || 0
+      if (m === 0) return sum
+      if (transport === 'car') return sum + Math.max(2, Math.round(m * 0.5))
+      if (transport === 'transit') return sum + Math.max(5, Math.round(m * 1.1 + 3))
+      return sum + m
+    }, 0)
+  }, [places, transport])
 
   const mealCount = useMemo(
     () => places.filter((p) => p.isMeal).length,
@@ -272,25 +296,32 @@ export function ResultView() {
         </button>
       </div>
 
-      {/* 시간 및 추천 맞춤 코스 안내 띠 */}
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-card border border-border px-4 py-2.5 text-xs text-foreground">
-        <span className="flex items-center gap-1.5 font-semibold text-accent">
-          <Clock className="size-3.5" />
-          {timeLabel}
-        </span>
-        <div className="flex items-center gap-3 text-muted-foreground">
-          {mealCount > 0 ? (
-            <span className="flex items-center gap-1 text-emerald-400 font-medium">
-              <Utensils className="size-3" />
-              네이버 지도 추천 점심/식사 {mealCount}곳 포함
-            </span>
-          ) : null}
-          <span>총 {places.length}개 스팟</span>
+      {/* 시간 및 이동수단 안내 띠 */}
+      <div className="mt-3 flex flex-col gap-2 rounded-xl bg-card border border-border p-3 text-xs text-foreground">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="flex items-center gap-1.5 font-semibold text-accent">
+            <Clock className="size-3.5" />
+            {timeLabel}
+          </span>
+          <div className="flex items-center gap-3 text-muted-foreground">
+            {mealCount > 0 ? (
+              <span className="flex items-center gap-1 text-emerald-400 font-medium">
+                <Utensils className="size-3" />
+                네이버 지도 추천 점심/식사 {mealCount}곳 포함
+              </span>
+            ) : null}
+            <span>총 {places.length}개 스팟</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 border-t border-border/50 pt-2 text-muted-foreground">
+          <TransportIcon className="size-3.5 text-accent shrink-0" />
+          <span className="font-medium text-foreground">{transportLabel.text}</span>
         </div>
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_minmax(0,42%)]">
-        {/* 왼쪽: 추천 카드 리스트 (일차별 구분 또는 전체 리스트) */}
+        {/* 왼쪽: 추천 카드 리스트 */}
         <section aria-label="추천 장소 목록" className="flex flex-col gap-4">
           <div className="flex items-baseline justify-between">
             <h2 className="font-serif text-lg font-bold text-foreground">
@@ -318,6 +349,7 @@ export function ResultView() {
                   <PlaceCard
                     key={place.id}
                     place={place}
+                    transport={transport}
                     highlighted={activeId === place.id}
                     canReplace={Boolean(
                       ALTERNATIVE_PLACES[place.id] || place.id.endsWith('-alt'),
@@ -334,6 +366,7 @@ export function ResultView() {
               <PlaceCard
                 key={place.id}
                 place={place}
+                transport={transport}
                 highlighted={activeId === place.id}
                 canReplace={Boolean(
                   ALTERNATIVE_PLACES[place.id] || place.id.endsWith('-alt'),
@@ -371,7 +404,7 @@ export function ResultView() {
             <span className="flex items-center gap-1.5">
               <Clock className="size-4 text-accent" />
               <span className="font-semibold text-foreground">
-                이동 {totalWalk}분
+                총 {totalTravelMinutes}분 이동
               </span>
             </span>
           </div>

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { Place } from '@/lib/mock-data'
 
-// 전주 대표 로컬 액티비티 / 명소 및 네이버 지도 연동 맛집 데이터베이스
+// 전주 대표 로컬 액티비티 / 명소 및 네이버 지도 연동 맛집/이동수단 정보 데이터베이스
 export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
   // --- [1] 역사 & 명소 ---
   {
@@ -21,6 +21,8 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     suggestedDuration: '30분',
     tips: '💡 현지인 팁: 성당 본당 정면도 예쁘지만, 뒤편 사제관 건물과 성모상 앞 정원이 한적한 숨은 포토존입니다.',
     naverMapUrl: 'https://map.naver.com/v5/search/전주%20전동성당',
+    transitInfo: '🚌 시내버스 1000번(명품버스), 119번, 535번 탑승 ➔ "전동성당·한옥마을" 정류장 하차 (도보 2분)',
+    parkingInfo: '🚗 주차장: 한옥마을 제1공영주차장 (전북 전주시 완산구 기린대로 99) · 기본 30분 1,000원',
   },
   {
     name: '경기전',
@@ -39,6 +41,8 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     suggestedDuration: '1시간',
     tips: '💡 현지인 팁: 경기전 내 대나무 숲길은 한복 입고 사진 찍기에 가장 인기 있는 명소입니다.',
     naverMapUrl: 'https://map.naver.com/v5/search/전주%20경기전',
+    transitInfo: '🚌 시내버스 1000번, 119번, 6001번 탑승 ➔ "전동성당·한옥마을" 하차 후 태조로 따라 도보 3분',
+    parkingInfo: '🚗 주차장: 경기전 리베라 부설 주차장 또는 한옥마을 제2공영주차장 이용 권장',
   },
   {
     name: '전주향교',
@@ -57,6 +61,8 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     suggestedDuration: '40분',
     tips: '💡 현지인 팁: 고풍스러운 한옥 담장 아래에서 한적하게 산책하기 최고의 명소입니다.',
     naverMapUrl: 'https://map.naver.com/v5/search/전주향교',
+    transitInfo: '🚌 시내버스 190번, 5000번 탑승 ➔ "전주향교·서학동예술마을" 하차 (도보 3분)',
+    parkingInfo: '🚗 주차장: 전주향교 옆 노상 주차구역 및 국립무형유산원 무료 주차장 이용',
   },
   {
     name: '오목대',
@@ -75,6 +81,8 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     suggestedDuration: '30분',
     tips: '💡 현지인 팁: 해 질 녘 오목대 전망대에 오르면 주황빛 노을과 한옥마을 야경을 감상할 수 있습니다.',
     naverMapUrl: 'https://map.naver.com/v5/search/전주%20오목대',
+    transitInfo: '🚌 시내버스 1000번, 190번 탑승 ➔ "오목대·자만벽화마을" 정류장 하차 (도보 3분 계단)',
+    parkingInfo: '🚗 주차장: 오목대 관광지 공영주차장 (기린대로 55 부근 노상 주차)',
   },
   {
     name: '자만벽화마을',
@@ -93,9 +101,11 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     suggestedDuration: '50분',
     tips: '💡 현지인 팁: 골목 상단의 디저트 카페테라스 전망에서 한옥마을 전체 뷰를 배경으로 사진을 찍어보세요.',
     naverMapUrl: 'https://map.naver.com/v5/search/자만벽화마을',
+    transitInfo: '🚌 시내버스 1000번, 190번, 535번 탑승 ➔ "자만벽화마을" 정류장 하차 (육교 도보 2분)',
+    parkingInfo: '🚗 주차장: 자만벽화마을 입구 노상 공영주차구역 (무료 주차 공간 다수)',
   },
 
-  // --- [2] 네이버 지도 연동 유명 점심/미식 맛집 (Restaurant / Food) ---
+  // --- [2] 네이버 지도 연동 유명 점심/미식 맛집 ---
   {
     name: '한국집 (전주 3대 비빔밥)',
     category: '🍽️ 네이버 지도 추천 · 점심 식사',
@@ -114,6 +124,8 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     suggestedDuration: '50분',
     tips: '💡 네이버 지도 점심 팁: 놋그릇에 따뜻하게 담겨 나오는 육회비빔밥과 정갈한 반찬 구성이 훌륭합니다.',
     naverMapUrl: 'https://map.naver.com/v5/search/전주%20한국집',
+    transitInfo: '🚌 시내버스 1000번, 119번 탑승 ➔ "전동성당" 하차 후 어진길 방향 도보 3분',
+    parkingInfo: '🚗 주차장: 한국집 전용 무료 주차장 보유 (식사 고객 무료 주차 가능)',
   },
   {
     name: '현대옥 한옥마을점 (콩나물국밥)',
@@ -133,6 +145,8 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     suggestedDuration: '40분',
     tips: '💡 네이버 지도 점심 팁: 수란에 국물 3~4숟가락과 김을 찢어 넣어 먼저 드신 후 국밥을 즐기세요.',
     naverMapUrl: 'https://map.naver.com/v5/search/현대옥%20한옥마을점',
+    transitInfo: '🚌 시내버스 1000번, 535번 탑승 ➔ "오목대·한옥마을" 하차 후 오목대길 도보 4분',
+    parkingInfo: '🚗 주차장: 한옥마을 제2공영주차장 이용 권장 (식당 앞 골목 주차 불가)',
   },
   {
     name: '조점례 남부시장 피순대',
@@ -152,6 +166,8 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     suggestedDuration: '50분',
     tips: '💡 네이버 지도 점심 팁: 깻잎에 피순대와 릿한 깻잎 향, 초장을 올려 싸 드시는 것이 전주 현지 방식입니다.',
     naverMapUrl: 'https://map.naver.com/v5/search/조점례%20남부시장%20피순대',
+    transitInfo: '🚌 시내버스 684번, 74번, 89번, 104번 탑승 ➔ "남부시장" 하차 (시장 입구 도보 2분)',
+    parkingInfo: '🚗 주차장: 남부시장 천변 공영주차장 (전북 전주시 완산구 천변오송로 9) / 1시간 무료 할인권 제공',
   },
   {
     name: '교동떡갈비',
@@ -171,6 +187,8 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     suggestedDuration: '55분',
     tips: '💡 네이버 지도 점심 팁: 런치 시간대 떡갈비+미니비빔밥 정식 세트 구성의 가성비가 뛰어납니다.',
     naverMapUrl: 'https://map.naver.com/v5/search/전주%20교동떡갈비',
+    transitInfo: '🚌 시내버스 1000번, 119번 탑승 ➔ "전동성당" 하차 후 은행로 따라 도보 5분',
+    parkingInfo: '🚗 주차장: 교동 떡갈비 제휴 한옥마을 제1공영주차장 이용 권장',
   },
   {
     name: '객리단길 서양식당 (파스타 & 샐러드)',
@@ -186,10 +204,12 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     address: '전북 전주시 완산구 객사3길 50',
     operatingHours: '11:30 - 21:30 (브레이크타임 15:00 - 17:00)',
     phone: '063-283-9988',
-    tags: ['#객리단길', '#파스타맛집', '#데이트점심', '#분위기 짱'],
+    tags: ['#객리단길', '#파스타맛집', '#데이트점심', '#분위기짱'],
     suggestedDuration: '1시간',
     tips: '💡 네이버 지도 점심 팁: 데이트나 친구와 함께 감성 사진을 찍으며 여유로운 점심을 즐기기 좋습니다.',
     naverMapUrl: 'https://map.naver.com/v5/search/전주%20객리단길%20파스타',
+    transitInfo: '🚌 시내버스 165번, 752번, 5000번 탑승 ➔ "객사·중앙성당" 하차 후 객사길 도보 4분',
+    parkingInfo: '🚗 주차장: 옥토 민영 주차장 (전북 전주시 완산구 객사4길 32) / 30분 1,000원',
   },
 
   // --- [3] 디저트 & 다과 & 길거리 먹거리 ---
@@ -210,6 +230,8 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     suggestedDuration: '45분',
     tips: '💡 현지인 팁: 툇마루 자리에 앉아 고즈넉한 한옥 마당을 바라보며 수제 유과와 한방차를 즐겨보세요.',
     naverMapUrl: 'https://map.naver.com/v5/search/전주%20한옥마을%20전통찻집',
+    transitInfo: '🚌 시내버스 1000번, 119번 탑승 ➔ "전동성당" 하차 (도보 6분)',
+    parkingInfo: '🚗 주차장: 한옥마을 제1공영주차장 이용 권장',
   },
   {
     name: '길거리야 바게트버거',
@@ -228,6 +250,8 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     suggestedDuration: '20분',
     tips: '💡 현지인 팁: 테이크아웃하여 한옥마을 산책을 하며 드시기 좋은 별미 간식입니다.',
     naverMapUrl: 'https://map.naver.com/v5/search/전주%20길거리야',
+    transitInfo: '🚌 시내버스 1000번, 119번 탑승 ➔ "전동성당" 하차 (경기전길 도보 4분)',
+    parkingInfo: '🚗 주차장: 한옥마을 공영주차장 도보 8분 거리',
   },
   {
     name: '외할머니솜씨 (흑임자 팥빙수)',
@@ -246,6 +270,8 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     suggestedDuration: '40분',
     tips: '💡 현지인 팁: 시그니처 메뉴인 옛날 흑임자 팥빙수와 고소한 홍시 보숭이를 함께 맛보세요.',
     naverMapUrl: 'https://map.naver.com/v5/search/전주%20외할머니솜씨',
+    transitInfo: '🚌 시내버스 1000번, 190번 탑승 ➔ "오목대" 하차 (도보 5분)',
+    parkingInfo: '🚗 주차장: 한옥마을 제2공영주차장 (오목대 부근) 도보 4분',
   },
 
   // --- [4] 체험 & 박물관 & 문화 ---
@@ -266,6 +292,8 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     suggestedDuration: '1시간 15분',
     tips: '💡 현지인 팁: 직접 만든 한지 엽서는 당일 말려서 예쁜 봉투에 담아 기념품으로 가져가실 수 있습니다.',
     naverMapUrl: 'https://map.naver.com/v5/search/전주%20한지체험관',
+    transitInfo: '🚌 시내버스 1000번, 119번 탑승 ➔ "한옥마을입구" 하차 후 한지길 도보 5분',
+    parkingInfo: '🚗 주차장: 한옥마을 공영주차장 이용 권장',
   },
   {
     name: '전주 난장',
@@ -284,6 +312,8 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     suggestedDuration: '1시간',
     tips: '💡 현지인 팁: 80가지가 넘는 테마존이 이어져 있어 부모님이나 친구와 함께 추억 사진 남기기에 제격입니다.',
     naverMapUrl: 'https://map.naver.com/v5/search/전주%20난장',
+    transitInfo: '🚌 시내버스 1000번, 535번 탑승 ➔ "동문길" 하차 (도보 2분)',
+    parkingInfo: '🚗 주차장: 동문길 민영/노상 주차장 이용',
   },
   {
     name: '국립무형유산원',
@@ -302,6 +332,8 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     suggestedDuration: '1시간 10분',
     tips: '💡 현지인 팁: 쾌적하고 조용한 관람 환경을 자랑하며 전주천 다리를 건너며 산책하기에 좋습니다.',
     naverMapUrl: 'https://map.naver.com/v5/search/국립무형유산원',
+    transitInfo: '🚌 시내버스 190번, 5000번 탑승 ➔ "국립무형유산원" 정류장 하차 (도보 1분)',
+    parkingInfo: '🚗 주차장: 국립무형유산원 전용 대형 지하/지상 무료 주차장 보유',
   },
   {
     name: '전주 수목원 (한국도로공사 수목원)',
@@ -320,6 +352,8 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     suggestedDuration: '1시간 30분',
     tips: '💡 현지인 팁: 수생식물원의 한옥 기와 프레임 포토존에서 줄 서서 인생샷을 꼭 남겨보세요.',
     naverMapUrl: 'https://map.naver.com/v5/search/한국도로공사%20전주수목원',
+    transitInfo: '🚌 시내버스 4000번, 4100번 탑승 ➔ "한국도로공사 수목원" 정류장 하차 (도보 4분)',
+    parkingInfo: '🚗 주차장: 전주 수목원 전용 대형 1·2 무료 주차장',
   },
   {
     name: '덕진공원',
@@ -338,12 +372,14 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     suggestedDuration: '1시간 20분',
     tips: '💡 현지인 팁: 호수 한가운데 한옥 도서관 연화당 창가 자리에 앉아 힐링 독서를 즐기세요.',
     naverMapUrl: 'https://map.naver.com/v5/search/전주%20덕진공원',
+    transitInfo: '🚌 시내버스 165번, 337번, 61번, 1000번 탑승 ➔ "덕진공원" 정류장 하차 (도보 2분)',
+    parkingInfo: '🚗 주차장: 덕진공원 정문 전용 무료 주차장 (전북 전주시 덕진구 권삼득로 390)',
   },
   {
     name: '팔복예술공장',
     category: '실내외 · 복합 문화 예술 공간',
     cost: 0,
-    costLabel: '무료',
+    costLabel: '무료 (전시 관람료 무료)',
     walkMinutes: 30,
     reason: '카세트테이프 공장을 개조해 만든 힙한 현대미술 전시관 및 카페 공간입니다.',
     isMustVisit: false,
@@ -356,6 +392,8 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     suggestedDuration: '1시간 15분',
     tips: '💡 현지인 팁: 붉은 벽돌과 철제 구조물이 어우러진 야외 컨테이너 옥상 정원이 인더스트리얼 뷰 스팟입니다.',
     naverMapUrl: 'https://map.naver.com/v5/search/전주%20팔복예술공장',
+    transitInfo: '🚌 시내버스 380번, 383번, 385번 탑승 ➔ "팔복예술공장" 정류장 하차 (도보 3분)',
+    parkingInfo: '🚗 주차장: 팔복예술공장 입구 전용 무료 주차장 보유',
   },
   {
     name: '아중호수 수변 산책로',
@@ -374,6 +412,8 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     suggestedDuration: '50분',
     tips: '💡 현지인 팁: 시원한 밤바람을 맞으며 수상 데크길을 걷는 야간 데이트 코스로 강력 추천합니다.',
     naverMapUrl: 'https://map.naver.com/v5/search/아중호수',
+    transitInfo: '🚌 시내버스 105번, 108번, 165번 탑승 ➔ "아중호수" 정류장 하차 (도보 4분)',
+    parkingInfo: '🚗 주차장: 아중호수 1·2 공영주차장 (전북 전주시 덕진구 아중호수길 66) / 무료 주차',
   },
 ]
 
@@ -411,6 +451,8 @@ export async function GET(request: Request) {
       suggestedDuration: '45분',
       tips: `💡 현지인 팁: 네이버 지도를 통해 '${q}'의 최신 휴무일과 실시간 방문 후기를 확인하세요.`,
       naverMapUrl: `https://map.naver.com/v5/search/${encodeURIComponent(q)}`,
+      transitInfo: `🚌 시내버스 검색: 네이버 지도를 통해 '${q}'행 시내버스 노선을 확인해 주세요.`,
+      parkingInfo: `🚗 주차장: '${q}' 인근 공영/민영 주차장 안내를 참조하세요.`,
     }
     return NextResponse.json([customSearchPlace, ...matched].slice(0, 8))
   }
