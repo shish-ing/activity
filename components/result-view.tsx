@@ -74,14 +74,14 @@ export function ResultView() {
         return {
           icon: '🥶',
           title: '🥶 한파·찬 바람 맞춤 큐레이션:',
-          text: '매서운 찬 바람과 추위를 피할 수 있도록 뜨끈한 국밥(콩나물국밥/순대국밥) 식사 후, 온돌 툇마루에서 깊은 쌍화차·한방차를 마시는 자연스러운 힐링 순서로 코스를 정렬했습니다.',
+          text: '매서운 찬 바람과 추위를 피할 수 있도록 뜨끈한 국밥 식사 후, 온돌 툇마루에서 깊은 쌍화차·한방차를 마시는 자연스러운 힐링 순서로 코스를 정렬했습니다 (식사는 하루 단 1곳만 포함).',
           bannerColor: 'border-blue-500/40 bg-blue-500/10 text-blue-300',
         }
       case 'snow':
         return {
           icon: '❄️',
           title: '❄️ 한옥 설경·눈 오는 날 큐레이션:',
-          text: '하얀 눈이 내려앉은 고즈넉한 한옥 풍경을 감상하고, 뜨끈한 국밥 식사 후 따뜻한 전통 찻집에서 후식을 즐기는 순서로 코스를 구상했습니다.',
+          text: '하얀 눈이 내려앉은 고즈넉한 한옥 풍경을 감상하고, 뜨끈한 전주 국밥 식사 후 따뜻한 전통 찻집에서 후식을 즐기는 순서로 코스를 구상했습니다.',
           bannerColor: 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300',
         }
       case 'rain':
@@ -110,7 +110,7 @@ export function ResultView() {
         return {
           icon: weather.emoji,
           title: `🛰️ 실시간 날씨(${weather.summary}) 큐레이션:`,
-          text: '식사 ➔ 후식 디저트/차 ➔ 실내 문화 체험의 자연스러운 동선 순서로 코스가 제공됩니다.',
+          text: '식사 ➔ 후식 디저트/차 ➔ 실내 문화 체험의 자연스러운 동선 순서로 코스가 제공됩니다 (연속 식사 절대 없음).',
           bannerColor: 'border-accent/40 bg-accent/10 text-accent',
         }
     }
@@ -188,7 +188,7 @@ export function ResultView() {
       }
     })
 
-    // 2. 남은 시간별 목표 장소 수 및 최대 허용 식사 수 정의
+    // 2. 남은 시간별 목표 장소 수 및 최대 허용 식사 수 정의 (연속 식사 100% 방지)
     let targetCount = 3
     if (time === '1h') targetCount = 1
     else if (time === '3h') targetCount = 3
@@ -197,9 +197,7 @@ export function ResultView() {
     else if (time === '2days') targetCount = 10
     else if (time === '3days') targetCount = 14
 
-    // 3. 식사 수 엄격 제한 규칙 (연속 식사 절대 금지!)
-    // 1시간: 식사 0곳 / 3시간, 반나절, 하루: 식사 단 1곳만 허용!
-    // 이틀(2days): 총 2곳 (하루 1곳씩) / 사흘(3days): 총 3곳 (하루 1곳씩)
+    // 단일 일차(1h, 3h, half, full)에서는 식당(isMeal)을 오직 1개만 허용!
     const maxMealsAllowed = time === '2days' ? 2 : time === '3days' ? 3 : (time === '1h' ? 0 : 1)
     let currentMealCount = generated.filter((p) => p.isMeal).length
 
@@ -263,8 +261,7 @@ export function ResultView() {
     }
 
     // 4. 동선 순서 재정렬 (Sequencing Algorithm)
-    // 사용자 요구사항: [명소/체험/공방] ➔ [점심 식사(isMeal)] ➔ [후식 차/디저트(isDessert)] ➔ [문화/전시/공방]
-    // 차를 먼저 마시고 밥을 먹는 부자연스러운 순서나 연속 식사 동선을 완벽히 교정!
+    // 규칙: [명소/체험/공방] ➔ [점심 식사(isMeal)] ➔ [후식 차/디저트(isDessert)] ➔ [문화/전시/공방]
     let sequencedPlaces: Place[] = []
 
     if (time === '2days' || time === '3days') {
@@ -383,19 +380,57 @@ export function ResultView() {
     return () => clearInterval(timer)
   }, [weatherParam])
 
+  // 클릭 시 장소 교체 처리 함수
   function handleReplace(id: string) {
-    setPlaces((prev) =>
-      prev.map((p) => {
-        if (p.id !== id) return p
-        const alt = ALTERNATIVE_PLACES[p.id]
-        if (alt) {
-          return { ...alt, order: p.order, day: p.day }
+    setPlaces((prev) => {
+      const targetPlace = prev.find((p) => p.id === id)
+      if (!targetPlace) return prev
+
+      const currentNames = new Set(prev.map((p) => p.name.toLowerCase()))
+
+      // 식당(isMeal: true)을 변경하는 경우: 기존 식당을 빼고 다른 식당으로 교체하여 식사 수는 항상 1개로 유지!
+      if (targetPlace.isMeal) {
+        const mealCandidates = JEONJU_PLACES_DATABASE.filter(
+          (p) => p.isMeal && !currentNames.has(p.name.toLowerCase()),
+        )
+        if (mealCandidates.length > 0) {
+          const nextMeal = mealCandidates[Math.floor(Math.random() * mealCandidates.length)]
+          return prev.map((p) =>
+            p.id === id
+              ? {
+                  ...nextMeal,
+                  id: `${p.id}-replaced-${Date.now()}`,
+                  order: p.order,
+                  day: p.day,
+                  reason: `다른 추천 식당으로 변경된 네이버 지도 맛집입니다.`,
+                }
+              : p,
+          )
         }
-        const baseId = p.id.replace('-alt', '')
-        const original = RECOMMENDED_PLACES.find((o) => o.id === baseId)
-        return original ? { ...original, order: p.order, day: p.day } : p
-      }),
-    )
+      }
+
+      // 식당이 아닌 일반 장소/공방/찻집을 변경하는 경우: 식당이 아닌 다른 액티비티/공방/전시/찻집 중에서 교체!
+      const nonMealCandidates = JEONJU_PLACES_DATABASE.filter(
+        (p) => !p.isMeal && !currentNames.has(p.name.toLowerCase()),
+      )
+
+      if (nonMealCandidates.length > 0) {
+        const nextSpot = nonMealCandidates[Math.floor(Math.random() * nonMealCandidates.length)]
+        return prev.map((p) =>
+          p.id === id
+            ? {
+                ...nextSpot,
+                id: `${p.id}-replaced-${Date.now()}`,
+                order: p.order,
+                day: p.day,
+                reason: `선택에 따라 새롭게 교체 추천된 장소입니다.`,
+              }
+            : p,
+        )
+      }
+
+      return prev
+    })
   }
 
   const totalCost = useMemo(
@@ -492,7 +527,7 @@ export function ResultView() {
             {mealCount > 0 ? (
               <span className="flex items-center gap-1 text-emerald-400 font-medium">
                 <Utensils className="size-3" />
-                네이버 지도 추천 점심/식사 {mealCount}곳 포함
+                네이버 지도 추천 점심/식사 {mealCount}곳 포함 (식사 겹침 없음)
               </span>
             ) : null}
             <span>총 {places.length}개 스팟</span>
@@ -513,7 +548,7 @@ export function ResultView() {
               네이버 지도 기반 맞춤 추천 코스
             </h2>
             <span className="text-xs text-muted-foreground">
-              카드를 누르면 지도에 표시돼요
+              카드를 누르거나 '다른 장소 변경' 클릭 시 교체돼요
             </span>
           </div>
 
@@ -536,9 +571,7 @@ export function ResultView() {
                     place={place}
                     transport={transport}
                     highlighted={activeId === place.id}
-                    canReplace={Boolean(
-                      ALTERNATIVE_PLACES[place.id] || place.id.endsWith('-alt'),
-                    )}
+                    canReplace={true}
                     onHover={setActiveId}
                     onReplace={handleReplace}
                   />
@@ -553,9 +586,7 @@ export function ResultView() {
                 place={place}
                 transport={transport}
                 highlighted={activeId === place.id}
-                canReplace={Boolean(
-                  ALTERNATIVE_PLACES[place.id] || place.id.endsWith('-alt'),
-                )}
+                canReplace={true}
                 onHover={setActiveId}
                 onReplace={handleReplace}
               />

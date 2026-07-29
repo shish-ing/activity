@@ -24,7 +24,7 @@ import type { Place } from '@/lib/mock-data'
 type PlaceCardProps = {
   place: Place
   highlighted: boolean
-  canReplace: boolean
+  canReplace?: boolean
   transport?: string // 'walk' | 'transit' | 'car'
   onHover: (id: string | null) => void
   onReplace: (id: string) => void
@@ -33,7 +33,7 @@ type PlaceCardProps = {
 export function PlaceCard({
   place,
   highlighted,
-  canReplace,
+  canReplace = true,
   transport = 'walk',
   onHover,
   onReplace,
@@ -307,15 +307,15 @@ export function PlaceCard({
         </div>
       </div>
 
-      {/* 하단 버튼 바 */}
-      <div className="mt-3 flex items-center justify-between border-t border-border/40 pt-2.5">
+      {/* 하단 버튼 바: 클릭 시 바로 다른 추천 장소로 변경 */}
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border/40 pt-2.5">
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
           className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
         >
           <Info className="size-3.5" />
-          {expanded ? '상세 정보 접기' : '상세 정보 더보기'}
+          {expanded ? '상세 접기' : '상세 더보기'}
           {expanded ? (
             <ChevronUp className="size-3.5" />
           ) : (
@@ -325,13 +325,16 @@ export function PlaceCard({
 
         {canReplace ? (
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
-            onClick={() => onReplace(place.id)}
-            className="h-8 text-xs text-muted-foreground hover:text-foreground"
+            onClick={(e) => {
+              e.stopPropagation()
+              onReplace(place.id)
+            }}
+            className="h-8 text-xs font-semibold text-amber-400 border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 transition-all rounded-xl"
           >
-            <RefreshCw className="size-3" />
-            다른 곳 추천
+            <RefreshCw className="size-3.5 text-amber-400" />
+            🔄 다른 장소로 변경하기
           </Button>
         ) : null}
       </div>
