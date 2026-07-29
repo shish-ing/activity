@@ -324,12 +324,12 @@ export function ConditionForm() {
         />
       </div>
 
-      {/* 추천받기 버튼 — 크고 돋보이는 골든 앰버 메인 CTA 버튼 */}
+      {/* 1. 폼 하단 메인 추천받기 버튼 */}
       <Button
         size="lg"
         onClick={handleSubmit}
         disabled={loading}
-        className="h-14 w-full rounded-2xl text-lg font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-lg shadow-amber-500/30 transition-all active:scale-[0.99] cursor-pointer mt-2 border-2 border-amber-300/50"
+        className="h-14 w-full rounded-2xl text-lg font-extrabold bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-slate-950 shadow-xl shadow-amber-500/40 transition-all active:scale-[0.99] cursor-pointer mt-4 border-2 border-yellow-200/80"
       >
         {loading ? (
           <>
@@ -338,11 +338,35 @@ export function ConditionForm() {
           </>
         ) : (
           <>
-            <Sparkles className="size-6 text-slate-950" />
+            <Sparkles className="size-6 text-slate-950 fill-slate-950" />
             ✨ 맞춤 코스 추천받기 (결과 보기)
           </>
         )}
       </Button>
+
+      {/* 2. 📱 화면 하단 항상 고정 플로팅 버튼 (절대 사라지지 않는 스티키 바) */}
+      <div className="fixed bottom-0 inset-x-0 z-50 p-3 sm:p-4 bg-slate-950/80 backdrop-blur-lg border-t border-amber-500/30 flex justify-center shadow-2xl">
+        <div className="w-full max-w-xl">
+          <Button
+            size="lg"
+            onClick={handleSubmit}
+            disabled={loading}
+            className="h-13 w-full rounded-xl text-base sm:text-lg font-extrabold bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-slate-950 shadow-lg shadow-amber-500/40 border border-yellow-200/80 cursor-pointer"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="size-5 animate-spin text-slate-950" />
+                최단 여행 코스 생성 중...
+              </>
+            ) : (
+              <>
+                <Sparkles className="size-5 text-slate-950 fill-slate-950" />
+                🚀 지금 이 조건으로 맞춤 코스 보기 (클릭)
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
     </div>
   )
 }
