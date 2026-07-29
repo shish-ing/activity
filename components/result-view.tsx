@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { AlertCircle, ArrowRight, Bus, Calendar, Car, CheckCircle2, Clock, Footprints, Heart, MapPin, Plus, RefreshCw, Search, Share2, Sparkles, SunMedium, Utensils, Wallet } from 'lucide-react'
+import { AlertCircle, ArrowRight, BookOpen, Bus, Calendar, Car, CheckCircle2, ChevronLeft, ChevronRight, Clock, Footprints, Heart, MapPin, PieChart, Plus, RefreshCw, Search, Share2, Sparkles, SunMedium, Utensils, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PlaceCard } from '@/components/place-card'
 import { MapPlaceholder } from '@/components/map-placeholder'
@@ -15,6 +15,7 @@ import {
   type Weather,
 } from '@/lib/mock-data'
 import { JEONJU_PLACES_DATABASE } from '@/app/api/places/search/route'
+import { cn } from '@/lib/utils'
 
 function formatWon(value: number) {
   return `${value.toLocaleString('ko-KR')}원`
@@ -129,6 +130,8 @@ export function ResultView() {
   const [weather, setWeather] = useState<Weather>(CURRENT_WEATHER)
   const [weatherLoading, setWeatherLoading] = useState(false)
   const [lastFetchTime, setLastFetchTime] = useState<string>('')
+  // 3파트 책 넘기기 가로 탭 상태 (0: 1장 이동&스팟추가, 1: 2장 추천코스&지도, 2: 3장 예산분석)
+  const [activeTab, setActiveTab] = useState<number>(0)
 
   // 실시간 코스 추가 검색어 state
   const [addSearchInput, setAddSearchInput] = useState('')
@@ -1128,228 +1131,392 @@ export function ResultView() {
         ) : null}
       </div>
 
-
-
-      {/* 출발지 ➔ 1번 추천 장소 이동 방법 & 시내버스 노선 추천 전용 배지 */}
-      {firstPlaceTransitInfo && places.length > 0 ? (
-        <div className="mt-3 flex flex-col gap-2.5 rounded-2xl border border-blue-500/40 bg-blue-500/10 p-4 text-xs text-foreground shadow-xs">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-blue-500/30 pb-2.5">
-            <div className="flex items-center gap-2 font-bold text-sm text-blue-300">
-              <Bus className="size-4.5 text-blue-400 shrink-0" />
-              <span>🚩 출발지에서 1번 '{places[0].name}'까지 이동 방법 & 추천 시내버스</span>
-            </div>
-            <a
-              href={firstPlaceTransitInfo.mapUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 rounded-xl bg-blue-500/25 px-3 py-1.5 text-xs font-semibold text-blue-200 hover:bg-blue-500/40 transition-colors border border-blue-500/50 shadow-xs"
-            >
-              <span>네이버 지도 실시간 길찾기</span>
-              <ArrowRight className="size-3.5 text-blue-300" />
-            </a>
+      {/* 📖 3파트 책 넘기기 탭 네비게이션 & 스와이프 바 */}
+      <div className="mt-4 flex flex-col gap-2.5 rounded-2xl border border-border/80 bg-card/90 p-3 shadow-md backdrop-blur-md sticky top-16 z-30">
+        <div className="flex items-center justify-between px-1">
+          <div className="flex items-center gap-2">
+            <span className="flex size-6 items-center justify-center rounded-lg bg-accent/20 text-accent">
+              <BookOpen className="size-3.5" />
+            </span>
+            <span className="font-serif text-sm font-bold text-foreground">
+              전주 여행 코스 가이드북
+            </span>
           </div>
-
-          <div className="grid gap-2.5 sm:grid-cols-2 pt-1">
-            <div className="flex flex-col gap-1 rounded-xl bg-card/60 p-2.5 border border-border/50">
-              <span className="font-bold text-blue-300 text-xs">{firstPlaceTransitInfo.busRoute}</span>
-              <span className="text-muted-foreground text-[11px]">🚏 탑승: {firstPlaceTransitInfo.boardStop}</span>
-              <span className="text-muted-foreground text-[11px]">🚏 하차: {firstPlaceTransitInfo.alightStop}</span>
-            </div>
-            <div className="flex flex-col gap-1 rounded-xl bg-card/60 p-2.5 border border-border/50">
-              <span className="font-bold text-emerald-400 text-xs">⏱️ 대중교통 소요시간: {firstPlaceTransitInfo.duration}</span>
-              <span className="text-muted-foreground text-[11px]">🚗 자차 이동 소요시간: {firstPlaceTransitInfo.carDuration}</span>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {/* ➕ [신규] 코스 중간 장소 검색 & 최단 순선 실시간 재최적화 추가 바 */}
-      <div className="mt-4 flex flex-col gap-2.5 rounded-2xl border border-accent/40 bg-accent/10 p-4 shadow-sm relative">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 font-bold text-sm text-foreground">
-            <Plus className="size-4.5 text-accent" />
-            <span>➕ 동선 중간에 새로 가고 싶은 장소 검색해서 추가하기 (자동 최단 순선 재정렬)</span>
-          </div>
-          <span className="text-[11px] text-accent font-semibold">네이버 지도 연동 스팟 검색</span>
+          <span className="text-xs font-semibold text-accent bg-accent/15 px-2.5 py-0.5 rounded-full border border-accent/30">
+            {activeTab + 1} / 3장 ({activeTab === 0 ? '이동 & 장소추가' : activeTab === 1 ? '코스 & 경로지도' : '예산 지출분석'})
+          </span>
         </div>
 
-        {/* 토스트 노티피케이션 메세지 */}
-        {addedToastMessage ? (
-          <div className="flex items-center gap-2 rounded-xl bg-emerald-500/20 border border-emerald-500/40 p-2.5 text-xs font-semibold text-emerald-300 animate-in fade-in">
-            <CheckCircle2 className="size-4 shrink-0 text-emerald-400" />
-            <span>{addedToastMessage}</span>
+        {/* 3파트 선택 탭 버튼 3개 */}
+        <div className="grid grid-cols-3 gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveTab(0)}
+            className={cn(
+              "flex flex-col sm:flex-row items-center justify-center gap-1.5 rounded-xl py-2.5 px-2 text-xs sm:text-sm font-extrabold transition-all cursor-pointer border",
+              activeTab === 0
+                ? "bg-accent text-accent-foreground border-accent shadow-md scale-[1.01]"
+                : "bg-secondary/40 text-muted-foreground border-transparent hover:bg-secondary/80 hover:text-foreground"
+            )}
+          >
+            <Bus className="size-4 shrink-0" />
+            <span>1장. 이동 & 추가</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab(1)}
+            className={cn(
+              "flex flex-col sm:flex-row items-center justify-center gap-1.5 rounded-xl py-2.5 px-2 text-xs sm:text-sm font-extrabold transition-all cursor-pointer border",
+              activeTab === 1
+                ? "bg-accent text-accent-foreground border-accent shadow-md scale-[1.01]"
+                : "bg-secondary/40 text-muted-foreground border-transparent hover:bg-secondary/80 hover:text-foreground"
+            )}
+          >
+            <MapPin className="size-4 shrink-0" />
+            <span>2장. 코스 & 지도</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab(2)}
+            className={cn(
+              "flex flex-col sm:flex-row items-center justify-center gap-1.5 rounded-xl py-2.5 px-2 text-xs sm:text-sm font-extrabold transition-all cursor-pointer border",
+              activeTab === 2
+                ? "bg-accent text-accent-foreground border-accent shadow-md scale-[1.01]"
+                : "bg-secondary/40 text-muted-foreground border-transparent hover:bg-secondary/80 hover:text-foreground"
+            )}
+          >
+            <PieChart className="size-4 shrink-0" />
+            <span>3장. 예산 분석</span>
+          </button>
+        </div>
+
+        {/* 이전장 / 다음장 넘기기 화살표 슬라이드 컨트롤 */}
+        <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/50">
+          <button
+            type="button"
+            onClick={() => setActiveTab((prev) => Math.max(0, prev - 1))}
+            disabled={activeTab === 0}
+            className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-secondary/60 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed transition-all"
+          >
+            <ChevronLeft className="size-4" />
+            <span>◀ 이전 장</span>
+          </button>
+
+          <div className="flex items-center gap-1.5">
+            {[0, 1, 2].map((idx) => (
+              <button
+                key={`page-indicator-${idx}`}
+                type="button"
+                onClick={() => setActiveTab(idx)}
+                title={`${idx + 1}장으로 이동`}
+                className={cn(
+                  "size-2.5 rounded-full transition-all cursor-pointer",
+                  activeTab === idx ? "w-6 bg-accent shadow-xs" : "bg-muted-foreground/30 hover:bg-muted-foreground"
+                )}
+              />
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab((prev) => Math.min(2, prev + 1))}
+            disabled={activeTab === 2}
+            className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-secondary/60 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed transition-all"
+          >
+            <span>다음 장 ▶</span>
+            <ChevronRight className="size-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 📖 3PART 책 가로 슬라이드 본문 컨텐츠 */}
+      {/* ========================================================================= */}
+      <div className="mt-4">
+        {/* ----------------------------------------------------------------------- */}
+        {/* 📖 Part 1: 출발지 ➔ 1번 장소 시내버스 이동 노선 & 중간 장소 검색 추가 바 */}
+        {/* ----------------------------------------------------------------------- */}
+        {activeTab === 0 ? (
+          <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-right-4 duration-300">
+            {/* 출발지 ➔ 1번 추천 장소 이동 방법 & 시내버스 노선 추천 전용 배지 */}
+            {firstPlaceTransitInfo && places.length > 0 ? (
+              <div className="flex flex-col gap-2.5 rounded-2xl border border-blue-500/40 bg-blue-500/10 p-4 text-xs text-foreground shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-blue-500/30 pb-2.5">
+                  <div className="flex items-center gap-2 font-bold text-sm text-blue-300">
+                    <Bus className="size-4.5 text-blue-400 shrink-0" />
+                    <span>🚩 출발지에서 1번 '{places[0].name}'까지 이동 방법 & 추천 시내버스</span>
+                  </div>
+                  <a
+                    href={firstPlaceTransitInfo.mapUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 rounded-xl bg-blue-500/25 px-3 py-1.5 text-xs font-semibold text-blue-200 hover:bg-blue-500/40 transition-colors border border-blue-500/50 shadow-xs"
+                  >
+                    <span>네이버 지도 실시간 길찾기</span>
+                    <ArrowRight className="size-3.5 text-blue-300" />
+                  </a>
+                </div>
+
+                <div className="grid gap-2.5 sm:grid-cols-2 pt-1">
+                  <div className="flex flex-col gap-1 rounded-xl bg-card/60 p-3 border border-border/50">
+                    <span className="font-bold text-blue-300 text-sm">{firstPlaceTransitInfo.busRoute}</span>
+                    <span className="text-muted-foreground text-xs">🚏 탑승: {firstPlaceTransitInfo.boardStop}</span>
+                    <span className="text-muted-foreground text-xs">🚏 하차: {firstPlaceTransitInfo.alightStop}</span>
+                  </div>
+                  <div className="flex flex-col gap-1 rounded-xl bg-card/60 p-3 border border-border/50">
+                    <span className="font-bold text-emerald-400 text-sm">⏱️ 대중교통 소요시간: {firstPlaceTransitInfo.duration}</span>
+                    <span className="text-muted-foreground text-xs">🚗 자차 이동 소요시간: {firstPlaceTransitInfo.carDuration}</span>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {/* ➕ 코스 중간 장소 검색 & 최단 순선 실시간 재최적화 추가 바 */}
+            <div className="flex flex-col gap-3 rounded-2xl border border-accent/40 bg-accent/10 p-5 shadow-sm relative">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 font-bold text-base text-foreground">
+                  <Plus className="size-5 text-accent" />
+                  <span>➕ 동선 중간에 새로 가고 싶은 장소 검색해서 추가하기 (자동 최단 순선 재정렬)</span>
+                </div>
+                <span className="text-xs text-accent font-semibold">네이버 지도 연동 스팟 검색</span>
+              </div>
+
+              {/* 토스트 노티피케이션 메세지 */}
+              {addedToastMessage ? (
+                <div className="flex items-center gap-2 rounded-xl bg-emerald-500/20 border border-emerald-500/40 p-3 text-xs font-semibold text-emerald-300 animate-in fade-in">
+                  <CheckCircle2 className="size-4 shrink-0 text-emerald-400" />
+                  <span>{addedToastMessage}</span>
+                </div>
+              ) : null}
+
+              <div className="relative">
+                <div className="flex items-center rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/30 shadow-inner">
+                  <Search className="size-4 text-muted-foreground mr-2 shrink-0" />
+                  <input
+                    type="text"
+                    value={addSearchInput}
+                    onFocus={() => setShowAddSuggestions(true)}
+                    onChange={(e) => {
+                      setAddSearchInput(e.target.value)
+                      setShowAddSuggestions(true)
+                    }}
+                    placeholder="추가하고 싶은 장소를 검색해 보세요! (예: 보드게임카페, 레드버튼, 방탈출, 인생네컷, 노래방, 올리브영, 만화카페)"
+                    className="w-full bg-transparent outline-none placeholder:text-muted-foreground"
+                  />
+                </div>
+
+                {/* 검색 자동완성 드롭다운 */}
+                {showAddSuggestions && addPlaceSuggestions.length > 0 ? (
+                  <div className="absolute inset-x-0 top-full z-50 mt-1.5 max-h-64 overflow-y-auto rounded-2xl border border-border bg-card p-2 shadow-xl backdrop-blur-md">
+                    <div className="px-3 py-2 text-xs font-bold text-accent border-b border-border/50 flex items-center justify-between">
+                      <span>🔍 네이버 지도 검색 결과 (위치를 먼저 확인 후 코스에 추가하실 수 있습니다)</span>
+                      <span className="text-[10px] text-muted-foreground">네이버 지도 연동</span>
+                    </div>
+                    {addPlaceSuggestions.map((item) => (
+                      <div
+                        key={item.name}
+                        className="flex flex-col gap-1.5 px-3 py-2.5 hover:bg-accent/10 rounded-xl transition-colors border-b border-border/30 last:border-0"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 font-bold text-foreground text-xs">
+                            <span>{item.name}</span>
+                            <span className="rounded bg-accent/20 px-1.5 py-0.5 text-[10px] font-semibold text-accent">
+                              {item.category}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <a
+                              href={item.naverMapUrl || `https://map.naver.com/v5/search/${encodeURIComponent(item.name)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-flex items-center gap-1 rounded-lg border border-blue-500/40 bg-blue-500/10 px-2 py-1 text-[11px] font-semibold text-blue-300 hover:bg-blue-500/20 transition-colors shadow-2xs"
+                            >
+                              <MapPin className="size-3 text-blue-400" />
+                              <span>🗺️ 네이버 지도 위치 확인</span>
+                            </a>
+                            <Button
+                              size="sm"
+                              variant="default"
+                              onClick={() => handleAddPlaceToItinerary(item)}
+                              className="h-7 text-[11px] rounded-lg shrink-0 gap-1"
+                            >
+                              <Plus className="size-3" /> 코스 추가
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-between text-[11px] text-muted-foreground pt-0.5">
+                          <span>📍 실제 주소: <strong className="text-foreground">{item.address || '전북 전주시'}</strong></span>
+                          <span className="text-emerald-400 font-medium">{item.costLabel || '비용 정보'}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            {/* 다음 장으로 넘어가기 안내 바 */}
+            <div className="flex justify-end pt-2">
+              <Button
+                onClick={() => setActiveTab(1)}
+                className="rounded-xl gap-2 bg-accent text-accent-foreground font-bold shadow-md hover:bg-accent/90 cursor-pointer"
+              >
+                <span>🗺️ 2장. 코스 카드 & 경로 지도 보러가기</span>
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
           </div>
         ) : null}
 
-        <div className="relative">
-          <div className="flex items-center rounded-xl border border-border bg-card px-3.5 py-2.5 text-sm text-foreground focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/30 shadow-inner">
-            <Search className="size-4 text-muted-foreground mr-2 shrink-0" />
-            <input
-              type="text"
-              value={addSearchInput}
-              onFocus={() => setShowAddSuggestions(true)}
-              onChange={(e) => {
-                setAddSearchInput(e.target.value)
-                setShowAddSuggestions(true)
-              }}
-              placeholder="추가하고 싶은 장소를 검색해 보세요! (예: 보드게임카페, 레드버튼, 방탈출, 인생네컷, 노래방, 올리브영, 만화카페)"
-              className="w-full bg-transparent outline-none placeholder:text-muted-foreground"
-            />
-          </div>
-
-          {/* 검색 자동완성 드롭다운 */}
-          {showAddSuggestions && addPlaceSuggestions.length > 0 ? (
-            <div className="absolute inset-x-0 top-full z-50 mt-1.5 max-h-64 overflow-y-auto rounded-2xl border border-border bg-card p-1.5 shadow-xl backdrop-blur">
-              <div className="px-3 py-1.5 text-[11px] font-bold text-accent border-b border-border/50 flex items-center justify-between">
-                <span>🔍 네이버 지도 검색 결과 (위치를 먼저 확인 후 코스에 추가하실 수 있습니다)</span>
-                <span className="text-[10px] text-muted-foreground">네이버 지도 연동</span>
+        {/* ----------------------------------------------------------------------- */}
+        {/* 🗺️ Part 2: 추천 장소 카드 목록 & 인터랙티브 최단 경로 지도 */}
+        {/* ----------------------------------------------------------------------- */}
+        {activeTab === 1 ? (
+          <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-right-4 duration-300">
+            {/* 시간 및 이동수단 안내 띠 */}
+            <div className="flex flex-col gap-2 rounded-xl bg-card border border-border p-3 text-xs text-foreground">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="flex items-center gap-1.5 font-semibold text-accent">
+                  <Clock className="size-3.5" />
+                  {timeLabel}
+                </span>
+                <div className="flex items-center gap-3 text-muted-foreground">
+                  <span className="flex items-center gap-1 text-emerald-400 font-medium">
+                    <Utensils className="size-3" />
+                    각 장소별 주변 맛집 3선 · 카페 3선 · 특산품 3선 풀 탑재
+                  </span>
+                  <span>총 {places.length}개 스팟</span>
+                </div>
               </div>
-              {addPlaceSuggestions.map((item) => (
-                <div
-                  key={item.name}
-                  className="flex flex-col gap-1.5 px-3 py-2.5 hover:bg-accent/10 rounded-xl transition-colors border-b border-border/30 last:border-0"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5 font-bold text-foreground text-xs">
-                      <span>{item.name}</span>
-                      <span className="rounded bg-accent/20 px-1.5 py-0.5 text-[10px] font-semibold text-accent">
-                        {item.category}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <a
-                        href={item.naverMapUrl || `https://map.naver.com/v5/search/${encodeURIComponent(item.name)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="inline-flex items-center gap-1 rounded-lg border border-blue-500/40 bg-blue-500/10 px-2 py-1 text-[11px] font-semibold text-blue-300 hover:bg-blue-500/20 transition-colors shadow-2xs"
-                      >
-                        <MapPin className="size-3 text-blue-400" />
-                        <span>🗺️ 네이버 지도 위치 확인</span>
-                      </a>
-                      <Button
-                        size="sm"
-                        variant="default"
-                        onClick={() => handleAddPlaceToItinerary(item)}
-                        className="h-7 text-[11px] rounded-lg shrink-0 gap-1"
-                      >
-                        <Plus className="size-3" /> 코스 추가
-                      </Button>
-                    </div>
-                  </div>
 
-                  <div className="flex flex-wrap items-center justify-between text-[11px] text-muted-foreground pt-0.5">
-                    <span>📍 실제 주소: <strong className="text-foreground">{item.address || '전북 전주시'}</strong></span>
-                    <span className="text-emerald-400 font-medium">{item.costLabel || '비용 정보'}</span>
-                  </div>
-                </div>
-              ))}
+              <div className="flex items-center gap-2 border-t border-border/50 pt-2 text-muted-foreground">
+                <TransportIcon className="size-3.5 text-accent shrink-0" />
+                <span className="font-medium text-foreground">{transportLabel.text}</span>
+              </div>
             </div>
-          ) : null}
-        </div>
-      </div>
 
-
-
-      {/* 시간 및 이동수단 안내 띠 */}
-      <div className="mt-3 flex flex-col gap-2 rounded-xl bg-card border border-border p-3 text-xs text-foreground">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="flex items-center gap-1.5 font-semibold text-accent">
-            <Clock className="size-3.5" />
-            {timeLabel}
-          </span>
-          <div className="flex items-center gap-3 text-muted-foreground">
-            <span className="flex items-center gap-1 text-emerald-400 font-medium">
-              <Utensils className="size-3" />
-              각 장소별 주변 맛집 3선 · 카페 3선 · 특산품 3선 풀 탑재
-            </span>
-            <span>총 {places.length}개 스팟</span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 border-t border-border/50 pt-2 text-muted-foreground">
-          <TransportIcon className="size-3.5 text-accent shrink-0" />
-          <span className="font-medium text-foreground">{transportLabel.text}</span>
-        </div>
-      </div>
-
-      <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_minmax(0,42%)]">
-        {/* 왼쪽: 추천 카드 리스트 */}
-        <section aria-label="추천 장소 목록" className="flex flex-col gap-4">
-          <div className="flex items-baseline justify-between">
-            <h2 className="font-serif text-lg font-bold text-foreground">
-              🚩 {startLocationParam} 출발 맞춤 추천 코스
-            </h2>
-            <span className="text-xs text-muted-foreground">
-              카드를 누르거나 '다른 장소 변경' 클릭 시 교체돼요
-            </span>
-          </div>
-
-          {groupedByDay ? (
-            // 이틀/사흘 선택 시 Day 1, Day 2, Day 3 일차별 그룹화 표시
-            Object.entries(groupedByDay).map(([dayNum, dayPlaces]) => (
-              <div key={dayNum} className="flex flex-col gap-3">
-                <div className="flex items-center gap-2 border-b border-border pb-1.5 pt-2">
-                  <span className="inline-flex items-center gap-1 rounded-lg bg-accent px-2.5 py-1 text-xs font-bold text-accent-foreground">
-                    <Calendar className="size-3.5" />
-                    {dayNum}일차 일정
-                  </span>
+            <div className="grid gap-4 lg:grid-cols-[1fr_minmax(0,45%)]">
+              {/* 왼쪽: 추천 카드 리스트 */}
+              <section aria-label="추천 장소 목록" className="flex flex-col gap-4">
+                <div className="flex items-baseline justify-between">
+                  <h2 className="font-serif text-lg font-bold text-foreground">
+                    🚩 {startLocationParam} 출발 맞춤 추천 코스
+                  </h2>
                   <span className="text-xs text-muted-foreground">
-                    ({dayPlaces.length}개 스팟 코스)
+                    카드를 누르거나 '다른 장소 변경' 클릭 시 교체돼요
                   </span>
                 </div>
-                {dayPlaces.map((place) => {
-                  const globalIdx = places.findIndex((p) => p.id === place.id)
-                  return (
+
+                {groupedByDay ? (
+                  // 이틀/사흘 선택 시 Day 1, Day 2, Day 3 일차별 그룹화 표시
+                  Object.entries(groupedByDay).map(([dayNum, dayPlaces]) => (
+                    <div key={dayNum} className="flex flex-col gap-3">
+                      <div className="flex items-center gap-2 border-b border-border pb-1.5 pt-2">
+                        <span className="inline-flex items-center gap-1 rounded-lg bg-accent px-2.5 py-1 text-xs font-bold text-accent-foreground">
+                          <Calendar className="size-3.5" />
+                          {dayNum}일차 일정
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          ({dayPlaces.length}개 스팟 코스)
+                        </span>
+                      </div>
+                      {dayPlaces.map((place) => {
+                        const globalIdx = places.findIndex((p) => p.id === place.id)
+                        return (
+                          <PlaceCard
+                            key={place.id}
+                            place={{ ...place, order: globalIdx >= 0 ? globalIdx + 1 : place.order }}
+                            transport={transport}
+                            highlighted={activeId === place.id}
+                            canReplace={true}
+                            onHover={setActiveId}
+                            onReplace={handleReplace}
+                          />
+                        )
+                      })}
+                    </div>
+                  ))
+                ) : (
+                  // 일반 리스트 (1시간, 3시간, 반나절, 하루)
+                  places.map((place, idx) => (
                     <PlaceCard
                       key={place.id}
-                      place={{ ...place, order: globalIdx >= 0 ? globalIdx + 1 : place.order }}
+                      place={{ ...place, order: idx + 1 }}
                       transport={transport}
                       highlighted={activeId === place.id}
                       canReplace={true}
                       onHover={setActiveId}
                       onReplace={handleReplace}
                     />
-                  )
-                })}
-              </div>
-            ))
-          ) : (
-            // 일반 리스트 (1시간, 3시간, 반나절, 하루)
-            places.map((place, idx) => (
-              <PlaceCard
-                key={place.id}
-                place={{ ...place, order: idx + 1 }}
-                transport={transport}
-                highlighted={activeId === place.id}
-                canReplace={true}
-                onHover={setActiveId}
-                onReplace={handleReplace}
-              />
-            ))
-          )}
-        </section>
+                  ))
+                )}
+              </section>
 
-        {/* 오른쪽: 지도 (데스크톱에서 상단 고정) */}
-        <section
-          aria-label="추천 경로 지도"
-          className="lg:sticky lg:top-18 lg:h-[calc(100svh-8rem)]"
-        >
-          <MapPlaceholder
-            places={places}
-            activeId={activeId}
-            onHover={setActiveId}
-          />
-        </section>
+              {/* 오른쪽: 지도 */}
+              <section
+                aria-label="추천 경로 지도"
+                className="lg:sticky lg:top-36 lg:h-[calc(100svh-12rem)]"
+              >
+                <MapPlaceholder
+                  places={places}
+                  activeId={activeId}
+                  onHover={setActiveId}
+                />
+              </section>
+            </div>
+
+            {/* 다음 장으로 넘어가기 안내 바 */}
+            <div className="flex justify-between items-center pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setActiveTab(0)}
+                className="rounded-xl gap-2 cursor-pointer"
+              >
+                <ChevronLeft className="size-4" />
+                <span>1장. 이동노선 & 장소추가</span>
+              </Button>
+
+              <Button
+                onClick={() => setActiveTab(2)}
+                className="rounded-xl gap-2 bg-accent text-accent-foreground font-bold shadow-md hover:bg-accent/90 cursor-pointer"
+              >
+                <span>📊 3장. 예산 지출 분석 그래프 보러가기</span>
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
+        {/* ----------------------------------------------------------------------- */}
+        {/* 📊 Part 3: 여행 시간 맞춤 예산 분석 원형 그래프 */}
+        {/* ----------------------------------------------------------------------- */}
+        {activeTab === 2 ? (
+          <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-right-4 duration-300">
+            <BudgetPieChart
+              userBudgetLimit={userBudgetLimit}
+              totalPlaceCost={totalCost}
+              transport={transport}
+              time={time}
+            />
+
+            {/* 이전 장으로 돌아가기 안내 바 */}
+            <div className="flex justify-start pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setActiveTab(1)}
+                className="rounded-xl gap-2 cursor-pointer"
+              >
+                <ChevronLeft className="size-4" />
+                <span>🗺️ 2장. 코스 카드 & 경로 지도로 돌아가기</span>
+              </Button>
+            </div>
+          </div>
+        ) : null}
       </div>
-
-      {/* 하단: 예산 사용 분석 원형 그래프 (Budget Utilization & SVG Pie Chart) */}
-      <BudgetPieChart
-        userBudgetLimit={userBudgetLimit}
-        totalPlaceCost={totalCost}
-        transport={transport}
-        time={time}
-      />
 
       {/* 하단 고정바 */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/90 backdrop-blur">
