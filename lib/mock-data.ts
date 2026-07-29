@@ -122,10 +122,6 @@ export type Place = {
   distanceText?: string
   travelMinutes?: number
   transitInfo?: string
-  boardingStop?: string
-  busRoute?: string
-  alightingStop?: string
-  busArrivalLive?: string
   parkingInfo?: string
   nearbyDining?: { name: string; distance: string; menu: string; naverMapUrl?: string }[]
   nearbyCafes?: { name: string; distance: string; menu: string; naverMapUrl?: string }[]

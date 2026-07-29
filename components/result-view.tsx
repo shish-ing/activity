@@ -158,45 +158,8 @@ function ensureThreeDiningAndCafes(place: Place): Place {
     }
   }
 
-  // 시내버스 승차/하차 및 네이버 지도 API 실시간 도착 정보 자동 생성
-  const boardingStopsList = [
-    '"전동성당·한옥마을" 정류장 (도보 1분)',
-    '"경기전" 정류장 (도보 2분)',
-    '"풍남문·남부시장" 정류장 (도보 1분)',
-    '"전라감영" 정류장 (도보 2분)',
-    '"전주 객사" 정류장 (도보 2분)',
-    '"동문길" 정류장 (도보 1분)',
-    '"서학동 예술마을" 정류장 (도보 2분)',
-  ]
-
-  const busRoutesList = [
-    '시내버스 165번',
-    '시내버스 1000번 (직행)',
-    '시내버스 190번',
-    '시내버스 380번',
-    '시내버스 684번',
-    '시내버스 5001번',
-  ]
-
-  const boardingIdx = placeHash % boardingStopsList.length
-  const busRouteIdx = (placeHash * 3 + 1) % busRoutesList.length
-  const liveMins = 2 + ((placeHash * 7) % 5)
-  const prevStops = 1 + ((placeHash * 11) % 3)
-  const nextMins = liveMins + 7 + ((placeHash * 13) % 6)
-
-  const generatedBoardingStop = place.boardingStop || boardingStopsList[boardingIdx]
-  const generatedBusRoute = place.busRoute || busRoutesList[busRouteIdx]
-  const generatedAlightingStop = place.alightingStop || `"${place.name} 입구" 정류장 하차 (도보 ${1 + (placeHash % 3)}분)`
-  const generatedBusArrivalLive = place.busArrivalLive || `⚡ ${liveMins}분 후 도착 (${prevStops}전역 전) · 다음 버스 ${nextMins}분 후`
-  const generatedTransitInfo = place.transitInfo || `🚩 ${generatedBoardingStop} 승차 ➔ 🚌 ${generatedBusRoute} ➔ 🚏 ${generatedAlightingStop}`
-
   return {
     ...place,
-    boardingStop: generatedBoardingStop,
-    busRoute: generatedBusRoute,
-    alightingStop: generatedAlightingStop,
-    busArrivalLive: generatedBusArrivalLive,
-    transitInfo: generatedTransitInfo,
     nearbyDining: finalDining,
     nearbyCafes: finalCafes,
     nearbySpecialties: finalSpecialties,
