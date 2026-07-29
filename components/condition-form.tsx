@@ -14,6 +14,7 @@ import {
   WEATHER_OPTIONS,
 } from '@/lib/mock-data'
 import { cn } from '@/lib/utils'
+import { WeatherBackground } from '@/components/weather-background'
 
 // 네이버 지도 연동 전주 대표 주요 출발지 & 상세 주소 데이터베이스
 const NAVER_MAP_START_ADDRESSES = [
@@ -132,6 +133,7 @@ export function ConditionForm() {
 
   return (
     <div className="flex flex-col gap-4">
+      <WeatherBackground weather={weatherOpt || 'auto'} />
       {/* 네이버 지도 연동 출발지 주소 검색 & 실시간 GPS 카드 */}
       <div className="flex flex-col gap-3 rounded-2xl border border-primary/40 bg-card p-4 sm:p-5 shadow-xs relative">
         <div className="flex items-center justify-between">
