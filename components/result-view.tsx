@@ -38,17 +38,17 @@ export function ResultView() {
   const companionLabel = useMemo(() => {
     switch (companionParam) {
       case 'couple':
-        return { text: '💑 연인/커플 맞춤 (로맨틱 데이트, 수제 공방 & 인스타 감성 핫플 큐레이션)', icon: Heart }
+        return { text: '💑 연인/커플 맞춤 (로맨틱 데이트, 드라마 촬영지, 수제 공방 & 인스타 핫플 큐레이션)', icon: Heart }
       case 'friends':
-        return { text: '👫 친구끼리 맞춤 (이색 피순대, 7080 레트로 체험 & 인스타 릴스 핫플 큐레이션)', icon: Sparkles }
+        return { text: '👫 친구끼리 맞춤 (팔복예술공장, 스물다섯스물하나 한벽굴, 7080 레트로 체험 큐레이션)', icon: Sparkles }
       case 'kids':
-        return { text: '🧸 아이 동반 맞춤 (안전한 수제 한지/부채 체험, 어진박물관 & 한옥 도서관 큐레이션)', icon: Sparkles }
+        return { text: '🧸 아이 동반 맞춤 (전주 수목원 온실, 연화정 도서관, 수제 한지 체험 & 어진박물관 큐레이션)', icon: Sparkles }
       case 'pet':
-        return { text: '🐾 반려동물 동반 맞춤 (야외 대나무 숲길 & 한옥 마당 야외 테라스 큐레이션)', icon: Footprints }
+        return { text: '🐾 반려동물 동반 맞춤 (전주 수목원, 천변 징검다리, 아중호수 수중 데크 산책로 큐레이션)', icon: Footprints }
       case 'family':
-        return { text: '👨‍👩‍👧‍👦 가족 여행 맞춤 (전주 3대 전통 비빔밥 & 역사 사적지 큐레이션)', icon: Sparkles }
+        return { text: '👨‍👩‍👧‍👦 가족 여행 맞춤 (성균관스캔들 전주향교, 팔복예술공장 & 역사 사적지 큐레이션)', icon: Sparkles }
       default:
-        return { text: '🎒 나홀로 여행 맞춤 (고즈넉한 한옥 툇마루 혼카페 & 조용한 박물관 힐링 큐레이션)', icon: Sparkles }
+        return { text: '🎒 나홀로 여행 맞춤 (고즈넉한 한벽굴, 전주천변 대나무길 & 아중호수 야경 힐링 큐레이션)', icon: Sparkles }
     }
   }, [companionParam])
 
@@ -76,11 +76,11 @@ export function ResultView() {
       case 'half':
         return '반나절 (4~5시간 코스 · 5곳 스팟)'
       case 'full':
-        return '하루 (풀 코스 · 7곳 스팟)'
+        return '하루 (전주 전역 풀 코스 · 7곳 스팟)'
       case '2days':
-        return '이틀 (1박 2일 일정 · 10곳 코스)'
+        return '이틀 (1박 2일 일정 · 10곳 전주 전역 코스)'
       case '3days':
-        return '사흘 (2박 3일 일정 · 14곳 풀 코스)'
+        return '사흘 (2박 3일 일정 · 14곳 전주 전역 풀 코스)'
       default:
         return '시간 맞춤 추천'
     }
@@ -93,35 +93,35 @@ export function ResultView() {
         return {
           icon: '🥶',
           title: '🥶 한파·찬 바람 맞춤 큐레이션:',
-          text: '매서운 찬 바람과 추위를 피할 수 있도록 실내 수제 공방(한지/부채/도자기), 지하 어진박물관, 연화정 한옥 도서관 위주로 장소를 구성했습니다 (근처 추천 맛집·카페는 각 카드 참조).',
+          text: '매서운 찬 바람을 피할 수 있도록 쾌적한 실내 팔복예술공장, 수제 공방, 지하 어진박물관, 연화정 한옥 도서관 위주로 다양하게 구성했습니다.',
           bannerColor: 'border-blue-500/40 bg-blue-500/10 text-blue-300',
         }
       case 'snow':
         return {
           icon: '❄️',
           title: '❄️ 한옥 설경·눈 오는 날 큐레이션:',
-          text: '하얀 눈이 내려앉은 고즈넉한 한옥 풍경을 감상할 수 있는 운치 있는 실내 공방과 박물관 위주로 장소 동선을 구상했습니다.',
+          text: '하얀 눈이 내려앉은 고즈넉한 한벽굴, 전주향교, 팔복예술공장 온실을 감상하는 전주 전역 맞춤 동선입니다.',
           bannerColor: 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300',
         }
       case 'rain':
         return {
           icon: '☔',
           title: '☔ 비 오는 날 낭만 큐레이션:',
-          text: '빗소리를 들으며 즐길 수 있는 실내 수제 공방, 지하 어진박물관, 호수 뷰 연화정 도서관 위주로 맞춤 동선을 구성했습니다.',
+          text: '빗소리를 들으며 즐기는 팔복예술공장 실내 미술관, 실내 공방, 아중호수 수중 산책로 위주로 다채롭게 큐레이션했습니다.',
           bannerColor: 'border-teal-500/40 bg-teal-500/10 text-teal-300',
         }
       case 'clear':
         return {
           icon: '☀️',
           title: '☀️ 폭염·더위 맞춤 큐레이션:',
-          text: '무더위 땡볕 야외 언덕(오목대 등)을 피하고, 에어컨이 완비된 시원한 수제 공방(한지·부채·도자기), 지하 어진박물관 위주로 장소를 자동 배치했습니다.',
+          text: '무더위 땡볕 야외 언덕을 피하고, 시원한 팔복예술공장 온실, 실내 공방, 지하 어진박물관, 덕진공원 도서관으로 자동 배치했습니다.',
           bannerColor: 'border-amber-500/40 bg-amber-500/10 text-amber-300',
         }
       case 'cloudy':
         return {
           icon: '☁️',
           title: '☁️ 선선한 날씨 맞춤 큐레이션:',
-          text: '햇살이 적당하고 선선해 한옥마을 돌담길 산책 ➔ 골목 수제 공방 ➔ 감성 서학동 예술마을로 연결되는 밸런스 코스입니다.',
+          text: '햇살이 선선해 전주 수목원, 한벽굴 드라마 촬영지, 자만벽화마을, 아중호수 야경 산책을 즐기기 딱 좋은 날씨입니다.',
           bannerColor: 'border-sky-500/40 bg-sky-500/10 text-sky-300',
         }
       default:
@@ -129,7 +129,7 @@ export function ResultView() {
         return {
           icon: weather.emoji,
           title: `🛰️ 실시간 날씨(${weather.summary}) 큐레이션:`,
-          text: '방문할 명소/공방/체험 스팟 위주로 코스가 연결되며, 각 스팟 카드 내부에서 근처 맛집/카페를 자유롭게 참고하실 수 있습니다.',
+          text: '한옥마을에 국한되지 않고 전주 전역(드라마 촬영지, 수목원, 예술공장 등)의 다채로운 명소가 다양하게 추천됩니다.',
           bannerColor: 'border-accent/40 bg-accent/10 text-accent',
         }
     }
@@ -147,8 +147,7 @@ export function ResultView() {
     )
   }, [weather, weatherParam])
 
-  // 선택한 남은 시간, 동행 유형, 날씨 및 필수 방문지 기반 동적 코스 자동 생성
-  // (사용자 요청: 메인 경로에는 순수 방문 장소/공방/박물관만 배치하고, 식당/카페는 각 장소 카드 근처 옵션으로 제공!)
+  // 선택한 남은 시간, 동행 유형, 날씨 및 전주 전역 다채로운 장소 자동 생성
   useEffect(() => {
     const mustVisitNames = rawMustVisit
       ? rawMustVisit
@@ -206,7 +205,7 @@ export function ResultView() {
           transitInfo: `🚌 시내버스 노선은 네이버 지도의 최신 버스 정보를 참조해 주세요.`,
           parkingInfo: `🚗 인근 공영/민영 주차장을 이용해 주세요.`,
           nearbyDining: [
-            { name: `${name} 근처 전주 맛집`, distance: '도보 3분 이내', menu: '전동/한옥마을 로컬 맛집' },
+            { name: `${name} 근처 전주 맛집`, distance: '도보 3분 이내', menu: '전주 로컬 대표 맛집' },
           ],
           nearbyCafes: [
             { name: `${name} 근처 감성 카페`, distance: '도보 2분 이내', menu: '수제 디저트 & 음료' },
@@ -224,22 +223,23 @@ export function ResultView() {
     else if (time === '2days') targetCount = 10
     else if (time === '3days') targetCount = 14
 
-    // 3. 메인 경로에는 순수 방문 장소(공방, 박물관, 명소, 인스타 핫플, 레트로 체험)만 선택!
-    // (식당/카페는 강제 삽입하지 않고 각 카드 내부 근처 옵션으로 제공)
+    // 3. 전주 전역(드라마 촬영지 한벽굴, 팔복예술공장, 전주수목원, 아중호수, 자만벽화마을 등) 다채로운 무작위 셔플 샘플링
     const pureSpotsDatabase = JEONJU_PLACES_DATABASE.filter(
       (p) => !p.isMeal && !p.isDessert,
     ).sort((a, b) => {
-      // 1순위: 선택한 동행 유형(companionParam: couple/friends/kids/family/solo) 맞춤 추천
+      // 1순위: 선택한 동행 유형 맞춤
       const aCompMatch = a.suitableCompanions?.includes(companionParam) ? 1 : 0
       const bCompMatch = b.suitableCompanions?.includes(companionParam) ? 1 : 0
       if (aCompMatch !== bCompMatch) return bCompMatch - aCompMatch
 
-      // 2순위: 실내/날씨 우선순위
+      // 2순위: 실내/날씨
       if (isIndoorPriority) {
         if (a.isIndoor && !b.isIndoor) return -1
         if (!a.isIndoor && b.isIndoor) return 1
       }
-      return 0
+
+      // 3순위: 다채로운 무작위성 (동일 장소 연속 추천 방지)
+      return Math.random() - 0.5
     })
 
     // DB에서 조건에 부합하는 장소들 채우기
@@ -247,7 +247,7 @@ export function ResultView() {
       if (generated.length >= targetCount) return
       if (addedNames.has(placeItem.name.toLowerCase())) return
 
-      // 폭염/한파/우천 시 야외 전용 장소(오목대 등)는 비필수일 때 자동 제외/대체
+      // 폭염/한파/우천 시 야외 전용 장소는 비필수일 때 자동 제외/대체
       if (isIndoorPriority && placeItem.isIndoor === false && !placeItem.isMustVisit) {
         return
       }
@@ -321,7 +321,7 @@ export function ResultView() {
           condition: 'clear',
           emoji: '☀️',
           summary: '☀️ 맑음 · 폭염 (선택한 예보 날씨)',
-          detail: '무더위를 피해 에어컨이 시원한 실내 수제 공방/지하 어진박물관/도서관 위주로 큐레이션되었습니다 · 기온 31°C · 강수확률 0%',
+          detail: '무더위를 피해 에어컨이 시원한 팔복예술공장/수제 공방/지하 어진박물관/도서관 위주로 큐레이션되었습니다 · 기온 31°C · 강수확률 0%',
         })
         setLastFetchTime('예보 선택')
       } else if (weatherParam === 'rain') {
@@ -329,7 +329,7 @@ export function ResultView() {
           condition: 'rain',
           emoji: '☔',
           summary: '☔ 비 옴 (선택한 예보 날씨)',
-          detail: '비 오는 날 운치에 어울리는 실내 공방/박물관/도서관 위주로 추천드려요 · 기온 21°C · 강수확률 90%',
+          detail: '비 오는 날 운치에 어울리는 팔복예술공장/실내 공방/아중호수 수중 데크 위주로 추천드려요 · 기온 21°C · 강수확률 90%',
         })
         setLastFetchTime('예보 선택')
       } else if (weatherParam === 'cloudy') {
@@ -337,7 +337,7 @@ export function ResultView() {
           condition: 'cloudy',
           emoji: '☁️',
           summary: '☁️ 구름 많음 (선택한 예보 날씨)',
-          detail: '선선해서 한옥마을 및 서학동 예술마을 걷기 딱 좋은 날씨예요 · 기온 24°C · 강수확률 20%',
+          detail: '선선해서 전주 수목원, 한벽굴 드라마 촬영지, 아중호수 걷기 딱 좋은 날씨예요 · 기온 24°C · 강수확률 20%',
         })
         setLastFetchTime('예보 선택')
       } else if (weatherParam === 'snow') {
@@ -345,7 +345,7 @@ export function ResultView() {
           condition: 'snow',
           emoji: '❄️',
           summary: '❄️ 눈 옴 (선택한 예보 날씨)',
-          detail: '하얀 한옥 설경과 따뜻한 실내 수제 공방/박물관 위주로 추천해 드려요 · 기온 -2°C · 강수확률 80%',
+          detail: '하얀 눈이 내린 한벽굴, 전주향교, 팔복예술공장 온실 코스를 추천해 드려요 · 기온 -2°C · 강수확률 80%',
         })
         setLastFetchTime('예보 선택')
       } else if (weatherParam === 'wind') {
@@ -353,7 +353,7 @@ export function ResultView() {
           condition: 'wind',
           emoji: '🥶',
           summary: '🥶 한파 · 찬 바람 (선택한 예보 날씨)',
-          detail: '매서운 바람을 피할 따뜻한 실내 공방 체험과 박물관/도서관 코스를 추천해 드려요 · 기온 -5°C · 강수확률 10%',
+          detail: '매서운 바람을 피할 따뜻한 실내 팔복예술공장, 공방 체험과 도서관 코스를 추천해 드려요 · 기온 -5°C · 강수확률 10%',
         })
         setLastFetchTime('예보 선택')
       } else {
@@ -385,7 +385,7 @@ export function ResultView() {
     return () => clearInterval(timer)
   }, [weatherParam])
 
-  // 클릭 시 장소 교체 처리 함수 (순수 스팟/공방/박물관 간 교체)
+  // 클릭 시 장소 교체 처리 함수 (전주 전역 20여 개 스팟 중 다양하게 교체)
   function handleReplace(id: string) {
     setPlaces((prev) => {
       const targetPlace = prev.find((p) => p.id === id)
@@ -406,7 +406,7 @@ export function ResultView() {
                 id: `${p.id}-replaced-${Date.now()}`,
                 order: p.order,
                 day: p.day,
-                reason: `선택에 따라 새롭게 교체 추천된 전주 장소입니다.`,
+                reason: `전주 전역의 새로운 이색 장소로 교체 추천되었습니다.`,
               }
             : p,
         )
@@ -510,7 +510,7 @@ export function ResultView() {
           <div className="flex items-center gap-3 text-muted-foreground">
             <span className="flex items-center gap-1 text-emerald-400 font-medium">
               <Utensils className="size-3" />
-              각 장소 카드 내 '근처 추천 맛집 & 카페' 포함 (자유 선택)
+              전주 전역 핫플 스팟 & 카드 내 '근처 맛집·카페' 포함
             </span>
             <span>총 {places.length}개 스팟</span>
           </div>
@@ -527,7 +527,7 @@ export function ResultView() {
         <section aria-label="추천 장소 목록" className="flex flex-col gap-4">
           <div className="flex items-baseline justify-between">
             <h2 className="font-serif text-lg font-bold text-foreground">
-              네이버 지도 & 인스타 기반 맞춤 추천 코스
+              전주 전역 다채로운 맞춤 추천 코스
             </h2>
             <span className="text-xs text-muted-foreground">
               카드를 누르거나 '다른 장소 변경' 클릭 시 교체돼요
