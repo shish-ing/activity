@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Clock, RefreshCw, Share2, Wallet } from 'lucide-react'
+import { Calendar, Clock, RefreshCw, Share2, Utensils, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PlaceCard } from '@/components/place-card'
 import { MapPlaceholder } from '@/components/map-placeholder'
@@ -22,6 +22,7 @@ function formatWon(value: number) {
 export function ResultView() {
   const searchParams = useSearchParams()
   const rawMustVisit = searchParams.get('mustVisit')
+  const time = searchParams.get('time') || '3h'
 
   const [places, setPlaces] = useState<Place[]>(RECOMMENDED_PLACES)
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -30,34 +31,57 @@ export function ResultView() {
   const [weatherLoading, setWeatherLoading] = useState(false)
   const [lastFetchTime, setLastFetchTime] = useState<string>('')
 
-  // URL에서 전달받은 검색 필수 방문지를 코스에 동적으로 포함
+  // 시간 옵션 텍스트 라벨
+  const timeLabel = useMemo(() => {
+    switch (time) {
+      case '1h':
+        return '1시간 (가볍게 코스 · 1곳)'
+      case '3h':
+        return '3시간 (여유로운 코스 · 3곳)'
+      case 'half':
+        return '반나절 (4~5시간 코스 · 점심 맛집 포함)'
+      case 'full':
+        return '하루 (풀 코스 · 7곳)'
+      case '2days':
+        return '이틀 (1박 2일 일정 · 10곳 코스)'
+      case '3days':
+        return '사흘 (2박 3일 일정 · 14곳 풀 코스)'
+      default:
+        return '시간 맞춤 추천'
+    }
+  }, [time])
+
+  // 선택한 남은 시간 및 필수 방문지 기반 동적 코스 자동 생성
   useEffect(() => {
-    if (!rawMustVisit) return
-
     const mustVisitNames = rawMustVisit
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean)
-    if (mustVisitNames.length === 0) return
+      ? rawMustVisit
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : []
 
-    const newPlaces: Place[] = []
+    const generated: Place[] = []
+    const addedNames = new Set<string>()
     let orderCounter = 1
 
+    // 1. 사용자가 직접 검색/추가한 필수 방문지 먼저 추가
     mustVisitNames.forEach((name) => {
       const foundInDb = JEONJU_PLACES_DATABASE.find(
         (p) => p.name.toLowerCase() === name.toLowerCase(),
       )
 
-      if (foundInDb) {
-        newPlaces.push({
+      if (foundInDb && !addedNames.has(foundInDb.name.toLowerCase())) {
+        addedNames.add(foundInDb.name.toLowerCase())
+        generated.push({
           ...foundInDb,
           id: `mv-${orderCounter}`,
           order: orderCounter++,
           isMustVisit: true,
           reason: `사용자께서 직접 검색하여 추가하신 필수 방문지 '${name}'입니다.`,
         })
-      } else {
-        newPlaces.push({
+      } else if (!addedNames.has(name.toLowerCase())) {
+        addedNames.add(name.toLowerCase())
+        generated.push({
           id: `mv-custom-${orderCounter}`,
           order: orderCounter++,
           name: name,
@@ -79,24 +103,67 @@ export function ResultView() {
       }
     })
 
-    // 기본 추천 장소 중 필수 방문지와 중복되지 않는 로컬 액티비티 추가 (최대 5곳 코스 구성)
-    RECOMMENDED_PLACES.forEach((p) => {
+    // 2. 남은 시간별 목표 장소 수 정의
+    let targetCount = 3
+    if (time === '1h') targetCount = 1
+    else if (time === '3h') targetCount = 3
+    else if (time === 'half') targetCount = 5
+    else if (time === 'full') targetCount = 7
+    else if (time === '2days') targetCount = 10
+    else if (time === '3days') targetCount = 14
+
+    // 3. 점심 식사/맛집 포함 여부 (3h, half, full, 2days, 3days)
+    const needsMeal = time !== '1h'
+
+    // DB에서 조건에 부합하는 장소들 채우기
+    JEONJU_PLACES_DATABASE.forEach((placeItem) => {
+      if (generated.length >= targetCount) return
+      if (addedNames.has(placeItem.name.toLowerCase())) return
+
+      // 반나절 이상 코스일 때 점심 맛집이 아직 없으면 맛집 우선 추가
       if (
-        newPlaces.length < 5 &&
-        !newPlaces.some(
-          (np) => np.name.toLowerCase() === p.name.toLowerCase(),
-        )
+        needsMeal &&
+        !generated.some((g) => g.isMeal) &&
+        placeItem.isMeal
       ) {
-        newPlaces.push({
-          ...p,
+        addedNames.add(placeItem.name.toLowerCase())
+        generated.push({
+          ...placeItem,
+          id: `db-${orderCounter}`,
           order: orderCounter++,
-          walkMinutes: Math.max(5, (orderCounter - 1) * 6),
+          reason: `네이버 지도 추천 전주 3대 점심/미식 맛집입니다.`,
         })
+        return
+      }
+
+      addedNames.add(placeItem.name.toLowerCase())
+      generated.push({
+        ...placeItem,
+        id: `db-${orderCounter}`,
+        order: orderCounter++,
+      })
+    })
+
+    // 4. 이틀(1박2일), 사흘(2박3일) 일차(day: 1, 2, 3) 부여 및 보정
+    const finalPlaces = generated.map((place, idx) => {
+      let day = 1
+      if (time === '2days') {
+        day = idx < 5 ? 1 : 2
+      } else if (time === '3days') {
+        if (idx < 5) day = 1
+        else if (idx < 10) day = 2
+        else day = 3
+      }
+      return {
+        ...place,
+        order: idx + 1,
+        day,
+        walkMinutes: Math.max(0, idx * 6),
       }
     })
 
-    setPlaces(newPlaces)
-  }, [rawMustVisit])
+    setPlaces(finalPlaces)
+  }, [rawMustVisit, time])
 
   async function loadRealtimeWeather() {
     setWeatherLoading(true)
@@ -112,34 +179,6 @@ export function ResultView() {
         })
         if (data.lastUpdated) {
           setLastFetchTime(data.lastUpdated)
-        }
-
-        // 맑음/구름 날씨일 때 장소 사유 업데이트 (우천 전용 문구 제거)
-        if (data.condition !== 'rain') {
-          setPlaces((prev) =>
-            prev.map((p) => {
-              if (p.id === 'p1' || p.name === '전동성당') {
-                return {
-                  ...p,
-                  reason: '현재 위치에서 가까운 전주의 대표 역사 명소예요.',
-                  warning: undefined,
-                }
-              }
-              if (p.id === 'p2' || p.name === '한옥마을 전통찻집') {
-                return {
-                  ...p,
-                  reason: '한옥 정취를 느끼며 여유롭게 쉬어가기 좋은 전통 찻집이에요.',
-                }
-              }
-              if (p.id === 'p3' || p.name === '수제 한지 공방 체험') {
-                return {
-                  ...p,
-                  reason: '전주 한지의 매력을 직접 느낄 수 있는 특별한 로컬 체험 공방이에요.',
-                }
-              }
-              return p
-            }),
-          )
         }
       }
     } catch (err) {
@@ -161,11 +200,11 @@ export function ResultView() {
         if (p.id !== id) return p
         const alt = ALTERNATIVE_PLACES[p.id]
         if (alt) {
-          return { ...alt, order: p.order }
+          return { ...alt, order: p.order, day: p.day }
         }
         const baseId = p.id.replace('-alt', '')
         const original = RECOMMENDED_PLACES.find((o) => o.id === baseId)
-        return original ? { ...original, order: p.order } : p
+        return original ? { ...original, order: p.order, day: p.day } : p
       }),
     )
   }
@@ -179,9 +218,26 @@ export function ResultView() {
     [places],
   )
 
+  const mealCount = useMemo(
+    () => places.filter((p) => p.isMeal).length,
+    [places],
+  )
+
+  // 일차별로 그룹화 (이틀/사흘 코스 시)
+  const groupedByDay = useMemo(() => {
+    if (time !== '2days' && time !== '3days') return null
+    const days: Record<number, Place[]> = {}
+    places.forEach((p) => {
+      const d = p.day ?? 1
+      if (!days[d]) days[d] = []
+      days[d].push(p)
+    })
+    return days
+  }, [places, time])
+
   return (
     <div className="mx-auto w-full max-w-5xl px-4 pb-28">
-      {/* 실시간 날씨 요약 배지 (1시간 주기 자동 갱신) */}
+      {/* 실시간 날씨 요약 배지 */}
       <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-accent/40 bg-accent/10 px-4 py-3">
         <div className="flex items-center gap-3">
           <span className="text-2xl" aria-hidden>
@@ -216,29 +272,77 @@ export function ResultView() {
         </button>
       </div>
 
+      {/* 시간 및 추천 맞춤 코스 안내 띠 */}
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-card border border-border px-4 py-2.5 text-xs text-foreground">
+        <span className="flex items-center gap-1.5 font-semibold text-accent">
+          <Clock className="size-3.5" />
+          {timeLabel}
+        </span>
+        <div className="flex items-center gap-3 text-muted-foreground">
+          {mealCount > 0 ? (
+            <span className="flex items-center gap-1 text-emerald-400 font-medium">
+              <Utensils className="size-3" />
+              네이버 지도 추천 점심/식사 {mealCount}곳 포함
+            </span>
+          ) : null}
+          <span>총 {places.length}개 스팟</span>
+        </div>
+      </div>
+
       <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_minmax(0,42%)]">
-        {/* 왼쪽: 추천 카드 리스트 */}
-        <section aria-label="추천 장소 목록" className="flex flex-col gap-3">
+        {/* 왼쪽: 추천 카드 리스트 (일차별 구분 또는 전체 리스트) */}
+        <section aria-label="추천 장소 목록" className="flex flex-col gap-4">
           <div className="flex items-baseline justify-between">
             <h2 className="font-serif text-lg font-bold text-foreground">
-              네이버 지도 기반 최적 동선 코스
+              네이버 지도 기반 맞춤 추천 코스
             </h2>
             <span className="text-xs text-muted-foreground">
-              총 {places.length}곳 · 카드를 누르면 지도에 표시돼요
+              카드를 누르면 지도에 표시돼요
             </span>
           </div>
-          {places.map((place) => (
-            <PlaceCard
-              key={place.id}
-              place={place}
-              highlighted={activeId === place.id}
-              canReplace={Boolean(
-                ALTERNATIVE_PLACES[place.id] || place.id.endsWith('-alt'),
-              )}
-              onHover={setActiveId}
-              onReplace={handleReplace}
-            />
-          ))}
+
+          {groupedByDay ? (
+            // 이틀/사흘 선택 시 Day 1, Day 2, Day 3 일차별 그룹화 표시
+            Object.entries(groupedByDay).map(([dayNum, dayPlaces]) => (
+              <div key={dayNum} className="flex flex-col gap-3">
+                <div className="flex items-center gap-2 border-b border-border pb-1.5 pt-2">
+                  <span className="inline-flex items-center gap-1 rounded-lg bg-accent px-2.5 py-1 text-xs font-bold text-accent-foreground">
+                    <Calendar className="size-3.5" />
+                    {dayNum}일차 일정
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    ({dayPlaces.length}개 스팟 코스)
+                  </span>
+                </div>
+                {dayPlaces.map((place) => (
+                  <PlaceCard
+                    key={place.id}
+                    place={place}
+                    highlighted={activeId === place.id}
+                    canReplace={Boolean(
+                      ALTERNATIVE_PLACES[place.id] || place.id.endsWith('-alt'),
+                    )}
+                    onHover={setActiveId}
+                    onReplace={handleReplace}
+                  />
+                ))}
+              </div>
+            ))
+          ) : (
+            // 일반 리스트 (1시간, 3시간, 반나절, 하루)
+            places.map((place) => (
+              <PlaceCard
+                key={place.id}
+                place={place}
+                highlighted={activeId === place.id}
+                canReplace={Boolean(
+                  ALTERNATIVE_PLACES[place.id] || place.id.endsWith('-alt'),
+                )}
+                onHover={setActiveId}
+                onReplace={handleReplace}
+              />
+            ))
+          )}
         </section>
 
         {/* 오른쪽: 지도 (데스크톱에서 상단 고정) */}

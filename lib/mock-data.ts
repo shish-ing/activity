@@ -95,6 +95,8 @@ export type Place = {
   suggestedDuration?: string
   tips?: string
   naverMapUrl?: string
+  isMeal?: boolean
+  day?: number
 }
 
 export const RECOMMENDED_PLACES: Place[] = [
