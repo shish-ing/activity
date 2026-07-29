@@ -919,7 +919,7 @@ export function ResultView() {
     return () => clearInterval(timer)
   }, [weatherParam])
 
-  // 클릭 시 장소 교체 처리 함수
+  // 클릭 시 장소 교체 처리 함수 — 교체 후 전체 경로 최단 순선 재정렬 + 번호 1부터 순서 재배정
   function handleReplace(id: string) {
     setPlaces((prev) => {
       const targetPlace = prev.find((p) => p.id === id)
@@ -944,6 +944,8 @@ export function ResultView() {
       if (pureSpotCandidates.length === 0) return prev
 
       const nextSpot = pureSpotCandidates[Math.floor(Math.random() * pureSpotCandidates.length)]
+
+      // 교체된 새 장소로 목록 교체 (위치는 아직 유지, 재정렬 전)
       const replacedList = prev.map((p) =>
         p.id === id
           ? ensureThreeDiningAndCafes({
@@ -956,39 +958,85 @@ export function ResultView() {
           : p,
       )
 
-      // 교체 후에도 최단 순선 알고리즘 재적용!
-      const unvisitedPool = [...replacedList]
+      // 교체 후 출발지 앵커 기준 최단 순선 알고리즘(Nearest-Neighbor TSP) 전체 재정렬
+      const startAnchor: Place = {
+        id: 'start-anchor',
+        order: 0,
+        name: startLocationParam,
+        category: '출발지',
+        cost: 0, costLabel: '0원',
+        walkMinutes: 0, reason: '출발지',
+        isMustVisit: false,
+        mapX: 50, mapY: 50,
+        lat: startLocationParam.includes('전주역') ? 35.8490
+          : startLocationParam.includes('터미널') ? 35.8360
+          : startLocationParam.includes('전북대') ? 35.8470
+          : 35.8133,
+        lng: startLocationParam.includes('전주역') ? 127.1615
+          : startLocationParam.includes('터미널') ? 127.1320
+          : startLocationParam.includes('전북대') ? 127.1290
+          : 127.1492,
+      }
+
+      const unvisited = [...replacedList]
       const reOptimized: Place[] = []
-      let current = unvisitedPool.shift()!
+
+      // 출발지에서 가장 가까운 첫 번째 장소 탐색
+      let nearestToStartIdx = 0
+      let minStartDist = Infinity
+      for (let i = 0; i < unvisited.length; i++) {
+        const dist = getPlaceDistance(startAnchor, unvisited[i])
+        if (dist < minStartDist) {
+          minStartDist = dist
+          nearestToStartIdx = i
+        }
+      }
+      let current = unvisited.splice(nearestToStartIdx, 1)[0]
       reOptimized.push(current)
 
-      while (unvisitedPool.length > 0) {
+      // 나머지 최단 순선 연결
+      while (unvisited.length > 0) {
         let nearestIdx = 0
         let minDistance = Infinity
-
-        for (let i = 0; i < unvisitedPool.length; i++) {
-          const dist = getPlaceDistance(current, unvisitedPool[i])
+        for (let i = 0; i < unvisited.length; i++) {
+          const dist = getPlaceDistance(current, unvisited[i])
           if (dist < minDistance) {
             minDistance = dist
             nearestIdx = i
           }
         }
-
-        current = unvisitedPool.splice(nearestIdx, 1)[0]
+        current = unvisited.splice(nearestIdx, 1)[0]
         reOptimized.push(current)
       }
 
+      const total = reOptimized.length
+
+      // 번호(order) 1부터 순서대로, day도 재배분, 이동시간 재계산
       return reOptimized.map((place, idx) => {
         let travelMins = 0
         if (idx > 0) {
-          const prev = reOptimized[idx - 1]
-          const distSq = getPlaceDistance(prev, place)
+          const prevPlace = reOptimized[idx - 1]
+          const distSq = getPlaceDistance(prevPlace, place)
           const approxKm = Math.sqrt(distSq)
-          travelMins = Math.max(3, Math.round(approxKm * 8 + 2))
+          travelMins = transport === 'walk'
+            ? Math.max(3, Math.round(approxKm * 8 + 2))
+            : Math.max(4, Math.round(approxKm * 10 + 2))
         }
+
+        let day = 1
+        if (time === '2days') {
+          day = idx < Math.ceil(total / 2) ? 1 : 2
+        } else if (time === '3days') {
+          const perDay = Math.ceil(total / 3)
+          if (idx < perDay) day = 1
+          else if (idx < perDay * 2) day = 2
+          else day = 3
+        }
+
         return ensureThreeDiningAndCafes({
           ...place,
           order: idx + 1,
+          day,
           walkMinutes: travelMins,
         })
       })
