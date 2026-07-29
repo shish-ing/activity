@@ -2,12 +2,11 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, LocateFixed, MapPin, Sparkles } from 'lucide-react'
+import { Loader2, LocateFixed, MapPin, Sparkles, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ChipSelect } from '@/components/chip-select'
 import { MustVisitSearch } from '@/components/must-visit-search'
 import {
-  BUDGET_OPTIONS,
   COMPANION_OPTIONS,
   MOCK_LOCATION,
   TIME_OPTIONS,
@@ -21,7 +20,7 @@ export function ConditionForm() {
 
   const [locationGranted, setLocationGranted] = useState(false)
   const [time, setTime] = useState<string | null>('3h')
-  const [budget, setBudget] = useState<string | null>('3')
+  const [budgetValue, setBudgetValue] = useState<number>(50000) // 0원 ~ 500,000원 슬라이더
   const [companion, setCompanion] = useState<string | null>('couple')
   const [weatherOpt, setWeatherOpt] = useState<string | null>('auto')
   const [transport, setTransport] = useState<string | null>('walk')
@@ -29,7 +28,6 @@ export function ConditionForm() {
   const [loading, setLoading] = useState(false)
 
   function grantLocation() {
-    // TODO: API 연동 (백엔드에서 구현 예정) — 실제 위치 권한 & 좌표 조회
     setLocationGranted(true)
   }
 
@@ -48,7 +46,7 @@ export function ConditionForm() {
       params.set('mustVisit', mustVisit.join(','))
     }
     if (time) params.set('time', time)
-    if (budget) params.set('budget', budget)
+    params.set('budget', String(budgetValue))
     if (companion) params.set('companion', companion)
     if (weatherOpt) params.set('weather', weatherOpt)
     if (transport) params.set('transport', transport)
@@ -57,6 +55,12 @@ export function ConditionForm() {
       router.push(`/result?${params.toString()}`)
     }, 1000)
   }
+
+  const budgetDisplayLabel = (() => {
+    if (budgetValue === 0) return '0원 (100% 무료 명소 코스)'
+    if (budgetValue >= 500000) return '50만원 이상 (넉넉한 럭셔리 여행)'
+    return `${(budgetValue / 10000).toLocaleString('ko-KR')}만원`
+  })()
 
   return (
     <div className="flex flex-col gap-4">
@@ -106,12 +110,96 @@ export function ConditionForm() {
           value={time}
           onChange={setTime}
         />
-        <ChipSelect
-          label="예산"
-          options={BUDGET_OPTIONS}
-          value={budget}
-          onChange={setBudget}
-        />
+
+        {/* 예서 슬라이더 (막대바) 카드 UI */}
+        <div className="flex flex-col gap-2.5 rounded-xl border border-accent/30 bg-accent/5 p-3.5">
+          <div className="flex flex-wrap items-center justify-between gap-1">
+            <div className="flex items-center gap-1.5 font-semibold text-sm text-foreground">
+              <Wallet className="size-4 text-accent" />
+              <span>1인당 여행 예서 (슬라이더 막대바로 조정)</span>
+            </div>
+            <span className="text-sm font-bold text-accent bg-accent/15 px-2.5 py-0.5 rounded-lg">
+              {budgetDisplayLabel}
+            </span>
+          </div>
+
+          <div className="pt-1">
+            <input
+              type="range"
+              min={0}
+              max={500000}
+              step={10000}
+              value={budgetValue}
+              onChange={(e) => setBudgetValue(Number(e.target.value))}
+              className="h-2.5 w-full cursor-pointer appearance-none rounded-lg bg-secondary accent-accent focus:outline-none"
+            />
+          </div>
+
+          {/* 주요 예서 프리셋 클릭 조절 칩 */}
+          <div className="flex flex-wrap items-center justify-between text-xs text-muted-foreground pt-1 gap-1">
+            <button
+              type="button"
+              onClick={() => setBudgetValue(0)}
+              className={cn(
+                'px-2 py-0.5 rounded-md transition-colors',
+                budgetValue === 0 ? 'bg-accent text-accent-foreground font-bold' : 'hover:bg-secondary hover:text-foreground',
+              )}
+            >
+              0원(무료)
+            </button>
+            <button
+              type="button"
+              onClick={() => setBudgetValue(30000)}
+              className={cn(
+                'px-2 py-0.5 rounded-md transition-colors',
+                budgetValue === 30000 ? 'bg-accent text-accent-foreground font-bold' : 'hover:bg-secondary hover:text-foreground',
+              )}
+            >
+              3만원
+            </button>
+            <button
+              type="button"
+              onClick={() => setBudgetValue(50000)}
+              className={cn(
+                'px-2 py-0.5 rounded-md transition-colors',
+                budgetValue === 50000 ? 'bg-accent text-accent-foreground font-bold' : 'hover:bg-secondary hover:text-foreground',
+              )}
+            >
+              5만원
+            </button>
+            <button
+              type="button"
+              onClick={() => setBudgetValue(100000)}
+              className={cn(
+                'px-2 py-0.5 rounded-md transition-colors',
+                budgetValue === 100000 ? 'bg-accent text-accent-foreground font-bold' : 'hover:bg-secondary hover:text-foreground',
+              )}
+            >
+              10만원
+            </button>
+            <button
+              type="button"
+              onClick={() => setBudgetValue(300000)}
+              className={cn(
+                'px-2 py-0.5 rounded-md transition-colors',
+                budgetValue === 300000 ? 'bg-accent text-accent-foreground font-bold' : 'hover:bg-secondary hover:text-foreground',
+              )}
+            >
+              30만원
+            </button>
+            <button
+              type="button"
+              onClick={() => setBudgetValue(500000)}
+              className={cn(
+                'px-2 py-0.5 rounded-md transition-colors',
+                budgetValue >= 500000 ? 'bg-accent text-accent-foreground font-bold' : 'hover:bg-secondary hover:text-foreground',
+              )}
+            >
+              50만원+
+            </button>
+          </div>
+        </div>
+
         <ChipSelect
           label="동행 유형"
           options={COMPANION_OPTIONS}
@@ -119,7 +207,6 @@ export function ConditionForm() {
           onChange={setCompanion}
           columns={3}
         />
-        {/* 동행 유형과 이동수단 사이에 위치한 날씨 선택 옵션 (이모티콘 포함) */}
         <ChipSelect
           label="날씨 (실시간 연동 & 예보 직접 선택)"
           options={WEATHER_OPTIONS}
@@ -149,19 +236,16 @@ export function ConditionForm() {
       >
         {loading ? (
           <>
-            <Loader2 className="animate-spin" />
-            지금 딱 맞는 코스를 찾는 중…
+            <Loader2 className="size-5 animate-spin" />
+            예산 및 맞춤 코스 계산 중...
           </>
         ) : (
           <>
-            <Sparkles />
-            지금 바로 추천받기
+            <Sparkles className="size-5" />
+            맞춤 코스 추천받기
           </>
         )}
       </Button>
-      <p className="text-center text-xs text-muted-foreground">
-        복잡한 설정 없이, 최소 입력으로 지금 바로 판단하세요
-      </p>
     </div>
   )
 }
