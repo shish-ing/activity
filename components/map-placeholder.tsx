@@ -10,12 +10,29 @@ type MapPlaceholderProps = {
   places: Place[]
   activeId: string | null
   onHover: (id: string | null) => void
+  // 상단 스티키 헤더 바에서 조작할 때 전달받는 제어 프로퍼티 (선택 사항)
+  routeMode?: 'straight' | 'navigation'
+  selectedSegment?: number | null
+  customPinPair?: [number, number] | null
+  customStartPin?: number | null
+  setCustomStartPin?: (pin: number | null) => void
+  onSelectCustomPair?: (pair: [number, number]) => void
+  onResetAll?: () => void
+  showInternalControls?: boolean
 }
 
 export function MapPlaceholder({
   places,
   activeId,
   onHover,
+  routeMode: externalRouteMode,
+  selectedSegment: externalSelectedSegment,
+  customPinPair: externalCustomPinPair,
+  customStartPin: externalCustomStartPin,
+  setCustomStartPin: externalSetCustomStartPin,
+  onSelectCustomPair,
+  onResetAll,
+  showInternalControls = false,
 }: MapPlaceholderProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<any>(null)
@@ -26,19 +43,21 @@ export function MapPlaceholder({
   const isMapInitializedRef = useRef<boolean>(false)
   const prevPlacesKeyRef = useRef<string>('')
 
-  // 1. 지도 경로 모드 ('straight': 간결한 최적 직선 동선, 'navigation': 실제 도로/도보 길찾기 네비게이션)
-  const [routeMode, setRouteMode] = useState<'straight' | 'navigation'>('navigation')
+  // 내부 모드 상태 (외부 프로퍼티가 안넘어올 경우 폴백)
+  const [internalRouteMode, setInternalRouteMode] = useState<'straight' | 'navigation'>('navigation')
+  const [internalSelectedSegment, setInternalSelectedSegment] = useState<number | null>(null)
+  const [internalCustomPinPair, setInternalCustomPinPair] = useState<[number, number] | null>(null)
+  const [internalCustomStartPin, setInternalCustomStartPin] = useState<number | null>(null)
 
-  // 2. 특정 순차 구간 필터 (null: 전체 코스 보기, 1: 1번➔2번, 2: 2번➔3번 ...)
-  const [selectedSegment, setSelectedSegment] = useState<number | null>(null)
+  const routeMode = externalRouteMode ?? internalRouteMode
+  const selectedSegment = externalSelectedSegment !== undefined ? externalSelectedSegment : internalSelectedSegment
+  const customPinPair = externalCustomPinPair !== undefined ? externalCustomPinPair : internalCustomPinPair
+  const customStartPin = externalCustomStartPin !== undefined ? externalCustomStartPin : internalCustomStartPin
 
-  // 3. 🎯 핵심: 지도에서 임의로 선택한 2개 핀 경로 (예: 1번➔5번 선택 시 [1, 5])
-  const [customPinPair, setCustomPinPair] = useState<[number, number] | null>(null)
-  const [customStartPin, setCustomStartPin] = useState<number | null>(null)
-  const customStartPinRef = useRef<number | null>(null)
-
-  // 4. 구간 선택 드롭다운 열림/닫힘 상태
-  const [isSegmentOpen, setIsSegmentOpen] = useState<boolean>(false)
+  const customStartPinRef = useRef<number | null>(customStartPin)
+  useEffect(() => {
+    customStartPinRef.current = customStartPin
+  }, [customStartPin])
 
   // OSRM 네비게이션 경로 좌표 캐시 (구간 키 ➔ latLngs)
   const [osrmRoutes, setOsrmRoutes] = useState<Record<string, [number, number][]>>({})
@@ -46,7 +65,7 @@ export function MapPlaceholder({
   // 장소 구성 고유 식별키
   const placesKey = places.map((p) => p.id).join(',')
 
-  // OSRM 실시간 도로 길찾기 API 호출 (순차 구간 및 임의 핀 쌍 경로)
+  // OSRM 실시간 도로 길찾기 API 호출
   useEffect(() => {
     if (places.length < 2) return
 
@@ -121,13 +140,16 @@ export function MapPlaceholder({
     fetchOsrmRoutes()
   }, [places, placesKey, customPinPair])
 
-  // 전체 화면 카메라 맞춤 및 임의 선택 해제
+  // 전체 화면 카메라 맞춤 및 리셋
   function handleResetAll() {
-    setSelectedSegment(null)
-    setCustomPinPair(null)
-    setCustomStartPin(null)
+    if (onResetAll) {
+      onResetAll()
+    } else {
+      setInternalSelectedSegment(null)
+      setInternalCustomPinPair(null)
+      setInternalCustomStartPin(null)
+    }
     customStartPinRef.current = null
-    setIsSegmentOpen(false)
 
     if (!mapRef.current || places.length === 0) return
     let L: any
@@ -143,43 +165,16 @@ export function MapPlaceholder({
     })
   }
 
-  // 순차 구간 선택
-  function handleSelectSegment(segIdx: number | null) {
-    setSelectedSegment(segIdx)
-    setCustomPinPair(null)
-    setCustomStartPin(null)
-    customStartPinRef.current = null
-    setIsSegmentOpen(false)
-
-    if (segIdx === null) {
-      handleResetAll()
-      return
-    }
-
-    const fromPlace = places[segIdx - 1]
-    const toPlace = places[segIdx]
-    if (!fromPlace || !toPlace || !mapRef.current) return
-
-    let L: any
-    import('leaflet').then((leafletModule) => {
-      L = leafletModule.default || leafletModule
-      const fromLat = fromPlace.lat || 35.8133 + (fromPlace.mapY - 50) * 0.0002
-      const fromLng = fromPlace.lng || 127.1492 + (fromPlace.mapX - 30) * 0.0002
-      const toLat = toPlace.lat || 35.8133 + (toPlace.mapY - 50) * 0.0002
-      const toLng = toPlace.lng || 127.1492 + (toPlace.mapX - 30) * 0.0002
-
-      const segBounds = L.latLngBounds([[fromLat, fromLng], [toLat, toLng]])
-      mapRef.current.fitBounds(segBounds, { padding: [80, 80], maxZoom: 17 })
-    })
-  }
-
   // 🎯 임의 2개 핀 쌍 직접 선택 (예: 1번➔5번)
   function handleSelectCustomPair(pair: [number, number]) {
-    setCustomPinPair(pair)
-    setSelectedSegment(null)
-    setCustomStartPin(null)
+    if (onSelectCustomPair) {
+      onSelectCustomPair(pair)
+    } else {
+      setInternalCustomPinPair(pair)
+      setInternalSelectedSegment(null)
+      setInternalCustomStartPin(null)
+    }
     customStartPinRef.current = null
-    setIsSegmentOpen(false)
 
     const fromPlace = places[pair[0] - 1]
     const toPlace = places[pair[1] - 1]
@@ -341,7 +336,6 @@ export function MapPlaceholder({
         const [lat, lng] = routeLatLngs[idx]
         const isActive = activeId === place.id
 
-        // 핀 강조 조건 (임의 핀 선택 / 순차 구간 선택 / 1차 클릭 출발 스팟)
         const isCustomSelectedSpot = customPinPair !== null && (place.order === customPinPair[0] || place.order === customPinPair[1])
         const isSegmentSpot = selectedSegment !== null && (place.order === selectedSegment || place.order === selectedSegment + 1)
         const isStartPinSpot = customStartPin !== null && place.order === customStartPin
@@ -399,10 +393,12 @@ export function MapPlaceholder({
         marker.on('click', () => {
           if (customStartPinRef.current === null) {
             // 첫 번째 핀 클릭
+            if (externalSetCustomStartPin) {
+              externalSetCustomStartPin(place.order)
+            } else {
+              setInternalCustomStartPin(place.order)
+            }
             customStartPinRef.current = place.order
-            setCustomStartPin(place.order)
-            setSelectedSegment(null)
-            setCustomPinPair(null)
           } else {
             // 두 번째 핀 클릭 ➔ 1번 ➔ 5번 직통 최적 도로 길찾기!
             const startPin = customStartPinRef.current
@@ -410,7 +406,11 @@ export function MapPlaceholder({
             if (startPin !== endPin) {
               handleSelectCustomPair([startPin, endPin])
             } else {
-              setCustomStartPin(null)
+              if (externalSetCustomStartPin) {
+                externalSetCustomStartPin(null)
+              } else {
+                setInternalCustomStartPin(null)
+              }
               customStartPinRef.current = null
             }
           }
@@ -433,89 +433,11 @@ export function MapPlaceholder({
     })
   }, [places, activeId, onHover, placesKey, routeMode, selectedSegment, customPinPair, customStartPin, osrmRoutes])
 
-  // 선택 상태 표시 텍스트
-  const currentSegmentText = customPinPair
-    ? `🎯 ${customPinPair[0]}번 ➔ ${customPinPair[1]}번 (${places[customPinPair[0] - 1]?.name} ➔ ${places[customPinPair[1] - 1]?.name})`
-    : selectedSegment !== null
-    ? `📍 ${selectedSegment}번 ➔ ${selectedSegment + 1}번 (${places[selectedSegment - 1]?.name} ➔ ${places[selectedSegment]?.name})`
-    : customStartPin !== null
-    ? `📍 ${customStartPin}번 출발 선택됨! (도착할 핀 클릭)`
-    : `🌐 전체 ${places.length}개 코스`
-
   return (
-    <div className="relative flex flex-col gap-3 w-full">
-      {/* ─── 스크롤을 내려도 탭 헤더 바로 아래 착 달라붙어 절대 가려지지 않는 고정 컨트롤 바 ─── */}
-      <div className="sticky top-[136px] z-30 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-sky-300 bg-white/95 p-2.5 shadow-xl backdrop-blur-xl">
-        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/80">
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => setRouteMode('straight')}
-            className={cn(
-              'h-8 px-2.5 text-xs font-bold rounded-lg transition-all gap-1 cursor-pointer',
-              routeMode === 'straight'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'bg-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-200/60',
-            )}
-          >
-            <Route className="size-3.5 text-amber-400" />
-            <span>📏 직선</span>
-          </Button>
-
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => setRouteMode('navigation')}
-            className={cn(
-              'h-8 px-2.5 text-xs font-bold rounded-lg transition-all gap-1 cursor-pointer',
-              routeMode === 'navigation'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-                : 'bg-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-200/60',
-            )}
-          >
-            <Navigation className="size-3.5 text-sky-200" />
-            <span>🚗 🗺️ 도로 길찾기</span>
-          </Button>
-        </div>
-
-        {/* 🧭 구간 선택 드롭다운 트리거 버튼 */}
-        <div className="flex items-center gap-1.5">
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => setIsSegmentOpen((prev) => !prev)}
-            className={cn(
-              'h-8 px-3 text-xs font-bold rounded-xl gap-1.5 transition-all shadow-xs cursor-pointer border',
-              customPinPair || selectedSegment !== null
-                ? 'bg-blue-600 text-white border-blue-500 hover:bg-blue-700 shadow-blue-500/20'
-                : customStartPin !== null
-                ? 'bg-amber-400 text-slate-950 border-amber-300 animate-pulse'
-                : 'bg-amber-500 text-slate-950 border-amber-400 hover:bg-amber-600',
-            )}
-          >
-            <Compass className="size-3.5" />
-            <span className="truncate max-w-[140px] sm:max-w-[210px]">{currentSegmentText}</span>
-            {isSegmentOpen ? <ChevronUp className="size-3.5 ml-0.5" /> : <ChevronDown className="size-3.5 ml-0.5" />}
-          </Button>
-
-          {(customPinPair || selectedSegment !== null || customStartPin !== null) && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleResetAll}
-              className="h-8 px-2 text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 border-slate-300 rounded-xl"
-              title="전체 코스 보기로 해제"
-            >
-              <X className="size-3.5" />
-            </Button>
-          )}
-        </div>
-      </div>
-
+    <div className="relative h-full min-h-[460px] w-full flex flex-col gap-2">
       {/* ─── 핀 직접 선택 안내 뱃지 (지도에서 1번 핀 클릭 시 노출) ─── */}
       {customStartPin !== null && (
-        <div className="sticky top-[188px] z-30 flex items-center justify-between rounded-xl bg-amber-400 text-slate-950 border border-amber-300 px-3 py-2 text-xs font-bold shadow-lg animate-in fade-in slide-in-from-top-1">
+        <div className="rounded-xl bg-amber-400 text-slate-950 border border-amber-300 px-3 py-2 text-xs font-bold shadow-md flex items-center justify-between animate-in fade-in">
           <span className="flex items-center gap-1.5">
             <Sparkles className="size-4 text-amber-900" />
             📍 {customStartPin}번 ({places[customStartPin - 1]?.name}) 선택됨! 도착할 핀(예: 5번)을 지도에서 눌러주세요!
@@ -523,7 +445,8 @@ export function MapPlaceholder({
           <button
             type="button"
             onClick={() => {
-              setCustomStartPin(null)
+              if (externalSetCustomStartPin) externalSetCustomStartPin(null)
+              else setInternalCustomStartPin(null)
               customStartPinRef.current = null
             }}
             className="text-amber-950 hover:bg-amber-500/50 px-1.5 py-0.5 rounded-md font-bold"
@@ -533,129 +456,8 @@ export function MapPlaceholder({
         </div>
       )}
 
-      {/* ─── 펼쳐지는 드롭다운 메뉴 (지도 바로 위에 고정) ─── */}
-      {isSegmentOpen && (
-        <div className="sticky top-[188px] z-30 max-h-[360px] overflow-y-auto rounded-2xl border border-sky-300 bg-white p-3.5 shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-top-3 duration-200">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-2.5">
-            <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-              <Sparkles className="size-4 text-amber-500" />
-              구간선택 (지도 핀 2개 직접 클릭 OR 아래 목록 선택)
-            </span>
-            <button
-              type="button"
-              onClick={() => setIsSegmentOpen(false)}
-              className="text-xs text-slate-400 hover:text-slate-700 font-bold px-2 py-0.5"
-            >
-              닫기 ✕
-            </button>
-          </div>
-
-          <div className="grid gap-2">
-            {/* 전체 코스 보기 옵션 */}
-            <button
-              type="button"
-              onClick={handleResetAll}
-              className={cn(
-                'flex items-center justify-between p-2.5 rounded-xl text-xs font-bold transition-all border text-left cursor-pointer',
-                selectedSegment === null && customPinPair === null
-                  ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-xs'
-                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100',
-              )}
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-sm">🌐</span>
-                <span>전체 {places.length}개 코스 한눈에 보기</span>
-              </div>
-              {selectedSegment === null && customPinPair === null && <CheckCircle2 className="size-4 text-slate-950" />}
-            </button>
-
-            {/* 인기 추천 임의 핀 쌍 프리셋 (예: 1번➔5번 직통) */}
-            {places.length >= 5 && (
-              <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-2 space-y-1.5">
-                <p className="text-[11px] font-bold text-blue-900 flex items-center gap-1">
-                  <Navigation className="size-3.5 text-blue-600" /> 🎯 주요 임의 직통 경로 (1번➔5번 등) 바로보기:
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => handleSelectCustomPair([1, 5])}
-                    className={cn(
-                      'px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center gap-1',
-                      customPinPair?.[0] === 1 && customPinPair?.[1] === 5
-                        ? 'bg-blue-600 text-white border-blue-500 shadow-xs'
-                        : 'bg-white text-blue-900 border-blue-200 hover:bg-blue-100',
-                    )}
-                  >
-                    <span>1번 ➔ 5번 ({places[0]?.name} ➔ {places[4]?.name})</span>
-                  </button>
-
-                  {places.length >= 8 && (
-                    <button
-                      type="button"
-                      onClick={() => handleSelectCustomPair([2, 8])}
-                      className={cn(
-                        'px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center gap-1',
-                        customPinPair?.[0] === 2 && customPinPair?.[1] === 8
-                          ? 'bg-blue-600 text-white border-blue-500 shadow-xs'
-                          : 'bg-white text-blue-900 border-blue-200 hover:bg-blue-100',
-                      )}
-                    >
-                      <span>2번 ➔ 8번</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* 순차 구간 목록 (1번➔2번, 2번➔3번...) */}
-            <div className="space-y-1 pt-1">
-              <p className="text-[11px] font-bold text-slate-500">📍 순차 구간별 보기:</p>
-              {places.slice(0, -1).map((fromP, idx) => {
-                const segNum = idx + 1
-                const toP = places[idx + 1]
-                const isSelected = selectedSegment === segNum && customPinPair === null
-
-                return (
-                  <button
-                    key={`dropdown-seg-${segNum}`}
-                    type="button"
-                    onClick={() => handleSelectSegment(segNum)}
-                    className={cn(
-                      'w-full flex items-center justify-between p-2 rounded-xl text-xs font-bold transition-all border text-left cursor-pointer',
-                      isSelected
-                        ? 'bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-500/20'
-                        : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50 hover:border-slate-300',
-                    )}
-                  >
-                    <div className="flex items-center gap-2 overflow-hidden">
-                      <span className={cn(
-                        'flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-black',
-                        isSelected ? 'bg-white text-blue-700' : 'bg-slate-900 text-white'
-                      )}>
-                        {segNum}
-                      </span>
-                      <span className="truncate">{fromP.name}</span>
-                      <ArrowRight className={cn('size-3.5 shrink-0', isSelected ? 'text-blue-200' : 'text-slate-400')} />
-                      <span className={cn(
-                        'flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-black',
-                        isSelected ? 'bg-white text-blue-700' : 'bg-slate-900 text-white'
-                      )}>
-                        {segNum + 1}
-                      </span>
-                      <span className="truncate">{toP.name}</span>
-                    </div>
-
-                    {isSelected && <CheckCircle2 className="size-4 text-white shrink-0 ml-2" />}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ─── Leaflet 지도 캔버스 ─── */}
-      <div className="relative h-full min-h-[460px] w-full overflow-hidden rounded-2xl border border-sky-200/80 bg-white shadow-xl">
+      <div className="relative h-full min-h-[460px] w-full overflow-hidden rounded-2xl border border-sky-200/80 bg-white shadow-xl flex-1">
         <div ref={containerRef} className="h-full w-full min-h-[460px] z-0" />
 
         {/* 하단 전체 코스 보기 리셋 버튼 */}
