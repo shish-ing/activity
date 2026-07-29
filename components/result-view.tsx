@@ -64,15 +64,15 @@ export function ResultView() {
     }
   }, [companionParam])
 
-  // 이동수단 라벨 & 아이콘
+  // 이동수단 라벨 & 아이콘 (도보 / 대중교통 / 자차 이동반경 명확 구별)
   const transportLabel = useMemo(() => {
     switch (transport) {
       case 'car':
-        return { text: '자차 이동 (목적지별 추천 주차장 안내)', icon: Car }
+        return { text: '🚗 자차 이동 전용 (팔복예술공장·수목원 등 전주 전역 드라이브 & 추천 주차장)', icon: Car }
       case 'transit':
-        return { text: '대중교통 이동 (시내버스 번호 & 승하차 정류장)', icon: Bus }
+        return { text: '🚌 대중교통 이동 전용 (시내버스 15분 내 중거리 스팟 & 정류장 안내)', icon: Bus }
       default:
-        return { text: '도보 이동 (산책로 중심 동선)', icon: Footprints }
+        return { text: '🚶 도보 이동 전용 (걸어서 부담 없는 300m~800m 인접 산책로 코스)', icon: Footprints }
     }
   }, [transport])
 
@@ -88,7 +88,7 @@ export function ResultView() {
       case 'half':
         return '반나절 (4~5시간 코스 · 5곳 스팟)'
       case 'full':
-        return '하루 (전주 전역 최단 순선 풀 코스 · 7곳)'
+        return '하루 (전주 최단 순선 풀 코스 · 7곳)'
       case '2days':
         return '이틀 (1박 2일 일정 · 10곳 전주 최단 순선 코스)'
       case '3days':
@@ -141,7 +141,7 @@ export function ResultView() {
         return {
           icon: weather.emoji,
           title: `🛰️ 실시간 날씨(${weather.summary}) 큐레이션:`,
-          text: '지리적 최단 거리를 기반으로 왔다갔다 교차하지 않는 유려한 순선 경로가 연결됩니다.',
+          text: '이동수단(도보/대중교통/자차) 이동 반경에 맞춰 무리 없는 최적의 거리가 배치됩니다.',
           bannerColor: 'border-accent/40 bg-accent/10 text-accent',
         }
     }
@@ -159,7 +159,7 @@ export function ResultView() {
     )
   }, [weather, weatherParam])
 
-  // 선택한 남은 시간, 동행 유형, 날씨 및 전주 전역 다채로운 장소 자동 생성 + 최단 경로 정렬
+  // 선택한 남은 시간, 이동수단, 동행 유형, 날씨 및 최단 경로 정렬
   useEffect(() => {
     const mustVisitNames = rawMustVisit
       ? rawMustVisit
@@ -235,10 +235,30 @@ export function ResultView() {
     else if (time === '2days') targetCount = 10
     else if (time === '3days') targetCount = 14
 
-    // 3. 전주 전역 다채로운 샘플링
-    const pureSpotsDatabase = JEONJU_PLACES_DATABASE.filter(
-      (p) => !p.isMeal && !p.isDessert,
-    ).sort((a, b) => {
+    // 3. 이동수단(도보, 대중교통, 자차)별 이동 반경(Radius) 지리적 필터링
+    // - 도보(walk): 걸어서 10분 내외(반경 ~1.3km 이내) 산책 스팟만 큐레이션! (3.6km 도보 노가다 100% 차단)
+    // - 대중교통(transit): 시내버스로 이동 가능한 중거리 스팟(반경 ~4.5km 이내)까지 포함!
+    // - 자차(car): 팔복예술공장, 전주 수목원, 아중호수 등 전주 전역 드라이브 명소 수용!
+    const pureSpotsDatabase = JEONJU_PLACES_DATABASE.filter((p) => {
+      if (p.isMeal || p.isDessert) return false
+
+      if (transport === 'walk') {
+        if (p.lat && p.lng) {
+          const distKm = Math.sqrt(
+            Math.pow((p.lat - 35.814) * 111, 2) + Math.pow((p.lng - 127.151) * 88, 2)
+          )
+          if (distKm > 1.3 && !p.isMustVisit) return false
+        }
+      } else if (transport === 'transit') {
+        if (p.lat && p.lng) {
+          const distKm = Math.sqrt(
+            Math.pow((p.lat - 35.814) * 111, 2) + Math.pow((p.lng - 127.151) * 88, 2)
+          )
+          if (distKm > 4.5 && !p.isMustVisit) return false
+        }
+      }
+      return true
+    }).sort((a, b) => {
       // 1순위: 선택한 동행 유형 맞춤
       const aCompMatch = a.suitableCompanions?.includes(companionParam) ? 1 : 0
       const bCompMatch = b.suitableCompanions?.includes(companionParam) ? 1 : 0
@@ -272,7 +292,8 @@ export function ResultView() {
 
     // 목표 장소 수 미달 시 남은 스팟으로 보충
     if (generated.length < targetCount) {
-      pureSpotsDatabase.forEach((placeItem) => {
+      const fallbackPool = JEONJU_PLACES_DATABASE.filter((p) => !p.isMeal && !p.isDessert)
+      fallbackPool.forEach((placeItem) => {
         if (generated.length >= targetCount) return
         if (addedNames.has(placeItem.name.toLowerCase())) return
         addedNames.add(placeItem.name.toLowerCase())
@@ -326,7 +347,12 @@ export function ResultView() {
         const prev = optimizedPlaces[idx - 1]
         const distSq = getPlaceDistance(prev, place)
         const approxKm = Math.sqrt(distSq)
-        travelMins = Math.max(3, Math.round(approxKm * 10 + 2))
+        // 도보일 경우 짧은 도보 시간 계산
+        if (transport === 'walk') {
+          travelMins = Math.max(3, Math.round(approxKm * 8 + 2))
+        } else {
+          travelMins = Math.max(4, Math.round(approxKm * 10 + 2))
+        }
       }
 
       return {
@@ -338,7 +364,7 @@ export function ResultView() {
     })
 
     setPlaces(finalPlaces)
-  }, [rawMustVisit, time, isIndoorPriority, weatherParam, companionParam])
+  }, [rawMustVisit, time, isIndoorPriority, weatherParam, companionParam, transport])
 
   async function loadRealtimeWeather() {
     setWeatherLoading(true)
@@ -412,7 +438,7 @@ export function ResultView() {
     return () => clearInterval(timer)
   }, [weatherParam])
 
-  // 클릭 시 장소 교체 처리 함수 + 교체 후에도 지리적 최단 순선 재정렬!
+  // 클릭 시 장소 교체 처리 함수 (이동수단 반경 고려 교체)
   function handleReplace(id: string) {
     setPlaces((prev) => {
       const targetPlace = prev.find((p) => p.id === id)
@@ -420,9 +446,18 @@ export function ResultView() {
 
       const currentNames = new Set(prev.map((p) => p.name.toLowerCase()))
 
-      const pureSpotCandidates = JEONJU_PLACES_DATABASE.filter(
-        (p) => !p.isMeal && !p.isDessert && !currentNames.has(p.name.toLowerCase()),
-      )
+      const pureSpotCandidates = JEONJU_PLACES_DATABASE.filter((p) => {
+        if (p.isMeal || p.isDessert || currentNames.has(p.name.toLowerCase())) return false
+        if (transport === 'walk') {
+          if (p.lat && p.lng) {
+            const distKm = Math.sqrt(
+              Math.pow((p.lat - 35.814) * 111, 2) + Math.pow((p.lng - 127.151) * 88, 2)
+            )
+            if (distKm > 1.3) return false
+          }
+        }
+        return true
+      })
 
       if (pureSpotCandidates.length === 0) return prev
 
@@ -434,7 +469,7 @@ export function ResultView() {
               id: `${p.id}-replaced-${Date.now()}`,
               order: p.order,
               day: p.day,
-              reason: `전주 전역의 새로운 이색 장소로 교체 추천되었습니다.`,
+              reason: `선택하신 이동수단(${transport === 'walk' ? '도보' : transport === 'transit' ? '대중교통' : '자차'}) 반경 내 새로운 장소로 교체되었습니다.`,
             }
           : p,
       )
@@ -467,7 +502,7 @@ export function ResultView() {
           const prev = reOptimized[idx - 1]
           const distSq = getPlaceDistance(prev, place)
           const approxKm = Math.sqrt(distSq)
-          travelMins = Math.max(3, Math.round(approxKm * 10 + 2))
+          travelMins = Math.max(3, Math.round(approxKm * 8 + 2))
         }
         return {
           ...place,
@@ -572,7 +607,7 @@ export function ResultView() {
           <div className="flex items-center gap-3 text-muted-foreground">
             <span className="flex items-center gap-1 text-emerald-400 font-medium">
               <Utensils className="size-3" />
-              지리적 최단 순선 정렬 (왔다갔다 낭비 없음)
+              이동수단 맞춤 이동반경 (무리 없는 소요시간)
             </span>
             <span>총 {places.length}개 스팟</span>
           </div>
@@ -589,7 +624,11 @@ export function ResultView() {
         <section aria-label="추천 장소 목록" className="flex flex-col gap-4">
           <div className="flex items-baseline justify-between">
             <h2 className="font-serif text-lg font-bold text-foreground">
-              최단 거리 기반 순선 추천 코스
+              {transport === 'walk'
+                ? '🚶 도보 10분 이내 인접 추천 코스'
+                : transport === 'transit'
+                  ? '🚌 대중교통 15분 내 추천 코스'
+                  : '🚗 자차 드라이브 전주 전역 추천 코스'}
             </h2>
             <span className="text-xs text-muted-foreground">
               카드를 누르거나 '다른 장소 변경' 클릭 시 교체돼요
