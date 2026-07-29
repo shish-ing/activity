@@ -443,9 +443,9 @@ export function MapPlaceholder({
     : `🌐 전체 ${places.length}개 코스`
 
   return (
-    <div className="relative h-full min-h-[460px] w-full overflow-hidden rounded-2xl border border-sky-200/80 bg-white shadow-xl">
-      {/* ─── 지도 위 100% 안쪽에 상단 컨트롤 오버레이 배치 (스크롤 시 절대 가려지지 않음!) ─── */}
-      <div className="absolute top-3 left-3 right-3 z-20 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-sky-200/90 bg-white/95 p-2 shadow-lg backdrop-blur-md">
+    <div className="relative flex flex-col gap-3 w-full">
+      {/* ─── 스크롤을 내려도 탭 헤더 바로 아래 착 달라붙어 절대 가려지지 않는 고정 컨트롤 바 ─── */}
+      <div className="sticky top-[136px] z-30 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-sky-300 bg-white/95 p-2.5 shadow-xl backdrop-blur-xl">
         <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/80">
           <Button
             type="button"
@@ -478,7 +478,7 @@ export function MapPlaceholder({
           </Button>
         </div>
 
-        {/* 🧭 구간 선택 드롭다운 트리거 버튼 (지도 내 상단 배치) */}
+        {/* 🧭 구간 선택 드롭다운 트리거 버튼 */}
         <div className="flex items-center gap-1.5">
           <Button
             type="button"
@@ -515,7 +515,7 @@ export function MapPlaceholder({
 
       {/* ─── 핀 직접 선택 안내 뱃지 (지도에서 1번 핀 클릭 시 노출) ─── */}
       {customStartPin !== null && (
-        <div className="absolute top-16 left-3 right-3 z-20 flex items-center justify-between rounded-xl bg-amber-400 text-slate-950 border border-amber-300 px-3 py-1.5 text-xs font-bold shadow-lg animate-in fade-in slide-in-from-top-1">
+        <div className="sticky top-[188px] z-30 flex items-center justify-between rounded-xl bg-amber-400 text-slate-950 border border-amber-300 px-3 py-2 text-xs font-bold shadow-lg animate-in fade-in slide-in-from-top-1">
           <span className="flex items-center gap-1.5">
             <Sparkles className="size-4 text-amber-900" />
             📍 {customStartPin}번 ({places[customStartPin - 1]?.name}) 선택됨! 도착할 핀(예: 5번)을 지도에서 눌러주세요!
@@ -533,9 +533,9 @@ export function MapPlaceholder({
         </div>
       )}
 
-      {/* ─── 펼쳐지는 드롭다운 메뉴 (지도 위로 오버레이) ─── */}
+      {/* ─── 펼쳐지는 드롭다운 메뉴 (지도 바로 위에 고정) ─── */}
       {isSegmentOpen && (
-        <div className="absolute top-15 left-3 right-3 z-30 max-h-[360px] overflow-y-auto rounded-2xl border border-sky-300 bg-white/98 p-3.5 shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-top-3 duration-200">
+        <div className="sticky top-[188px] z-30 max-h-[360px] overflow-y-auto rounded-2xl border border-sky-300 bg-white p-3.5 shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-top-3 duration-200">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-2.5">
             <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
               <Sparkles className="size-4 text-amber-500" />
@@ -655,19 +655,21 @@ export function MapPlaceholder({
       )}
 
       {/* ─── Leaflet 지도 캔버스 ─── */}
-      <div ref={containerRef} className="h-full w-full min-h-[460px] z-0" />
+      <div className="relative h-full min-h-[460px] w-full overflow-hidden rounded-2xl border border-sky-200/80 bg-white shadow-xl">
+        <div ref={containerRef} className="h-full w-full min-h-[460px] z-0" />
 
-      {/* 하단 전체 코스 보기 리셋 버튼 */}
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={handleResetAll}
-        className="absolute bottom-3 right-3 z-10 h-8 gap-1.5 text-xs font-bold text-slate-800 bg-white/95 border-slate-300 hover:bg-slate-100 shadow-md backdrop-blur-md rounded-xl cursor-pointer"
-      >
-        <Maximize2 className="size-3.5 text-amber-600" />
-        <span>🎯 전체 코스 보기</span>
-      </Button>
+        {/* 하단 전체 코스 보기 리셋 버튼 */}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleResetAll}
+          className="absolute bottom-3 right-3 z-10 h-8 gap-1.5 text-xs font-bold text-slate-800 bg-white/95 border-slate-300 hover:bg-slate-100 shadow-md backdrop-blur-md rounded-xl cursor-pointer"
+        >
+          <Maximize2 className="size-3.5 text-amber-600" />
+          <span>🎯 전체 코스 보기</span>
+        </Button>
+      </div>
     </div>
   )
 }
