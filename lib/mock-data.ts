@@ -106,6 +106,7 @@ export type Place = {
   tips?: string
   naverMapUrl?: string
   isMeal?: boolean
+  isDessert?: boolean
   day?: number
   isIndoor?: boolean
   lat?: number

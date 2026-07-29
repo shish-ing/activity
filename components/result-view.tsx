@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Bus, Calendar, Car, Clock, Footprints, RefreshCw, Share2, Utensils, Wallet } from 'lucide-react'
+import { Bus, Calendar, Car, Clock, Footprints, RefreshCw, Share2, SunMedium, Utensils, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PlaceCard } from '@/components/place-card'
 import { MapPlaceholder } from '@/components/map-placeholder'
@@ -74,35 +74,35 @@ export function ResultView() {
         return {
           icon: '🥶',
           title: '🥶 한파·찬 바람 맞춤 큐레이션:',
-          text: '매서운 찬 바람과 추위를 피할 수 있도록 뜨끈한 한옥 전통 찻집(쌍화차·한방차), 몸을 녹여주는 전주 콩나물국밥/순대국밥, 따뜻한 실내 공방(한지/부채/도자기) 위주로 코스를 큐레이션했습니다.',
+          text: '매서운 찬 바람과 추위를 피할 수 있도록 뜨끈한 국밥(콩나물국밥/순대국밥) 식사 후, 온돌 툇마루에서 깊은 쌍화차·한방차를 마시는 자연스러운 힐링 순서로 코스를 정렬했습니다.',
           bannerColor: 'border-blue-500/40 bg-blue-500/10 text-blue-300',
         }
       case 'snow':
         return {
           icon: '❄️',
           title: '❄️ 한옥 설경·눈 오는 날 큐레이션:',
-          text: '하얀 눈이 내려앉은 고즈넉한 한옥 풍경을 온돌 툇마루에서 감상할 수 있는 전통 찻집, 뜨끈한 전주 콩나물국밥, 쾌적한 실내 공방 위주로 코스를 구성했습니다.',
+          text: '하얀 눈이 내려앉은 고즈넉한 한옥 풍경을 감상하고, 뜨끈한 국밥 식사 후 따뜻한 전통 찻집에서 후식을 즐기는 순서로 코스를 구상했습니다.',
           bannerColor: 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300',
         }
       case 'rain':
         return {
           icon: '☔',
           title: '☔ 비 오는 날 낭만 큐레이션:',
-          text: '빗소리를 들으며 즐길 수 있는 고즈넉한 전통 찻집, 수제 한지/도자기 실내 공방, 지하 어진박물관 위주로 우천 맞춤 동선을 구성했습니다.',
+          text: '빗소리를 들으며 즐기는 맛있는 식사 후 운치 있는 실내 전통 찻집/디저트 카페로 이동하는 맞춤 순서로 코스를 조율했습니다.',
           bannerColor: 'border-teal-500/40 bg-teal-500/10 text-teal-300',
         }
       case 'clear':
         return {
           icon: '☀️',
           title: '☀️ 폭염·더위 맞춤 큐레이션:',
-          text: '무더위 땡볕 야외 언덕(오목대 등)을 피하고, 에어컨이 완비된 시원한 수제 공방(한지·부채·도자기), 지하 어진박물관, 흑임자 팥빙수 카페 위주로 코스를 자동 배치했습니다.',
+          text: '무더위 땡볕 야외 언덕(오목대 등)을 피하고, 든든한 식사 후 에어컨이 시원한 흑임자 팥빙수 디저트 카페와 실내 공방(한지·도자기)으로 이어지는 코스입니다.',
           bannerColor: 'border-amber-500/40 bg-amber-500/10 text-amber-300',
         }
       case 'cloudy':
         return {
           icon: '☁️',
           title: '☁️ 선선한 날씨 맞춤 큐레이션:',
-          text: '햇살이 적당하고 선선해 한옥마을 돌담길과 경기전 대나무 숲, 골목 공방 산책을 즐기기 딱 좋은 밸런스 코스입니다.',
+          text: '햇살이 적당하고 선선해 한옥마을 산책 ➔ 맛있는 식사 ➔ 후식 차 ➔ 실내 공방으로 자연스럽게 연결되는 코스입니다.',
           bannerColor: 'border-sky-500/40 bg-sky-500/10 text-sky-300',
         }
       default:
@@ -110,9 +110,7 @@ export function ResultView() {
         return {
           icon: weather.emoji,
           title: `🛰️ 실시간 날씨(${weather.summary}) 큐레이션:`,
-          text: weather.detail.includes('30°C')
-            ? '실시간 무더위를 피할 시원한 수제 공방, 지하 어진박물관, 팥빙수 카페 위주로 큐레이션되었습니다.'
-            : '실시간 전주 기상 조건에 맞춘 최적 동선입니다.',
+          text: '식사 ➔ 후식 디저트/차 ➔ 실내 문화 체험의 자연스러운 동선 순서로 코스가 제공됩니다.',
           bannerColor: 'border-accent/40 bg-accent/10 text-accent',
         }
     }
@@ -130,7 +128,7 @@ export function ResultView() {
     )
   }, [weather, weatherParam])
 
-  // 선택한 남은 시간, 날씨 및 필수 방문지 기반 동적 코스 자동 생성
+  // 선택한 남은 시간, 날씨 및 필수 방문지 기반 동적 코스 자동 생성 및 시퀀싱 정렬
   useEffect(() => {
     const mustVisitNames = rawMustVisit
       ? rawMustVisit
@@ -190,7 +188,7 @@ export function ResultView() {
       }
     })
 
-    // 2. 남은 시간별 목표 장소 수 정의
+    // 2. 남은 시간별 목표 장소 수 및 최대 허용 식사 수 정의
     let targetCount = 3
     if (time === '1h') targetCount = 1
     else if (time === '3h') targetCount = 3
@@ -199,12 +197,14 @@ export function ResultView() {
     else if (time === '2days') targetCount = 10
     else if (time === '3days') targetCount = 14
 
-    // 3. 점심 식사/맛집 포함 여부
-    const needsMeal = time !== '1h'
+    // 3. 식사 수 엄격 제한 규칙 (연속 식사 절대 금지!)
+    // 1시간: 식사 0곳 / 3시간, 반나절, 하루: 식사 단 1곳만 허용!
+    // 이틀(2days): 총 2곳 (하루 1곳씩) / 사흘(3days): 총 3곳 (하루 1곳씩)
+    const maxMealsAllowed = time === '2days' ? 2 : time === '3days' ? 3 : (time === '1h' ? 0 : 1)
+    let currentMealCount = generated.filter((p) => p.isMeal).length
 
     // 날씨(한파/폭염/우천)에 맞춰 따뜻한 찻집, 뜨끈한 국밥, 실내 공방 우선순위 정렬
     const candidateDatabase = [...JEONJU_PLACES_DATABASE].sort((a, b) => {
-      // 한파 / 찬 바람 선택 시: 따뜻한 찻집, 뜨끈한 국밥 우선
       if (weatherParam === 'wind' || weatherParam === 'snow') {
         const aColdMatch = a.name.includes('찻집') || a.name.includes('국밥') || a.name.includes('피순대')
         const bColdMatch = b.name.includes('찻집') || b.name.includes('국밥') || b.name.includes('피순대')
@@ -223,27 +223,18 @@ export function ResultView() {
       if (generated.length >= targetCount) return
       if (addedNames.has(placeItem.name.toLowerCase())) return
 
-      // 한파/폭염/우천 시 야외 전용 장소(오목대, 자만벽화마을 등)는 비필수일 때 자동 제외/대체
+      // 폭염/한파/우천 시 야외 전용 장소(오목대, 자만벽화마을 등)는 비필수일 때 자동 제외/대체
       if (isIndoorPriority && placeItem.isIndoor === false && !placeItem.isMustVisit) {
         return
       }
 
-      // 반나절 이상 코스일 때 점심 맛집이 아직 없으면 맛집 우선 추가
-      if (
-        needsMeal &&
-        !generated.some((g) => g.isMeal) &&
-        placeItem.isMeal
-      ) {
-        addedNames.add(placeItem.name.toLowerCase())
-        generated.push({
-          ...placeItem,
-          id: `db-${orderCounter}`,
-          order: orderCounter++,
-          reason: weatherParam === 'wind' || weatherParam === 'snow'
-            ? `몸을 따뜻하게 녹여주는 네이버 지도 추천 뜨끈한 국밥/미식 맛집입니다.`
-            : `네이버 지도 추천 전주 3대 점심/미식 맛집입니다.`,
-        })
+      // 식당 수 제한 초과 시 추가 식당은 스킵 (연속 식사 절대 방지)
+      if (placeItem.isMeal && currentMealCount >= maxMealsAllowed) {
         return
+      }
+
+      if (placeItem.isMeal) {
+        currentMealCount++
       }
 
       addedNames.add(placeItem.name.toLowerCase())
@@ -254,11 +245,14 @@ export function ResultView() {
       })
     })
 
-    // 목표 장소 수에 미달하면 남은 장소들로 보충
+    // 목표 장소 수에 미달하면 남아있는 non-meal 장소들로 보충
     if (generated.length < targetCount) {
-      JEONJU_PLACES_DATABASE.forEach((placeItem) => {
+      candidateDatabase.forEach((placeItem) => {
         if (generated.length >= targetCount) return
         if (addedNames.has(placeItem.name.toLowerCase())) return
+        if (placeItem.isMeal && currentMealCount >= maxMealsAllowed) return
+
+        if (placeItem.isMeal) currentMealCount++
         addedNames.add(placeItem.name.toLowerCase())
         generated.push({
           ...placeItem,
@@ -268,8 +262,36 @@ export function ResultView() {
       })
     }
 
-    // 4. 이틀(1박2일), 사흘(2박3일) 일차(day: 1, 2, 3) 부여 및 보정
-    const finalPlaces = generated.map((place, idx) => {
+    // 4. 동선 순서 재정렬 (Sequencing Algorithm)
+    // 사용자 요구사항: [명소/체험/공방] ➔ [점심 식사(isMeal)] ➔ [후식 차/디저트(isDessert)] ➔ [문화/전시/공방]
+    // 차를 먼저 마시고 밥을 먹는 부자연스러운 순서나 연속 식사 동선을 완벽히 교정!
+    let sequencedPlaces: Place[] = []
+
+    if (time === '2days' || time === '3days') {
+      sequencedPlaces = generated
+    } else {
+      const meals = generated.filter((p) => p.isMeal)
+      const desserts = generated.filter((p) => p.isDessert)
+      const others = generated.filter((p) => !p.isMeal && !p.isDessert)
+
+      if (meals.length > 0) {
+        const firstOthers = others.slice(0, 1) // 첫 명소 (예: 전동성당)
+        const restOthers = others.slice(1)
+
+        // [명소] ➔ [점심 식사] ➔ [후식 차/디저트] ➔ [실내 공방/박물관]
+        sequencedPlaces = [
+          ...firstOthers,
+          ...meals,
+          ...desserts,
+          ...restOthers,
+        ]
+      } else {
+        sequencedPlaces = generated
+      }
+    }
+
+    // 5. 이틀(1박2일), 사흘(2박3일) 일차(day: 1, 2, 3) 및 Order 보정
+    const finalPlaces = sequencedPlaces.map((place, idx) => {
       let day = 1
       if (time === '2days') {
         day = idx < 5 ? 1 : 2
@@ -321,7 +343,7 @@ export function ResultView() {
           condition: 'snow',
           emoji: '❄️',
           summary: '❄️ 눈 옴 (선택한 예보 날씨)',
-          detail: '하얀 한옥 설경과 따뜻한 실내 찻집/전주 콩나물국밥 위주로 추천해 드려요 · 기온 -2°C · 강수확률 80%',
+          detail: '하얀 한옥 설경과 뜨끈한 국밥 식사 ➔ 후식 전통 찻집 위주로 추천해 드려요 · 기온 -2°C · 강수확률 80%',
         })
         setLastFetchTime('예보 선택')
       } else if (weatherParam === 'wind') {
@@ -329,7 +351,7 @@ export function ResultView() {
           condition: 'wind',
           emoji: '🥶',
           summary: '🥶 한파 · 찬 바람 (선택한 예보 날씨)',
-          detail: '매서운 바람을 피할 따뜻한 한방 쌍화차 찻집과 뜨끈한 남부시장 순대국밥/콩나물국밥 코스를 추천해 드려요 · 기온 -5°C · 강수확률 10%',
+          detail: '매서운 바람을 피할 뜨끈한 콩나물국밥 식사 ➔ 후식 한방 쌍화차 찻집 코스를 추천해 드려요 · 기온 -5°C · 강수확률 10%',
         })
         setLastFetchTime('예보 선택')
       } else {
