@@ -14,6 +14,7 @@ import {
   WEATHER_OPTIONS,
 } from '@/lib/mock-data'
 import { cn } from '@/lib/utils'
+import { FormWeatherCardBg } from '@/components/form-weather-card-bg'
 
 // 네이버 지도 연동 전주 대표 주요 출발지 & 상세 주소 데이터베이스
 const NAVER_MAP_START_ADDRESSES = [
@@ -133,13 +134,15 @@ export function ConditionForm() {
   return (
     <div className="flex flex-col gap-4">
       {/* 네이버 지도 연동 출발지 주소 검색 & 실시간 GPS 카드 */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-primary/40 bg-card p-4 sm:p-5 shadow-xs relative">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 font-semibold text-sm text-foreground">
-            <MapPin className="size-4.5 text-primary" />
-            <span>🗺️ 네이버 지도 연동 출발지 / 주소 검색</span>
-          </div>
-          <Button
+      <div className="flex flex-col gap-3 rounded-2xl border border-primary/40 bg-card/85 p-4 sm:p-5 shadow-xs relative overflow-hidden backdrop-blur-xs">
+        <FormWeatherCardBg weather={weatherOpt || 'auto'} />
+        <div className="relative z-10 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 font-semibold text-sm text-foreground">
+              <MapPin className="size-4.5 text-primary" />
+              <span>🗺️ 네이버 지도 연동 출발지 / 주소 검색</span>
+            </div>
+            <Button
             type="button"
             variant="outline"
             size="sm"
@@ -194,20 +197,19 @@ export function ConditionForm() {
             </div>
           ) : null}
         </div>
-
-
-
-
       </div>
+    </div>
 
-      {/* 조건 입력 카드 */}
-      <div className="flex flex-col gap-5 rounded-2xl border border-border bg-card p-4 sm:p-5">
-        <ChipSelect
-          label="남은 시간"
-          options={TIME_OPTIONS}
-          value={time}
-          onChange={setTime}
-        />
+      {/* 조건 입력 카드 (선택한 날씨에 따라 해 뜨는 배경, 눈 내리는 배경, 비 내리는 배경으로 즉시 변환) */}
+      <div className="flex flex-col gap-5 rounded-2xl border border-border bg-card/85 p-4 sm:p-5 relative overflow-hidden shadow-lg backdrop-blur-xs">
+        <FormWeatherCardBg weather={weatherOpt || 'auto'} />
+        <div className="relative z-10 flex flex-col gap-5">
+          <ChipSelect
+            label="남은 시간"
+            options={TIME_OPTIONS}
+            value={time}
+            onChange={setTime}
+          />
 
         {/* 예산 슬라이더 (막대바) 카드 UI */}
         <div className="flex flex-col gap-2.5 rounded-xl border border-accent/30 bg-accent/5 p-3.5">
@@ -323,6 +325,7 @@ export function ConditionForm() {
           onAdd={addMustVisit}
           onRemove={removeMustVisit}
         />
+        </div>
       </div>
 
       {/* 추천받기 버튼 — 크고 돋보이는 골든 앰버 메인 CTA 버튼 */}
