@@ -79,6 +79,7 @@ export type Weather = {
   emoji: string
   summary: string
   detail: string
+  temperature?: number
 }
 
 export const CURRENT_WEATHER: Weather = {
@@ -86,6 +87,7 @@ export const CURRENT_WEATHER: Weather = {
   emoji: '☔',
   summary: '비 오는 중',
   detail: '실내 위주로 추천드려요 · 기온 18°C · 강수확률 80%',
+  temperature: 18,
 }
 
 // 추천 장소 카드
@@ -111,6 +113,7 @@ export type Place = {
   suggestedDuration?: string
   tips?: string
   naverMapUrl?: string
+  parkingInfo?: string
   isMeal?: boolean
   isDessert?: boolean
   subCategory?: 'spot' | 'meal' | 'dessert' | 'workshop' | 'activity' | 'museum'

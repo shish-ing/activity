@@ -14,7 +14,13 @@ const DEFAULT_SUPER_ADMIN = {
   createdAt: '2026-07-30 17:00',
 }
 
-let memoryStore = {
+let memoryStore: {
+  users: any[]
+  reviews: any[]
+  placeStatuses: Record<string, { isClosed: boolean; status: 'active' | 'review' | 'inactive' }>
+  reports: any[]
+  adminAccounts: any[]
+} = {
   users: [
     {
       name: '전주여행자',
@@ -25,7 +31,7 @@ let memoryStore = {
     },
   ],
   reviews: [],
-  placeStatuses: {} as Record<string, { isClosed: boolean; status: 'active' | 'review' | 'inactive' }>,
+  placeStatuses: {},
   reports: [],
   adminAccounts: [DEFAULT_SUPER_ADMIN],
 }

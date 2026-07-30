@@ -46,7 +46,7 @@ export function SiteHeader({ showBack = false }: { showBack?: boolean }) {
                 render={<Link href="/" aria-label="뒤로 가기" />}
                 nativeButton={false}
                 variant="ghost"
-                size="icon-md"
+                size="icon"
               >
                 <ArrowLeft className="size-5 text-slate-700" />
               </Button>

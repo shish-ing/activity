@@ -55,10 +55,10 @@ export async function POST(request: Request) {
 
     // 이메일 중복 제거 병합
     const userMap = new Map<string, any>()
-    currentUsers.forEach((u) => {
+    currentUsers.forEach((u: any) => {
       if (u.email) userMap.set(u.email.toLowerCase(), u)
     })
-    usersToSave.forEach((u) => {
+    usersToSave.forEach((u: any) => {
       if (u.email) userMap.set(u.email.toLowerCase(), u)
     })
 
