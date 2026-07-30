@@ -1,5 +1,29 @@
 import { NextResponse } from 'next/server'
 import { getSql, initDatabaseSchema } from '@/lib/db'
+import fs from 'fs'
+import path from 'path'
+
+function getBackupStatusesFile(): Record<string, any> {
+  try {
+    const filePath = path.join(process.cwd(), 'data', 'admin-place-statuses-backup.json')
+    if (fs.existsSync(filePath)) {
+      const content = fs.readFileSync(filePath, 'utf-8')
+      return content ? JSON.parse(content) : {}
+    }
+  } catch (e) {}
+  return {}
+}
+
+function getBackupCustomPlacesFile(): any[] {
+  try {
+    const filePath = path.join(process.cwd(), 'data', 'admin-custom-places-backup.json')
+    if (fs.existsSync(filePath)) {
+      const content = fs.readFileSync(filePath, 'utf-8')
+      return content ? JSON.parse(content) : []
+    }
+  } catch (e) {}
+  return []
+}
 
 // 전 세계 모든 PC / 모바일 기기 간 100% 실시간 연동을 위한 클라우드 영구 DB 버킷
 const CLOUD_DB_URL = 'https://jsonblob.com/api/jsonBlob/019fb22a-6968-781f-ac1b-e6fa90602655'
@@ -53,7 +77,8 @@ const DEFAULT_BANNERS = [
 let memoryStore: {
   users: any[]
   reviews: any[]
-  placeStatuses: Record<string, { isClosed: boolean; status: 'active' | 'review' | 'inactive' }>
+  placeStatuses: Record<string, any>
+  customPlaces: any[]
   reports: any[]
   adminAccounts: any[]
   banners: any[]
@@ -68,7 +93,8 @@ let memoryStore: {
     },
   ],
   reviews: [],
-  placeStatuses: {},
+  placeStatuses: getBackupStatusesFile(),
+  customPlaces: getBackupCustomPlacesFile(),
   reports: [],
   adminAccounts: [DEFAULT_SUPER_ADMIN],
   banners: DEFAULT_BANNERS,
@@ -85,10 +111,13 @@ async function fetchCloudDbData() {
     if (res.ok) {
       const data = await res.json()
       if (data && typeof data === 'object') {
+        const backupStatuses = getBackupStatusesFile()
+        const backupCustom = getBackupCustomPlacesFile()
         memoryStore = {
           users: Array.isArray(data.users) ? data.users : memoryStore.users,
           reviews: Array.isArray(data.reviews) ? data.reviews : memoryStore.reviews,
-          placeStatuses: data.placeStatuses || memoryStore.placeStatuses,
+          placeStatuses: { ...backupStatuses, ...(data.placeStatuses || {}) },
+          customPlaces: Array.isArray(data.customPlaces) && data.customPlaces.length > 0 ? data.customPlaces : backupCustom,
           reports: Array.isArray(data.reports) ? data.reports : memoryStore.reports,
           adminAccounts: Array.isArray(data.adminAccounts) ? data.adminAccounts : memoryStore.adminAccounts,
           banners: Array.isArray(data.banners) && data.banners.length > 0 ? data.banners : DEFAULT_BANNERS,

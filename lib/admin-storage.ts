@@ -46,6 +46,25 @@ export const getAdminPlaceStatuses = (): AdminPlaceStatusMap => {
           }
         }
       })
+    // Git 저장소 파일 영구 백업 동기화
+    fetch('/api/admin/backup-places')
+      .then((res) => res.json())
+      .then((resData) => {
+        if (resData.success && resData.statuses) {
+          const backupStatuses = resData.statuses
+          let updated = false
+          Object.keys(backupStatuses).forEach((key) => {
+            if (!localMap[key] || JSON.stringify(localMap[key]) !== JSON.stringify(backupStatuses[key])) {
+              localMap[key] = backupStatuses[key]
+              updated = true
+            }
+          })
+          if (updated) {
+            localStorage.setItem('jeonju_admin_place_statuses', JSON.stringify(localMap))
+            window.dispatchEvent(new Event('jeonju_admin_status_changed'))
+          }
+        }
+      })
       .catch(() => {})
 
     return localMap
@@ -97,6 +116,15 @@ export const setAdminPlaceStatus = (
       body: JSON.stringify({
         type: 'SET_PLACE_STATUS',
         payload: { placeName, isClosed, status, imageUrl, operatingHours, cost, address, reason },
+      }),
+    }).catch(() => {})
+
+    // Git 저장소 파일 영구 백업 전송 (Git 커밋 푸시 및 Vercel 배포 시 100% 영구 보존)
+    fetch('/api/admin/backup-places', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        statuses: current,
       }),
     }).catch(() => {})
   } catch (e) {}
@@ -277,7 +305,25 @@ export const getAdminCustomPlaces = (): AdminCustomPlace[] => {
   if (typeof window === 'undefined') return []
   try {
     const data = localStorage.getItem('jeonju_admin_custom_places')
-    return data ? JSON.parse(data) : []
+    const current: AdminCustomPlace[] = data ? JSON.parse(data) : []
+
+    fetch('/api/admin/backup-places')
+      .then((res) => res.json())
+      .then((resData) => {
+        if (resData.success && Array.isArray(resData.customPlaces) && resData.customPlaces.length > 0) {
+          const map = new Map<string, AdminCustomPlace>()
+          current.forEach((p) => p.name && map.set(p.name, p))
+          resData.customPlaces.forEach((p: AdminCustomPlace) => p.name && map.set(p.name, p))
+          const merged = Array.from(map.values())
+          if (JSON.stringify(merged) !== JSON.stringify(current)) {
+            localStorage.setItem('jeonju_admin_custom_places', JSON.stringify(merged))
+            window.dispatchEvent(new Event('jeonju_admin_status_changed'))
+          }
+        }
+      })
+      .catch(() => {})
+
+    return current
   } catch (e) {
     return []
   }
@@ -298,6 +344,15 @@ export const saveAdminCustomPlace = (newPlace: AdminCustomPlace) => {
       body: JSON.stringify({
         type: 'SET_CUSTOM_PLACES',
         payload: { customPlaces: updated },
+      }),
+    }).catch(() => {})
+
+    // Git 저장소 파일 영구 백업 전송 (Git 커밋 푸시 및 Vercel 배포 시 100% 영구 보존)
+    fetch('/api/admin/backup-places', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customPlaces: updated,
       }),
     }).catch(() => {})
   } catch (e) {}

@@ -641,6 +641,26 @@ export default function AdminPage() {
     setIsModalOpen(true)
   }
 
+  const handleSaveGitBackup = async () => {
+    try {
+      const statuses = getAdminPlaceStatuses()
+      const customPlaces = getAdminCustomPlaces()
+      const res = await fetch('/api/admin/backup-places', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ statuses, customPlaces }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        alert('💾 장소 대표 사진, 영업시간 및 신규 등록 장소가 프로젝트 Git 저장소 백업 파일(data/admin-place-statuses-backup.json)에 100% 백업되었습니다!\n\n이 상태에서 git commit & push를 실행하시면 Vercel 배포 후에도 사진과 정보가 절대 초기화되지 않고 영구 보존됩니다!')
+      } else {
+        alert(`백업 저장 실패: ${data.message}`)
+      }
+    } catch (e) {
+      alert('백업 동기화 중 오류가 발생했습니다.')
+    }
+  }
+
   // 🔴 [영업중 / 휴업 설정 함수] Admin에서 설정하면 localStorage 및 실시간 추천 알고리즘에 즉각 연동!
   const handleToggleTempClosed = (p: AdminPlaceItem) => {
     const nextClosedState = !p.isTempClosed
@@ -1259,14 +1279,26 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <Button
-                type="button"
-                onClick={handleOpenNewModal}
-                className="rounded-xl bg-amber-500 text-amber-950 hover:bg-amber-400 font-extrabold text-xs gap-1.5 shadow-md cursor-pointer"
-              >
-                <Plus className="size-4" />
-                <span>➕ 신규 추천 장소 등록</span>
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  onClick={handleSaveGitBackup}
+                  variant="outline"
+                  className="rounded-xl border-sky-500/40 bg-sky-950/40 text-sky-300 hover:bg-sky-900/60 font-bold text-xs gap-1.5 shadow-md cursor-pointer"
+                  title="현재 수정된 장소 사진과 영업시간을 Git 저장소 파일에 영구 동기화"
+                >
+                  <span>💾 사진·정보 Git 영구 백업</span>
+                </Button>
+
+                <Button
+                  type="button"
+                  onClick={handleOpenNewModal}
+                  className="rounded-xl bg-amber-500 text-amber-950 hover:bg-amber-400 font-extrabold text-xs gap-1.5 shadow-md cursor-pointer"
+                >
+                  <Plus className="size-4" />
+                  <span>➕ 신규 추천 장소 등록</span>
+                </Button>
+              </div>
             </div>
 
             {/* 장소 데이터 테이블 */}
