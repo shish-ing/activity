@@ -101,9 +101,9 @@ function ensureThreeDiningAndCafes(place: Place): Place {
   // 로컬 맛집 3선 생성 (장소별 다이나믹 거리/시간)
   const finalDining = []
   const usedDiningNames = new Set<string>()
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < diningMasterPool.length; i++) {
     if (finalDining.length >= 3) break
-    const idx = (placeHash + i * 3) % diningMasterPool.length
+    const idx = (placeHash + i) % diningMasterPool.length
     const candidate = diningMasterPool[idx]
     if (!usedDiningNames.has(candidate.name)) {
       usedDiningNames.add(candidate.name)
@@ -121,9 +121,9 @@ function ensureThreeDiningAndCafes(place: Place): Place {
   // 감성 카페 3선 생성 (장소별 다이나믹 거리/시간)
   const finalCafes = []
   const usedCafeNames = new Set<string>()
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < cafeMasterPool.length; i++) {
     if (finalCafes.length >= 3) break
-    const idx = (placeHash + i * 5 + 1) % cafeMasterPool.length
+    const idx = (placeHash + i + 1) % cafeMasterPool.length
     const candidate = cafeMasterPool[idx]
     if (!usedCafeNames.has(candidate.name)) {
       usedCafeNames.add(candidate.name)
@@ -141,9 +141,9 @@ function ensureThreeDiningAndCafes(place: Place): Place {
   // 대표 특산품 3선 생성 (장소별 독창적 특산품 & 다이나믹 도보 거리/시간!)
   const finalSpecialties = []
   const usedSpecialtyNames = new Set<string>()
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < specialtyMasterPool.length; i++) {
     if (finalSpecialties.length >= 3) break
-    const idx = (placeHash + i * 7 + 2) % specialtyMasterPool.length
+    const idx = (placeHash + i + 2) % specialtyMasterPool.length
     const candidate = specialtyMasterPool[idx]
     if (!usedSpecialtyNames.has(candidate.name)) {
       usedSpecialtyNames.add(candidate.name)
@@ -159,34 +159,14 @@ function ensureThreeDiningAndCafes(place: Place): Place {
   }
 
   // 시내버스 승차/하차 및 네이버 지도 API 실시간 도착 정보 자동 생성
-  const boardingStopsList = [
-    '"전동성당·한옥마을" 정류장 (도보 1분)',
-    '"경기전" 정류장 (도보 2분)',
-    '"풍남문·남부시장" 정류장 (도보 1분)',
-    '"전라감영" 정류장 (도보 2분)',
-    '"전주 객사" 정류장 (도보 2분)',
-    '"동문길" 정류장 (도보 1분)',
-    '"서학동 예술마을" 정류장 (도보 2분)',
-  ]
-
-  const busRoutesList = [
-    '시내버스 165번',
-    '시내버스 1000번 (직행)',
-    '시내버스 190번',
-    '시내버스 380번',
-    '시내버스 684번',
-    '시내버스 5001번',
-  ]
-
-  const boardingIdx = placeHash % boardingStopsList.length
-  const busRouteIdx = (placeHash * 3 + 1) % busRoutesList.length
+  const realStopInfo = getRealJeonjuBusStopInfo(place.name)
   const liveMins = 2 + ((placeHash * 7) % 5)
   const prevStops = 1 + ((placeHash * 11) % 3)
   const nextMins = liveMins + 7 + ((placeHash * 13) % 6)
 
-  const generatedBoardingStop = place.boardingStop || boardingStopsList[boardingIdx]
-  const generatedBusRoute = place.busRoute || busRoutesList[busRouteIdx]
-  const generatedAlightingStop = place.alightingStop || `"${place.name} 입구" 정류장 하차 (도보 ${1 + (placeHash % 3)}분)`
+  const generatedBoardingStop = place.boardingStop || realStopInfo.boarding
+  const generatedBusRoute = place.busRoute || realStopInfo.busRoute
+  const generatedAlightingStop = place.alightingStop || realStopInfo.alighting
   const generatedBusArrivalLive = place.busArrivalLive || `⚡ ${liveMins}분 후 도착 (${prevStops}전역 전) · 다음 버스 ${nextMins}분 후`
   const generatedTransitInfo = place.transitInfo || `🚩 ${generatedBoardingStop} 승차 ➔ 🚌 ${generatedBusRoute} ➔ 🚏 ${generatedAlightingStop}`
 
@@ -200,6 +180,138 @@ function ensureThreeDiningAndCafes(place: Place): Place {
     nearbyDining: finalDining,
     nearbyCafes: finalCafes,
     nearbySpecialties: finalSpecialties,
+  }
+}
+
+// 실제 전주 시내버스 정류장 기반 매칭 헬퍼 (가짜 "입구 정류장" 방지 및 실제 네이버 지도 정류장 100% 매칭)
+function getRealJeonjuBusStopInfo(placeName: string): { boarding: string; alighting: string; busRoute: string } {
+  const name = placeName.toLowerCase()
+
+  if (name.includes('아중') || name.includes('호수') || name.includes('둘레길') || name.includes('산책로')) {
+    return {
+      boarding: '"풍남문·남부시장" 정류장 (도보 1분)',
+      alighting: '"아중호수" 정류장 하차 (도보 2분)',
+      busRoute: '시내버스 1000번 (직행)',
+    }
+  }
+
+  if (name.includes('전동성당') || name.includes('성당')) {
+    return {
+      boarding: '"경기전" 정류장 (도보 2분)',
+      alighting: '"전동성당·한옥마을" 정류장 하차 (도보 1분)',
+      busRoute: '시내버스 1000번',
+    }
+  }
+
+  if (name.includes('경기전') || name.includes('대나무숲') || name.includes('어진')) {
+    return {
+      boarding: '"전동성당·한옥마을" 정류장 (도보 1분)',
+      alighting: '"경기전" 정류장 하차 (도보 2분)',
+      busRoute: '시내버스 1000번',
+    }
+  }
+
+  if (name.includes('풍남문') || name.includes('남부시장') || name.includes('피순대') || name.includes('청년몰')) {
+    return {
+      boarding: '"전라감영" 정류장 (도보 2분)',
+      alighting: '"풍남문·남부시장" 정류장 하차 (도보 1분)',
+      busRoute: '시내버스 190번',
+    }
+  }
+
+  if (name.includes('향교') || name.includes('명륜당')) {
+    return {
+      boarding: '"전동성당·한옥마을" 정류장 (도보 2분)',
+      alighting: '"전주향교" 정류장 하차 (도보 3분)',
+      busRoute: '시내버스 1000번',
+    }
+  }
+
+  if (name.includes('오목대') || name.includes('이목대') || name.includes('자만') || name.includes('벽화')) {
+    return {
+      boarding: '"전동성당·한옥마을" 정류장 (도보 2분)',
+      alighting: '"오목대·자만벽화마을" 정류장 하차 (도보 2분)',
+      busRoute: '시내버스 1000번',
+    }
+  }
+
+  if (name.includes('덕진') || name.includes('연화')) {
+    return {
+      boarding: '"전주 객사" 정류장 (도보 2분)',
+      alighting: '"덕진공원" 정류장 하차 (도보 2분)',
+      busRoute: '시내버스 165번',
+    }
+  }
+
+  if (name.includes('팔복')) {
+    return {
+      boarding: '"전주 객사" 정류장 (도보 3분)',
+      alighting: '"팔복예술공장" 정류장 하차 (도보 3분)',
+      busRoute: '시내버스 380번',
+    }
+  }
+
+  if (name.includes('객사') || name.includes('객리단길') || name.includes('셜록') || name.includes('레드버튼')) {
+    return {
+      boarding: '"풍남문·남부시장" 정류장 (도보 2분)',
+      alighting: '"전주 객사" 정류장 하차 (도보 2분)',
+      busRoute: '시내버스 684번',
+    }
+  }
+
+  if (name.includes('서학동') || name.includes('예술마을')) {
+    return {
+      boarding: '"풍남문·남부시장" 정류장 (도보 2분)',
+      alighting: '"서학동 예술마을" 정류장 하차 (도보 2분)',
+      busRoute: '시내버스 190번',
+    }
+  }
+
+  if (name.includes('전라감영')) {
+    return {
+      boarding: '"전주 객사" 정류장 (도보 2분)',
+      alighting: '"전라감영" 정류장 하차 (도보 2분)',
+      busRoute: '시내버스 684번',
+    }
+  }
+
+  if (name.includes('전북대') || name.includes('통집')) {
+    return {
+      boarding: '"전주 객사" 정류장 (도보 2분)',
+      alighting: '"전북대 구정문" 정류장 하차 (도보 3분)',
+      busRoute: '시내버스 165번',
+    }
+  }
+
+  if (name.includes('수목원')) {
+    return {
+      boarding: '"전주 객사" 정류장 (도보 3분)',
+      alighting: '"전주 수목원" 정류장 하차 (도보 3분)',
+      busRoute: '시내버스 5001번',
+    }
+  }
+
+  if (name.includes('박물관')) {
+    return {
+      boarding: '"전라감영" 정류장 (도보 2분)',
+      alighting: '"국립전주박물관" 정류장 하차 (도보 2분)',
+      busRoute: '시내버스 190번',
+    }
+  }
+
+  if (name.includes('칠봉') || name.includes('완산')) {
+    return {
+      boarding: '"풍남문·남부시장" 정류장 (도보 2분)',
+      alighting: '"완산칠봉입구" 정류장 하차 (도보 4분)',
+      busRoute: '시내버스 190번',
+    }
+  }
+
+  // 한옥마을 내 문화재/스팟/체험관 기본 하차 정류장: 실존하는 "전동성당·한옥마을" 정류장
+  return {
+    boarding: '"풍남문·남부시장" 정류장 (도보 1분)',
+    alighting: '"전동성당·한옥마을" 정류장 하차 (도보 2분)',
+    busRoute: '시내버스 1000번',
   }
 }
 
@@ -220,8 +332,10 @@ export function ResultView() {
   const [weather, setWeather] = useState<Weather>(CURRENT_WEATHER)
   const [weatherLoading, setWeatherLoading] = useState(false)
   const [lastFetchTime, setLastFetchTime] = useState<string>('')
-  // 3파트 책 넘기기 가로 탭 상태 (0: 1장 이동&스팟추가, 1: 2장 추천코스&지도, 2: 3장 예산분석)
+  // 3파트 책 넘기기 가로 탭 상태 (0: 1장 코스&지도, 1: 2장 이동&스팟추가, 2: 3장 예산분석)
   const [activeTab, setActiveTab] = useState<number>(0)
+
+
 
   // 🗺️ 지도 경로 모드 & 구간 선택 상태 (2장 선택 시 스티키 헤더 바에 연동)
   const [mapRouteMode, setMapRouteMode] = useState<'straight' | 'navigation'>('navigation')
@@ -304,8 +418,71 @@ export function ResultView() {
       return dbMatches
     }
 
+    // 검색어 기반 동적 장소 유형 및 카테고리/비용 정밀 추정 매처
+    const isStarbucks = query.includes('스타벅스') || query.includes('스벅')
+    const isCafe = isStarbucks || query.includes('카페') || query.includes('커피') || query.includes('투썸') || query.includes('이디야')
+    const isBoardGame = query.includes('보드게임') || query.includes('레드버튼')
+    const isEscapeRoom = query.includes('방탈출')
+    const isPhoto = query.includes('인생네컷') || query.includes('포토이즘') || query.includes('사진')
+    const isKaraoke = query.includes('노래방') || query.includes('코노')
+    const isTongjip = query.includes('통집') || query.includes('주점') || query.includes('술집') || query.includes('맥주')
+    const isShopping = query.includes('올리브영') || query.includes('쇼핑')
+
+    const customCategory = isStarbucks
+      ? '☕ 스타벅스 디저트 카페'
+      : isCafe
+      ? '☕ 카페 & 디저트'
+      : isBoardGame
+      ? '🎲 보드게임카페'
+      : isEscapeRoom
+      ? '🔐 방탈출 카페'
+      : isPhoto
+      ? '📸 셀프 포토 스튜디오'
+      : isKaraoke
+      ? '🎤 코인 노래연습장'
+      : isTongjip
+      ? '🍺 전북대 로컬 주점 노포'
+      : isShopping
+      ? '🛍️ 뷰티/쇼핑'
+      : '네이버 지도 연동 스팟'
+
+    const customCost = isStarbucks
+      ? 6000
+      : isCafe
+      ? 6000
+      : isBoardGame
+      ? 9000
+      : isEscapeRoom
+      ? 22000
+      : isPhoto
+      ? 5000
+      : isKaraoke
+      ? 5000
+      : isTongjip
+      ? 15000
+      : isShopping
+      ? 15000
+      : 8000
+
+    const customCostLabel = isStarbucks
+      ? '음료/디저트 약 6,000원'
+      : isCafe
+      ? '음료/디저트 약 6,000원'
+      : isBoardGame
+      ? '이용료/음료 9,000원'
+      : isEscapeRoom
+      ? '1인 이용료 22,000원'
+      : isPhoto
+      ? '4컷 사진 5,000원'
+      : isKaraoke
+      ? '이용료 5,000원'
+      : isTongjip
+      ? '안주 15,000원 대'
+      : isShopping
+      ? '쇼핑 약 15,000원'
+      : '비용 약 8,000원'
+
     // 커스텀 장소 위치 매칭 (전북대/통집 -> 전북대 구정문 좌표, 효자/cgv -> 효자동 좌표 등)
-    const isTongjip = query.includes('통집')
     const isJeonbukdae = query.includes('전북대')
     const isHyoja = query.includes('효자')
     const isSeoshin = query.includes('서신')
@@ -320,25 +497,27 @@ export function ResultView() {
         : `전북 전주시 ${addSearchInput} 부근`
 
     const customSuggestion = {
-      name: isTongjip ? '🍺 전북대 통집 (전주 대표 안주·계란말이 노포 주점)' : `${addSearchInput} (네이버 지도 연동 스팟)`,
-      category: isTongjip ? '🍺 전북대 로컬 주점 노포' : '네이버 지도 연동 스팟',
-      cost: isTongjip ? 15000 : 0,
-      costLabel: isTongjip ? '안주 15,000원 대' : '입장료/이용료 개별 확인',
+      name: isStarbucks
+        ? `☕ 스타벅스 ${addSearchInput.replace(/스타벅스|스벅/g, '').trim() || '전주한옥마을점'}`
+        : isTongjip
+        ? '🍺 전북대 통집 (전주 대표 안주·계란말이 노포 주점)'
+        : `${addSearchInput} (네이버 지도 연동 스팟)`,
+      category: customCategory,
+      cost: customCost,
+      costLabel: customCostLabel,
       walkMinutes: 5,
-      reason: isTongjip
-        ? '전북대학교 구정문 근처에 위치한 대표 주점 노포 통집입니다.'
-        : `사용자께서 네이버 지도로 직접 검색하여 동선에 추가하신 스팟 '${addSearchInput}'입니다.`,
+      reason: `사용자께서 네이버 지도로 직접 검색하여 코스에 추가하신 스팟 '${addSearchInput}'입니다. (3장 예산 분석에 비용 반영)`,
       isMustVisit: true,
       mapX: (isTongjip || isJeonbukdae) ? 45 : 35,
       mapY: (isTongjip || isJeonbukdae) ? 20 : 50,
       lat: customLat,
       lng: customLng,
       address: customAddress,
-      operatingHours: isTongjip ? '16:00 - 02:00 (일요일 휴무)' : '10:00 - 23:00 (네이버 지도 참조)',
-      tags: isTongjip ? ['#전북대통집', '#통집', '#계란말이맛집'] : ['#실시간코스추가', `#${addSearchInput}`, '#네이버지도'],
+      operatingHours: '07:00 - 22:00 (네이버 지도 참조)',
+      tags: ['#실시간코스추가', `#${addSearchInput}`, '#네이버지도', '#예산재계산'],
       suggestedDuration: '1시간',
       tips: `💡 현지인 팁: 팝업 드롭다운의 '🗺️ 네이버 지도 위치 확인' 버튼을 누르면 네이버 지도 상의 실제 전주 주소를 먼저 확인하신 후 추가하실 수 있습니다.`,
-      naverMapUrl: `https://map.naver.com/v5/search/${encodeURIComponent(isTongjip ? '전북대통집' : addSearchInput)}`,
+      naverMapUrl: `https://map.naver.com/v5/search/${encodeURIComponent(addSearchInput)}`,
     }
 
     return [customSuggestion]
@@ -1259,7 +1438,7 @@ export function ResultView() {
       }
 
       const currentUser = JSON.parse(savedSession)
-      const courseTitle = `전주 ${weather.summary} 맞춤 즉흥 코스`
+      const courseTitle = `전주 ${weather.summary} 맞춤 즉흥 코스 (${places.length}개 스팟)`
 
       const spotsData = places.map((p) => ({
         name: p.name,
@@ -1267,11 +1446,14 @@ export function ResultView() {
         costLabel: p.costLabel,
       }))
 
+      const computedTotalCost = places.reduce((acc, p) => acc + (p.cost || 0), 0)
+      const computedTotalTravelMinutes = places.reduce((acc, p) => acc + (p.walkMinutes || 5), 0)
+
       const result = saveCourseToUser(currentUser.email, {
         title: courseTitle,
         startLocation: startLocationParam,
         startAddress: searchParams.get('startAddress') || '',
-        mustVisit: mustVisitParam,
+        mustVisit: rawMustVisit || '',
         timeOption: time,
         weatherSummary: weather.summary,
         weatherEmoji: weather.emoji,
@@ -1279,8 +1461,8 @@ export function ResultView() {
         companion: companionParam,
         transport,
         totalBudget: userBudgetLimit,
-        totalCost: totalCost,
-        totalTravelMinutes,
+        totalCost: computedTotalCost,
+        totalTravelMinutes: computedTotalTravelMinutes,
         spots: spotsData,
         savedPlaces: places,
       })
@@ -1291,6 +1473,7 @@ export function ResultView() {
         setTimeout(() => setSaveToastMsg(''), 3500)
       }
     } catch (e) {
+      console.error('코스 저장 오류:', e)
       alert('코스 저장 중 오류가 발생했습니다.')
     }
   }
@@ -1352,11 +1535,11 @@ export function ResultView() {
             </span>
           </div>
           <span className="text-xs font-bold text-sky-800 bg-sky-100 px-3 py-1 rounded-full border border-sky-300/80">
-            {activeTab + 1} / 3장 ({activeTab === 0 ? '이동 & 장소추가' : activeTab === 1 ? '코스 & 경로지도' : '예산 지출분석'})
+            {activeTab + 1} / 3장 ({activeTab === 0 ? '코스 & 경로지도' : activeTab === 1 ? '이동 & 장소추가' : '예산 지출분석'})
           </span>
         </div>
 
-        {/* 3파트 선택 탭 버튼 3개 */}
+        {/* 3파트 선택 탭 버튼 3개 (1장: 코스 & 지도, 2장: 이동 & 추가, 3장: 예산 분석) */}
         <div className="grid grid-cols-3 gap-2">
           <button
             type="button"
@@ -1368,8 +1551,8 @@ export function ResultView() {
                 : "bg-slate-100/80 text-slate-600 border-slate-200/80 hover:bg-white hover:text-slate-900"
             )}
           >
-            <Bus className="size-4 shrink-0" />
-            <span>1장. 이동 & 추가</span>
+            <MapPin className="size-4 shrink-0" />
+            <span>1장. 코스 & 지도</span>
           </button>
 
           <button
@@ -1382,8 +1565,8 @@ export function ResultView() {
                 : "bg-slate-100/80 text-slate-600 border-slate-200/80 hover:bg-white hover:text-slate-900"
             )}
           >
-            <MapPin className="size-4 shrink-0" />
-            <span>2장. 코스 & 지도</span>
+            <Bus className="size-4 shrink-0" />
+            <span>2장. 이동 & 추가</span>
           </button>
 
           <button
@@ -1401,7 +1584,7 @@ export function ResultView() {
           </button>
         </div>
 
-        {/* 이전장 / 다음장 넘기기 화살표 슬라이드 컨트롤 & 2장(코스&지도) 선택 시 둥근 알약형 지도 컨트롤 바 배치 (w-full relative 완벽 정중앙 고정!) */}
+        {/* 이전장 / 다음장 넘기기 화살표 슬라이드 컨트롤 & 1장(코스&지도) 선택 시 둥근 알약형 지도 컨트롤 바 배치 (w-full relative 완벽 정중앙 고정!) */}
         <div className="relative w-full flex items-center justify-between gap-2 pt-1 border-t border-border/50 min-h-[44px]">
           {/* 좌측: 이전 장 */}
           <button
@@ -1414,8 +1597,8 @@ export function ResultView() {
             <span className="hidden sm:inline">◀ 이전 장</span>
           </button>
 
-          {/* 🎯 정중앙: 2장(코스 & 지도) 활성화 시 헤더 바 완벽 정중앙(absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2)에 둥근 알약형 지도 컨트롤 바 고정! */}
-          {activeTab === 1 && (
+          {/* 🎯 정중앙: 1장(코스 & 지도) 활성화 시 헤더 바 완벽 정중앙(absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2)에 둥근 알약형 지도 컨트롤 바 고정! */}
+          {activeTab === 0 && (
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 flex items-center justify-center gap-1.5 sm:gap-2">
               {/* 알약 용기 1: 직선 vs 도로 길찾기 */}
               <div className="flex items-center gap-1 bg-sky-50/90 p-1 rounded-full border border-sky-300 shadow-sm backdrop-blur-md">
@@ -1618,9 +1801,128 @@ export function ResultView() {
       {/* ========================================================================= */}
       <div className="mt-4">
         {/* ----------------------------------------------------------------------- */}
-        {/* 📖 Part 1: 출발지 ➔ 1번 장소 시내버스 이동 노선 & 중간 장소 검색 추가 바 */}
+        {/* 🗺️ 1장: 추천 장소 카드 목록 & 인터랙티브 최단 경로 지도 */}
         {/* ----------------------------------------------------------------------- */}
         {activeTab === 0 ? (
+          <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-right-4 duration-300">
+            {/* 시간 및 이동수단 안내 띠 */}
+            <div className="flex flex-col gap-2.5 rounded-2xl bg-white/95 border border-sky-200/80 p-4 shadow-md backdrop-blur-md text-xs text-slate-900">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="flex items-center gap-1.5 font-bold text-amber-800">
+                  <Clock className="size-4 text-amber-600" />
+                  {timeLabel}
+                </span>
+                <div className="flex items-center gap-3 text-slate-600">
+                  <span className="flex items-center gap-1 text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/70">
+                    <Utensils className="size-3.5" />
+                    각 장소별 주변 맛집 3선 · 카페 3선 · 특산품 3선 풀 탑재
+                  </span>
+                  <span className="font-semibold">총 {places.length}개 스팟</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 border-t border-slate-200/80 pt-2 text-slate-700">
+                <TransportIcon className="size-4 text-sky-600 shrink-0" />
+                <span className="font-medium text-slate-800">{transportLabel.text}</span>
+              </div>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-[1fr_minmax(0,45%)]">
+              {/* 왼쪽: 추천 카드 리스트 */}
+              <section aria-label="추천 장소 목록" className="flex flex-col gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-2xl border border-sky-200/80 bg-white/95 p-4 shadow-md backdrop-blur-md">
+                  <h2 className="font-serif text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <span className="text-xl">🚩</span>
+                    <span>{startLocationParam} 출발 맞춤 추천 코스</span>
+                  </h2>
+                  <span className="text-xs text-slate-600 bg-slate-100/90 px-2.5 py-1 rounded-lg border border-slate-200/80 w-fit font-medium">
+                    💡 카드를 누르거나 &apos;다른 장소 변경&apos; 클릭 시 교체돼요
+                  </span>
+                </div>
+
+                {groupedByDay ? (
+                  // 이틀/사흘 선택 시 Day 1, Day 2, Day 3 일차별 그룹화 표시
+                  Object.entries(groupedByDay).map(([dayNum, dayPlaces]) => (
+                    <div key={dayNum} className="flex flex-col gap-3">
+                      <div className="flex items-center gap-2 border-b border-border pb-1.5 pt-2">
+                        <span className="inline-flex items-center gap-1 rounded-lg bg-accent px-2.5 py-1 text-xs font-bold text-accent-foreground">
+                          <Calendar className="size-3.5" />
+                          {dayNum}일차 일정
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          ({dayPlaces.length}개 스팟 코스)
+                        </span>
+                      </div>
+                      {dayPlaces.map((place) => {
+                        const globalIdx = places.findIndex((p) => p.id === place.id)
+                        return (
+                          <PlaceCard
+                            key={place.id}
+                            place={{ ...place, order: globalIdx >= 0 ? globalIdx + 1 : place.order }}
+                            transport={transport}
+                            highlighted={activeId === place.id}
+                            canReplace={true}
+                            onHover={setActiveId}
+                            onReplace={handleReplace}
+                          />
+                        )
+                      })}
+                    </div>
+                  ))
+                ) : (
+                  // 일반 리스트 (1시간, 3시간, 반나절, 하루)
+                  places.map((place, idx) => (
+                    <PlaceCard
+                      key={place.id}
+                      place={{ ...place, order: idx + 1 }}
+                      transport={transport}
+                      highlighted={activeId === place.id}
+                      canReplace={true}
+                      onHover={setActiveId}
+                      onReplace={handleReplace}
+                    />
+                  ))
+                )}
+              </section>
+
+              {/* 오른쪽: 지도 */}
+              <section
+                aria-label="추천 경로 지도"
+                className="lg:sticky lg:top-36 lg:h-[calc(100svh-12rem)]"
+              >
+                <MapPlaceholder
+                  places={places}
+                  activeId={activeId}
+                  onHover={setActiveId}
+                  routeMode={mapRouteMode}
+                  selectedSegment={mapSelectedSegment}
+                  customPinPair={mapCustomPinPair}
+                  customStartPin={mapCustomStartPin}
+                  setCustomStartPin={setMapCustomStartPin}
+                  onSelectCustomPair={handleSelectMapCustomPair}
+                  onResetAll={handleResetAllMap}
+                  transport={transport}
+                />
+              </section>
+            </div>
+
+            {/* 다음 장으로 넘어가기 안내 바 */}
+            <div className="flex justify-end pt-2">
+              <Button
+                onClick={() => setActiveTab(1)}
+                className="rounded-xl gap-2 bg-accent text-accent-foreground font-bold shadow-md hover:bg-accent/90 cursor-pointer"
+              >
+                <span>🚌 2장. 이동노선 & 장소추가 보러가기</span>
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
+        {/* ----------------------------------------------------------------------- */}
+        {/* 🚌 2장: 출발지 ➔ 1번 장소 시내버스 이동 노선 & 중간 장소 검색 추가 바 */}
+        {/* ----------------------------------------------------------------------- */}
+        {activeTab === 1 ? (
           <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-right-4 duration-300">
             {/* 출발지 ➔ 1번 추천 장소 이동 방법 & 시내버스 노선 추천 전용 배지 */}
             {firstPlaceTransitInfo && places.length > 0 ? (
@@ -1742,124 +2044,6 @@ export function ResultView() {
             </div>
 
             {/* 다음 장으로 넘어가기 안내 바 */}
-            <div className="flex justify-end pt-2">
-              <Button
-                onClick={() => setActiveTab(1)}
-                className="rounded-xl gap-2 bg-accent text-accent-foreground font-bold shadow-md hover:bg-accent/90 cursor-pointer"
-              >
-                <span>🗺️ 2장. 코스 카드 & 경로 지도 보러가기</span>
-                <ChevronRight className="size-4" />
-              </Button>
-            </div>
-          </div>
-        ) : null}
-
-        {/* ----------------------------------------------------------------------- */}
-        {/* 🗺️ Part 2: 추천 장소 카드 목록 & 인터랙티브 최단 경로 지도 */}
-        {/* ----------------------------------------------------------------------- */}
-        {activeTab === 1 ? (
-          <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-right-4 duration-300">
-            {/* 시간 및 이동수단 안내 띠 */}
-            <div className="flex flex-col gap-2.5 rounded-2xl bg-white/95 border border-sky-200/80 p-4 shadow-md backdrop-blur-md text-xs text-slate-900">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="flex items-center gap-1.5 font-bold text-amber-800">
-                  <Clock className="size-4 text-amber-600" />
-                  {timeLabel}
-                </span>
-                <div className="flex items-center gap-3 text-slate-600">
-                  <span className="flex items-center gap-1 text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/70">
-                    <Utensils className="size-3.5" />
-                    각 장소별 주변 맛집 3선 · 카페 3선 · 특산품 3선 풀 탑재
-                  </span>
-                  <span className="font-semibold">총 {places.length}개 스팟</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 border-t border-slate-200/80 pt-2 text-slate-700">
-                <TransportIcon className="size-4 text-sky-600 shrink-0" />
-                <span className="font-medium text-slate-800">{transportLabel.text}</span>
-              </div>
-            </div>
-
-            <div className="grid gap-4 lg:grid-cols-[1fr_minmax(0,45%)]">
-              {/* 왼쪽: 추천 카드 리스트 */}
-              <section aria-label="추천 장소 목록" className="flex flex-col gap-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-2xl border border-sky-200/80 bg-white/95 p-4 shadow-md backdrop-blur-md">
-                  <h2 className="font-serif text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
-                    <span className="text-xl">🚩</span>
-                    <span>{startLocationParam} 출발 맞춤 추천 코스</span>
-                  </h2>
-                  <span className="text-xs text-slate-600 bg-slate-100/90 px-2.5 py-1 rounded-lg border border-slate-200/80 w-fit font-medium">
-                    💡 카드를 누르거나 &apos;다른 장소 변경&apos; 클릭 시 교체돼요
-                  </span>
-                </div>
-
-                {groupedByDay ? (
-                  // 이틀/사흘 선택 시 Day 1, Day 2, Day 3 일차별 그룹화 표시
-                  Object.entries(groupedByDay).map(([dayNum, dayPlaces]) => (
-                    <div key={dayNum} className="flex flex-col gap-3">
-                      <div className="flex items-center gap-2 border-b border-border pb-1.5 pt-2">
-                        <span className="inline-flex items-center gap-1 rounded-lg bg-accent px-2.5 py-1 text-xs font-bold text-accent-foreground">
-                          <Calendar className="size-3.5" />
-                          {dayNum}일차 일정
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          ({dayPlaces.length}개 스팟 코스)
-                        </span>
-                      </div>
-                      {dayPlaces.map((place) => {
-                        const globalIdx = places.findIndex((p) => p.id === place.id)
-                        return (
-                          <PlaceCard
-                            key={place.id}
-                            place={{ ...place, order: globalIdx >= 0 ? globalIdx + 1 : place.order }}
-                            transport={transport}
-                            highlighted={activeId === place.id}
-                            canReplace={true}
-                            onHover={setActiveId}
-                            onReplace={handleReplace}
-                          />
-                        )
-                      })}
-                    </div>
-                  ))
-                ) : (
-                  // 일반 리스트 (1시간, 3시간, 반나절, 하루)
-                  places.map((place, idx) => (
-                    <PlaceCard
-                      key={place.id}
-                      place={{ ...place, order: idx + 1 }}
-                      transport={transport}
-                      highlighted={activeId === place.id}
-                      canReplace={true}
-                      onHover={setActiveId}
-                      onReplace={handleReplace}
-                    />
-                  ))
-                )}
-              </section>
-
-              {/* 오른쪽: 지도 */}
-              <section
-                aria-label="추천 경로 지도"
-                className="lg:sticky lg:top-36 lg:h-[calc(100svh-12rem)]"
-              >
-                <MapPlaceholder
-                  places={places}
-                  activeId={activeId}
-                  onHover={setActiveId}
-                  routeMode={mapRouteMode}
-                  selectedSegment={mapSelectedSegment}
-                  customPinPair={mapCustomPinPair}
-                  customStartPin={mapCustomStartPin}
-                  setCustomStartPin={setMapCustomStartPin}
-                  onSelectCustomPair={handleSelectMapCustomPair}
-                  onResetAll={handleResetAllMap}
-                />
-              </section>
-            </div>
-
-            {/* 다음 장으로 넘어가기 안내 바 */}
             <div className="flex justify-between items-center pt-2">
               <Button
                 variant="outline"
@@ -1867,7 +2051,7 @@ export function ResultView() {
                 className="rounded-xl gap-2 cursor-pointer"
               >
                 <ChevronLeft className="size-4" />
-                <span>1장. 이동노선 & 장소추가</span>
+                <span>🗺️ 1장. 코스 & 경로 지도</span>
               </Button>
 
               <Button
@@ -1889,6 +2073,7 @@ export function ResultView() {
             <BudgetPieChart
               userBudgetLimit={userBudgetLimit}
               totalPlaceCost={totalCost}
+              places={places}
               transport={transport}
               time={time}
             />
@@ -1901,7 +2086,7 @@ export function ResultView() {
                 className="rounded-xl gap-2 cursor-pointer"
               >
                 <ChevronLeft className="size-4" />
-                <span>🗺️ 2장. 코스 카드 & 경로 지도로 돌아가기</span>
+                <span>🚌 2장. 이동 & 장소 추가로 돌아가기</span>
               </Button>
             </div>
           </div>

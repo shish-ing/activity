@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&display=swap');
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
@@ -131,9 +132,9 @@
     @apply text-foreground bg-transparent;
   }
   .font-handwriting, .font-brand {
-    font-family: 'KotraHandwritingFont', 'KOTRAHOPE', cursive !important;
+    font-family: 'KotraHandwritingFont', 'Nanum Pen Script', 'KOTRAHOPE', cursive !important;
   }
   .font-serif {
-    font-family: 'KotraHandwritingFont', 'KOTRAHOPE', cursive !important;
+    font-family: 'KotraHandwritingFont', 'Nanum Pen Script', 'KOTRAHOPE', cursive !important;
   }
 }

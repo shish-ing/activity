@@ -1,11 +1,11 @@
-'use client'
-
 import { useMemo } from 'react'
-import { PieChart as PieIcon, ShoppingBag, Utensils, Coffee, Ticket, Bus, Wallet, Gift } from 'lucide-react'
+import { PieChart as PieIcon, ShoppingBag, Utensils, Coffee, Ticket, Bus, Wallet, Gift, Sparkles } from 'lucide-react'
+import type { Place } from '@/lib/mock-data'
 
 type BudgetPieChartProps = {
   userBudgetLimit: number
   totalPlaceCost: number
+  places?: Place[]
   transport: string // 'walk' | 'transit' | 'car'
   time?: string // '1h' | '3h' | 'half' | 'full' | '2days' | '3days'
 }
@@ -17,11 +17,32 @@ function formatWon(val: number) {
 export function BudgetPieChart({
   userBudgetLimit,
   totalPlaceCost,
+  places = [],
   transport,
   time = '3h',
 }: BudgetPieChartProps) {
-  // 예산 소진 비율 및 지출 카테고리 세부 내역 계산 (시간 파라미터 엄격 적용)
+  // 예산 소진 비율 및 지출 카테고리 세부 내역 계산 (사용자 추가 스팟 가격 실시간 100% 동적 반영)
   const breakdownData = useMemo(() => {
+    // 0. 새로 추가된 스팟(사용자 직접 추가 및 필수 방문지) 가격 및 항목 분석
+    const addedSpots = places.filter((p) => p.isMustVisit || p.id.startsWith('added-') || p.id.startsWith('mv-'))
+    const addedSpotsSummary = addedSpots
+      .map((p) => `${p.name.replace(/\(.*\)/g, '').trim()} (${p.cost ? p.cost.toLocaleString('ko-KR') + '원' : '비용 개별'})`)
+      .join(', ')
+    const addedTotalCost = addedSpots.reduce((acc, p) => acc + (p.cost || 0), 0)
+
+    // 동적 카테고리별 비용 가산
+    const addedCafeCost = places
+      .filter((p) => p.category.includes('카페') || p.category.includes('디저트') || p.isDessert || p.name.includes('스타벅스') || p.name.includes('스벅'))
+      .reduce((sum, p) => sum + (p.cost || 0), 0)
+
+    const addedDiningCost = places
+      .filter((p) => p.category.includes('식당') || p.category.includes('맛집') || p.isMeal || p.category.includes('노포'))
+      .reduce((sum, p) => sum + (p.cost || 0), 0)
+
+    const addedActivityCost = places
+      .filter((p) => !p.isMeal && !p.isDessert && !p.category.includes('카페') && !p.category.includes('특산품'))
+      .reduce((sum, p) => sum + (p.cost || 0), 0)
+
     if (userBudgetLimit === 0) {
       return {
         targetSpent: 0,
@@ -37,13 +58,15 @@ export function BudgetPieChart({
         maxRange: 0,
         remainingSavings: 0,
         mealDesc: '자유 개별 식사',
+        addedSpotsSummary,
+        addedTotalCost,
       }
     }
 
-    // 1. 목표 예산 소진액 (약 80% ~ 82% 수준)
+    // 1. 목표 예산 소진액 (기본 소진액 + 추가 장소 비용 100% 누적)
     const targetSpent = Math.min(
-      userBudgetLimit,
-      Math.max(totalPlaceCost + 15000, Math.round(userBudgetLimit * 0.82)),
+      userBudgetLimit + addedTotalCost,
+      Math.max(totalPlaceCost + 15000 + addedTotalCost, Math.round(userBudgetLimit * 0.82) + addedTotalCost),
     )
 
     // 2. 교통비 추정
@@ -81,18 +104,27 @@ export function BudgetPieChart({
       maxCafeCost = 45000
     }
 
-    // 4. 현실적 카테고리별 지출액 계산
-    const diningAmount = Math.min(
-      maxMealCost,
-      Math.max(12000, Math.round(targetSpent * (time === '1h' ? 0.1 : time === '3h' ? 0.18 : 0.32))),
+    // 4. 현실적 카테고리별 지출액 계산 (새로 추가된 장소 비용 반영)
+    const diningAmount = Math.max(
+      addedDiningCost,
+      Math.min(
+        maxMealCost + addedDiningCost,
+        Math.max(12000, Math.round((targetSpent - addedTotalCost) * (time === '1h' ? 0.1 : time === '3h' ? 0.18 : 0.32))) + addedDiningCost,
+      ),
     )
 
-    const cafeAmount = Math.min(
-      maxCafeCost,
-      Math.max(6000, Math.round(targetSpent * 0.12)),
+    const cafeAmount = Math.max(
+      addedCafeCost,
+      Math.min(
+        maxCafeCost + addedCafeCost,
+        Math.max(6000, Math.round((targetSpent - addedTotalCost) * 0.12)) + addedCafeCost,
+      ),
     )
 
-    const activityAmount = Math.max(totalPlaceCost, Math.round(targetSpent * 0.25))
+    const activityAmount = Math.max(
+      totalPlaceCost + addedActivityCost,
+      Math.round((targetSpent - addedTotalCost) * 0.25) + addedActivityCost,
+    )
 
     const shoppingAmount = Math.max(
       0,
@@ -128,7 +160,7 @@ export function BudgetPieChart({
         percentage: Math.round((cafeAmount / totalCalculated) * 100),
         color: '#06b6d4', // 시안 하늘색
         icon: Coffee,
-        description: '외할머니솜씨 팥빙수, 교동다원 전통 황차 1회',
+        description: addedCafeCost > 0 ? `추가 카페/스벅 비용 (${addedCafeCost.toLocaleString('ko-KR')}원) 반영` : '외할머니솜씨 팥빙수, 교동다원 전통 황차 1회',
       },
       {
         name: '🛍️ 특산품 & 고급 선물 쇼핑',
@@ -156,8 +188,10 @@ export function BudgetPieChart({
       maxRange,
       remainingSavings: userBudgetLimit - totalCalculated,
       mealDesc,
+      addedSpotsSummary,
+      addedTotalCost,
     }
-  }, [userBudgetLimit, totalPlaceCost, transport, time])
+  }, [userBudgetLimit, totalPlaceCost, places, transport, time])
 
   // 색상 번짐이나 오버랩이 0%인 완벽한 수학적 SVG Vector Donut Path 계산
   const svgDonutSlices = useMemo(() => {
@@ -245,6 +279,8 @@ export function BudgetPieChart({
           (설정한 예산 {formatWon(userBudgetLimit)} 중 약 {formatWon(breakdownData.remainingSavings)} 여유 예비비 포함)
         </span>
       </div>
+
+
 
       <div className="grid gap-6 md:grid-cols-[220px_1fr] items-center pt-2">
         {/* 원형 도넛 그래프 (각 영역별 독립 SVG Vector Path - 영역 겹침/번짐 0%) */}

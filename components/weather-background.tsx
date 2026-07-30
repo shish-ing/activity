@@ -34,7 +34,16 @@ export function WeatherBackground({ weather, realtimeCondition }: WeatherBackgro
   // 실제 표현할 테마
   const activeTheme: WeatherTheme = useMemo(() => {
     if (weather === 'auto') {
-      return (realtimeCondition as WeatherTheme) || 'clear'
+      if (realtimeCondition) {
+        const rc = realtimeCondition.toLowerCase()
+        if (rc === 'cloudy' || rc.includes('구름') || rc.includes('흐림')) return 'cloudy'
+        if (rc === 'rain' || rc.includes('비')) return 'rain'
+        if (rc === 'snow' || rc.includes('눈')) return 'snow'
+        if (rc === 'wind' || rc.includes('바람') || rc.includes('한파')) return 'wind'
+        if (rc === 'clear' || rc.includes('맑음') || rc.includes('더위')) return 'clear'
+        return (realtimeCondition as WeatherTheme) || 'clear'
+      }
+      return 'clear'
     }
     return (weather as WeatherTheme) || 'clear'
   }, [weather, realtimeCondition])

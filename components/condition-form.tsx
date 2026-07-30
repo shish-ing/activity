@@ -53,6 +53,43 @@ export function ConditionForm() {
   const [mustVisit, setMustVisit] = useState<string[]>(['전동성당'])
   const [loading, setLoading] = useState(false)
 
+  // 첫 화면 기상청 실시간 날씨 데이터 연동 state
+  const [liveWeatherData, setLiveWeatherData] = useState<{
+    condition?: string
+    summary: string
+    detail: string
+    emoji: string
+    lastUpdated: string
+  } | null>(null)
+  const [isLiveWeatherLoading, setIsLiveWeatherLoading] = useState(false)
+
+  useEffect(() => {
+    async function fetchLiveWeatherOnForm() {
+      setIsLiveWeatherLoading(true)
+      try {
+        const res = await fetch(`/api/weather?t=${Date.now()}`, { cache: 'no-store' })
+        if (res.ok) {
+          const data = await res.json()
+          setLiveWeatherData({
+            condition: data.condition,
+            summary: data.summary,
+            detail: data.detail,
+            emoji: data.emoji,
+            lastUpdated: data.lastUpdated,
+          })
+        }
+      } catch (err) {
+        console.error('Failed to fetch live weather on form:', err)
+      } finally {
+        setIsLiveWeatherLoading(false)
+      }
+    }
+
+    if (weatherOpt === 'auto') {
+      fetchLiveWeatherOnForm()
+    }
+  }, [weatherOpt])
+
   // 주소 입력 실시간 자동완성 매칭
   const filteredSuggestions = NAVER_MAP_START_ADDRESSES.filter(
     (item) =>
@@ -133,11 +170,11 @@ export function ConditionForm() {
 
   return (
     <div className="flex flex-col gap-4 relative z-10">
-      <WeatherBackground weather={weatherOpt || 'auto'} />
+      <WeatherBackground weather={weatherOpt || 'auto'} realtimeCondition={liveWeatherData?.condition || liveWeatherData?.summary} />
 
       {/* 네이버 지도 연동 출발지 주소 검색 & 실시간 GPS 카드 */}
       <div className="flex flex-col gap-3 rounded-2xl border border-sky-200/80 bg-white/85 text-slate-900 backdrop-blur-md p-4 sm:p-5 shadow-xl relative">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between pt-1">
           <div className="flex items-center gap-2 font-bold text-sm text-slate-900">
             <MapPin className="size-4.5 text-sky-600" />
             <span>🗺️ 네이버 지도 연동 출발지 / 주소 검색</span>
@@ -304,13 +341,36 @@ export function ConditionForm() {
           onChange={setCompanion}
           columns={3}
         />
-        <ChipSelect
-          label="날씨 (실시간 연동 & 예보 직접 선택)"
-          options={WEATHER_OPTIONS}
-          value={weatherOpt}
-          onChange={setWeatherOpt}
-          columns={3}
-        />
+        <div className="flex flex-col gap-1.5">
+          <ChipSelect
+            label="날씨 (실시간 연동 & 예보 직접 선택)"
+            options={WEATHER_OPTIONS}
+            value={weatherOpt}
+            onChange={setWeatherOpt}
+            columns={3}
+          />
+          {weatherOpt === 'auto' && (
+            <div className="mt-1 rounded-xl border border-sky-300/60 bg-sky-50/90 p-3 text-xs text-slate-800 shadow-sm flex items-center justify-between gap-2 animate-in fade-in">
+              <div className="flex items-center gap-2">
+                <span className="text-base">{liveWeatherData?.emoji || '🌤️'}</span>
+                <div>
+                  <div className="font-bold text-sky-900 flex items-center gap-1.5">
+                    <span>기상청/실시간 관측: {liveWeatherData?.summary || '실시간 기상 데이터 연동 중...'}</span>
+                    {isLiveWeatherLoading && <Loader2 className="size-3 animate-spin text-sky-600" />}
+                  </div>
+                  <div className="text-[11px] text-slate-600 font-medium mt-0.5">
+                    {liveWeatherData?.detail || '전주시 실시간 기온, 체감온도 및 강수확률을 자동으로 측정하고 있습니다.'}
+                  </div>
+                </div>
+              </div>
+              {liveWeatherData?.lastUpdated && (
+                <span className="text-[10px] text-sky-700 font-semibold shrink-0 bg-sky-100 px-2 py-0.5 rounded-full border border-sky-200">
+                  ⏱️ {liveWeatherData.lastUpdated} 갱신
+                </span>
+              )}
+            </div>
+          )}
+        </div>
         <ChipSelect
           label="이동수단"
           options={TRANSPORT_OPTIONS}

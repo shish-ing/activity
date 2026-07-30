@@ -27,8 +27,16 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     naverMapUrl: 'https://map.naver.com/v5/search/전동성당',
     transitInfo: '🚌 시내버스 1000번 ➔ "전동성당" 하차 (도보 2분)',
     parkingInfo: '🚗 한옥마을 제1공영주차장 이용',
-    nearbyDining: [{ name: '한국집', distance: '도보 3분 (220m)', menu: '전주비빔밥', naverMapUrl: 'https://map.naver.com/v5/search/한국집전주' }],
-    nearbyCafes: [{ name: '교동 다원', distance: '도보 3분 (200m)', menu: '전통 황차', naverMapUrl: 'https://map.naver.com/v5/search/교동다원' }],
+    nearbyDining: [
+      { name: '한국집', distance: '도보 3분 (220m)', menu: '전주비빔밥', naverMapUrl: 'https://map.naver.com/v5/search/한국집전주' },
+      { name: '현대옥 한옥마을점', distance: '도보 4분 (280m)', menu: '콩나물국밥 & 수란', naverMapUrl: 'https://map.naver.com/v5/search/현대옥한옥마을점' },
+      { name: '베테랑 칼국수', distance: '도보 2분 (150m)', menu: '들깨 칼국수 & 만두', naverMapUrl: 'https://map.naver.com/v5/search/베테랑칼국수' },
+    ],
+    nearbyCafes: [
+      { name: '교동 다원', distance: '도보 3분 (200m)', menu: '전통 황차', naverMapUrl: 'https://map.naver.com/v5/search/교동다원' },
+      { name: '전망 카페', distance: '도보 4분 (260m)', menu: '수제 오미자차 & 한옥 뷰', naverMapUrl: 'https://map.naver.com/v5/search/전주전망카페' },
+      { name: '마스커피', distance: '도보 2분 (130m)', menu: '아인슈페너 & 스콘', naverMapUrl: 'https://map.naver.com/v5/search/마스커피전주' },
+    ],
   },
   {
     name: '경기전 & 대나무숲길',
@@ -48,8 +56,16 @@ export const JEONJU_PLACES_DATABASE: Omit<Place, 'id' | 'order'>[] = [
     naverMapUrl: 'https://map.naver.com/v5/search/경기전',
     transitInfo: '🚌 시내버스 1000번 ➔ "전동성당" 하차 (도보 3분)',
     parkingInfo: '🚗 한옥마을 공영주차장 이용',
-    nearbyDining: [{ name: '교동떡갈비', distance: '도보 4분 (270m)', menu: '숯불 떡갈비 정식', naverMapUrl: 'https://map.naver.com/v5/search/교동떡갈비' }],
-    nearbyCafes: [{ name: '외할머니솜씨', distance: '도보 4분 (280m)', menu: '흑임자 팥빙수', naverMapUrl: 'https://map.naver.com/v5/search/외할머니솜씨' }],
+    nearbyDining: [
+      { name: '교동떡갈비', distance: '도보 4분 (270m)', menu: '숯불 떡갈비 정식', naverMapUrl: 'https://map.naver.com/v5/search/교동떡갈비' },
+      { name: '풍남문 비빔밥', distance: '도보 3분 (210m)', menu: '전주 육회 비빔밥', naverMapUrl: 'https://map.naver.com/v5/search/풍남문비빔밥' },
+      { name: '조점례 피순대', distance: '도보 5분 (350m)', menu: '피순대 & 순대국밥', naverMapUrl: 'https://map.naver.com/v5/search/조점례남부시장피순대' },
+    ],
+    nearbyCafes: [
+      { name: '외할머니솜씨', distance: '도보 4분 (280m)', menu: '흑임자 팥빙수', naverMapUrl: 'https://map.naver.com/v5/search/외할머니솜씨' },
+      { name: '행원 전통찻집', distance: '도보 3분 (190m)', menu: '전통한옥 차 & 수제 떡', naverMapUrl: 'https://map.naver.com/v5/search/행원전주' },
+      { name: '노트릭 객사점', distance: '도보 4분 (250m)', menu: '핸드드립 커피 & 파운드', naverMapUrl: 'https://map.naver.com/v5/search/노트릭객사' },
+    ],
   },
   {
     name: '전주향교 (성균관스캔들 촬영지)',

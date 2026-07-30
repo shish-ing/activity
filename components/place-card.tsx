@@ -121,7 +121,7 @@ export function PlaceCard({
           : 'border-slate-200/90 hover:border-amber-300 hover:shadow-lg',
       )}
     >
-      {/* 장소 순서 핀 & 태그 Header */}
+      {/* 장소 순서 핀 & 헤더 */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2.5">
           <span className="flex size-7 items-center justify-center rounded-full bg-accent text-xs font-bold text-accent-foreground shadow-xs">
@@ -209,7 +209,7 @@ export function PlaceCard({
         <button
           type="button"
           onClick={() => setShowDetails((d) => !d)}
-          className="flex items-center gap-1 text-xs font-semibold text-accent hover:underline"
+          className="flex items-center gap-1 text-xs font-semibold text-accent hover:underline cursor-pointer"
         >
           <span>{showDetails ? '간략히 접기' : '주변 맛집3 · 카페3 · 특산품3 & 네이버 상세 지도'}</span>
           {showDetails ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
@@ -278,12 +278,23 @@ export function PlaceCard({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-1.5 text-xs text-foreground bg-card/90 p-2.5 rounded-xl border border-emerald-500/20 my-1">
-                  {/* 승차 정류장 */}
+                  {/* 승차 정류장 (네이버 지도 연동) */}
                   <div className="flex items-center gap-1 font-semibold">
                     <span className="rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-extrabold text-amber-400 border border-amber-500/30">
                       🚩 승차
                     </span>
-                    <span>{place.boardingStop || '"한옥마을·전동성당" 정류장'}</span>
+                    <a
+                      href={`https://map.naver.com/v5/search/${encodeURIComponent(
+                        ((place.boardingStop || '"한옥마을·전동성당" 정류장').match(/"([^"]+)"/)?.[1] || place.boardingStop || '한옥마을').replace(/\(.*\)/g, '').trim() + ' 버스정류장'
+                      )}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="hover:underline flex items-center gap-1 text-foreground hover:text-amber-400 transition-colors"
+                      title="네이버 지도로 승차 정류장 위치 확인"
+                    >
+                      <span>{place.boardingStop || '"한옥마을·전동성당" 정류장'}</span>
+                      <ExternalLink className="size-3 text-amber-400 opacity-80 shrink-0" />
+                    </a>
                   </div>
 
                   <span className="text-muted-foreground font-bold">➔</span>
@@ -296,16 +307,27 @@ export function PlaceCard({
 
                   <span className="text-muted-foreground font-bold">➔</span>
 
-                  {/* 하차 정류장 */}
+                  {/* 하차 정류장 (네이버 지도 연동) */}
                   <div className="flex items-center gap-1 font-semibold">
                     <span className="rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-extrabold text-emerald-400 border border-emerald-500/30">
                       🚏 하차
                     </span>
-                    <span>{place.alightingStop || `"${place.name}" 하차 (도보 3분)`}</span>
+                    <a
+                      href={`https://map.naver.com/v5/search/${encodeURIComponent(
+                        ((place.alightingStop || `"${place.name}" 정류장`).match(/"([^"]+)"/)?.[1] || place.name).replace(/하차/g, '').replace(/\(.*\)/g, '').trim() + ' 버스정류장'
+                      )}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="hover:underline flex items-center gap-1 text-foreground hover:text-emerald-400 transition-colors"
+                      title="네이버 지도로 하차 정류장 위치 확인"
+                    >
+                      <span>{place.alightingStop || `"${place.name}" 하차 (도보 3분)`}</span>
+                      <ExternalLink className="size-3 text-emerald-400 opacity-80 shrink-0" />
+                    </a>
                   </div>
                 </div>
 
-                {/* 2. 네이버 지도 API 실시간 도착 예보 배지 (자동 연속 갱신 + 수동 실시간 최신화 버튼!) */}
+                {/* 2. 네이버 지도 API 실시간 도착 예보 배지 */}
                 <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-900/90 p-2.5 px-3 text-[11px] text-slate-100 border border-emerald-500/40 shadow-sm">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="relative flex size-2 shrink-0">
@@ -323,7 +345,6 @@ export function PlaceCard({
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
-                    {/* 수동 실시간 최신화 버튼! */}
                     <button
                       type="button"
                       onClick={handleManualBusRefresh}
@@ -335,7 +356,6 @@ export function PlaceCard({
                       <span>{isBusRefreshing ? '갱신 중...' : '🔄 실시간 최신화'}</span>
                     </button>
 
-                    {/* 실시간 버스 지도 링크 */}
                     <a
                       href={place.naverMapUrl || `https://map.naver.com/v5/search/${encodeURIComponent(place.name + ' 버스정류장')}`}
                       target="_blank"
@@ -357,7 +377,7 @@ export function PlaceCard({
             {place.reason}
           </p>
 
-          {/* 장소 바로 근처 추천 맛집 3곳, 카페 3곳, 특산품 3곳 서브 큐레이션 */}
+          {/* 추천 맛집 3선 / 카페 3선 / 특산품 3선 */}
           {place.nearbyDining || place.nearbyCafes || place.nearbySpecialties ? (
             <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 text-xs">
               <div className="flex items-center justify-between font-bold text-foreground mb-2">
@@ -375,21 +395,25 @@ export function PlaceCard({
                       <Utensils className="size-3.5" /> 인근 로컬 맛집 3선
                     </div>
                     {place.nearbyDining.map((item) => (
-                      <div key={item.name} className="text-xs leading-tight text-foreground py-1.5 border-b border-border/40 last:border-0">
-                        <div className="flex items-center justify-between font-semibold gap-1">
+                      <div key={item.name} className="text-xs leading-tight text-foreground py-2 border-b border-border/40 last:border-0">
+                        <div className="font-semibold text-xs text-foreground mb-1">
                           <a
                             href={item.naverMapUrl || `https://map.naver.com/v5/search/${encodeURIComponent(place.name + ' ' + item.name)}`}
                             target="_blank"
                             rel="noreferrer"
-                            className="hover:underline flex items-center gap-1 text-foreground hover:text-emerald-500 transition-colors truncate"
+                            className="hover:underline inline-flex items-center gap-1 hover:text-emerald-500 transition-colors"
                             title="네이버 지도로 장소 길찾기"
                           >
-                            <span className="truncate">{item.name}</span>
+                            <span className="font-bold">{item.name}</span>
                             <ExternalLink className="size-3 text-emerald-500 opacity-70 shrink-0" />
                           </a>
-                          <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 shrink-0">{item.distance}</span>
                         </div>
-                        <div className="text-[11px] text-muted-foreground mt-0.5">대표 메뉴: {item.menu}</div>
+                        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground flex-wrap">
+                          <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 shrink-0">
+                            {item.distance}
+                          </span>
+                          <span className="truncate">대표 메뉴: {item.menu}</span>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -401,21 +425,25 @@ export function PlaceCard({
                       <Coffee className="size-3.5" /> 인근 감성 카페 3선
                     </div>
                     {place.nearbyCafes.map((item) => (
-                      <div key={item.name} className="text-xs leading-tight text-foreground py-1.5 border-b border-border/40 last:border-0">
-                        <div className="flex items-center justify-between font-semibold gap-1">
+                      <div key={item.name} className="text-xs leading-tight text-foreground py-2 border-b border-border/40 last:border-0">
+                        <div className="font-semibold text-xs text-foreground mb-1">
                           <a
                             href={item.naverMapUrl || `https://map.naver.com/v5/search/${encodeURIComponent(place.name + ' ' + item.name)}`}
                             target="_blank"
                             rel="noreferrer"
-                            className="hover:underline flex items-center gap-1 text-foreground hover:text-amber-500 transition-colors truncate"
+                            className="hover:underline inline-flex items-center gap-1 hover:text-amber-500 transition-colors"
                             title="네이버 지도로 장소 길찾기"
                           >
-                            <span className="truncate">{item.name}</span>
+                            <span className="font-bold">{item.name}</span>
                             <ExternalLink className="size-3 text-amber-500 opacity-70 shrink-0" />
                           </a>
-                          <span className="text-[10px] text-amber-400 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 shrink-0">{item.distance}</span>
                         </div>
-                        <div className="text-[11px] text-muted-foreground mt-0.5">시그니처: {item.menu}</div>
+                        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground flex-wrap">
+                          <span className="text-[10px] text-amber-400 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 shrink-0">
+                            {item.distance}
+                          </span>
+                          <span className="truncate">시그니처: {item.menu}</span>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -427,21 +455,25 @@ export function PlaceCard({
                       <Gift className="size-3.5 text-purple-400" /> 인근 특산품 & 기념품 3선
                     </div>
                     {place.nearbySpecialties.map((item) => (
-                      <div key={item.name} className="text-xs leading-tight text-foreground py-1.5 border-b border-border/40 last:border-0">
-                        <div className="flex items-center justify-between font-semibold gap-1">
+                      <div key={item.name} className="text-xs leading-tight text-foreground py-2 border-b border-border/40 last:border-0">
+                        <div className="font-semibold text-xs text-foreground mb-1">
                           <a
                             href={item.naverMapUrl || `https://map.naver.com/v5/search/${encodeURIComponent(place.name + ' ' + item.name)}`}
                             target="_blank"
                             rel="noreferrer"
-                            className="hover:underline flex items-center gap-1 text-foreground hover:text-purple-400 transition-colors truncate"
+                            className="hover:underline inline-flex items-center gap-1 hover:text-purple-400 transition-colors"
                             title="네이버 지도로 장소 길찾기"
                           >
-                            <span className="truncate">{item.name}</span>
+                            <span className="font-bold">{item.name}</span>
                             <ExternalLink className="size-3 text-purple-400 opacity-70 shrink-0" />
                           </a>
-                          <span className="text-[10px] text-purple-400 font-bold bg-purple-500/10 px-1.5 py-0.5 rounded border border-purple-500/20 shrink-0">{item.distance}</span>
                         </div>
-                        <div className="text-[11px] text-muted-foreground mt-0.5">추천 선물: {item.item}</div>
+                        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground flex-wrap">
+                          <span className="text-[10px] text-purple-400 font-bold bg-purple-500/10 px-1.5 py-0.5 rounded border border-purple-500/20 shrink-0">
+                            {item.distance}
+                          </span>
+                          <span className="truncate">추천 선물: {item.item}</span>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -457,7 +489,7 @@ export function PlaceCard({
             </p>
           ) : null}
 
-          {/* 주의사항 경고 배지 */}
+          {/* 주의사항 */}
           {place.warning ? (
             <p className="flex items-center gap-1.5 rounded-xl bg-destructive/10 px-3 py-2 text-xs font-medium text-foreground border border-destructive/20">
               <AlertTriangle className="size-3.5 shrink-0 text-destructive" />
@@ -465,7 +497,7 @@ export function PlaceCard({
             </p>
           ) : null}
 
-          {/* 네이버 지도 연동 버튼 */}
+          {/* 네이버 지도 링크 */}
           {place.naverMapUrl ? (
             <div className="pt-1">
               <a
