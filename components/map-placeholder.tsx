@@ -38,6 +38,15 @@ function getStartLocationCoords(startLocName?: string, firstPlace?: Place): { la
   return { lat: 35.8133, lng: 127.1492, name: '전주 한옥마을' }
 }
 
+let leafletPromise: Promise<any> | null = null
+function getLeaflet() {
+  if (typeof window === 'undefined') return Promise.reject()
+  if (!leafletPromise) {
+    leafletPromise = import('leaflet').then((m) => m.default || m)
+  }
+  return leafletPromise
+}
+
 export function MapPlaceholder({
   places,
   activeId,
@@ -209,8 +218,8 @@ export function MapPlaceholder({
         setOsrmRoutes({ ...routesMap })
       }
 
-      // 1초 타임아웃 제한으로 병렬 로딩 완료 후 정밀 곡선 라인으로 교체
-      const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 1000))
+      // 300ms 타임아웃 제한으로 초고속 렌더링
+      const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 300))
       await Promise.race([Promise.all(promises), timeoutPromise])
 
       if (isMounted) {
@@ -238,9 +247,7 @@ export function MapPlaceholder({
     customStartPinRef.current = null
 
     if (!mapRef.current || places.length === 0) return
-    let L: any
-    import('leaflet').then((leafletModule) => {
-      L = leafletModule.default || leafletModule
+    getLeaflet().then((L) => {
       const routeLatLngs: [number, number][] = places.map((p) => {
         const lat = p.lat || 35.8133 + (p.mapY - 50) * 0.0002
         const lng = p.lng || 127.1492 + (p.mapX - 30) * 0.0002
@@ -266,9 +273,7 @@ export function MapPlaceholder({
     const toPlace = places[pair[1] - 1]
     if (!fromPlace || !toPlace || !mapRef.current) return
 
-    let L: any
-    import('leaflet').then((leafletModule) => {
-      L = leafletModule.default || leafletModule
+    getLeaflet().then((L) => {
       const fromLat = fromPlace.lat || 35.8133 + (fromPlace.mapY - 50) * 0.0002
       const fromLng = fromPlace.lng || 127.1492 + (fromPlace.mapX - 30) * 0.0002
       const toLat = toPlace.lat || 35.8133 + (toPlace.mapY - 50) * 0.0002
@@ -282,9 +287,7 @@ export function MapPlaceholder({
   useEffect(() => {
     if (typeof window === 'undefined' || !containerRef.current) return
 
-    let L: any
-    import('leaflet').then((leafletModule) => {
-      L = leafletModule.default || leafletModule
+    getLeaflet().then((L) => {
 
       // 지도 객체 초기화
       if (!mapRef.current && containerRef.current) {

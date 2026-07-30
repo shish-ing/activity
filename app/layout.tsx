@@ -46,6 +46,10 @@ export default function RootLayout({
       className={`light bg-[#38BDF8] ${notoSansKr.variable} ${gowunBatang.variable}`}
     >
       <head>
+        <link rel="dns-prefetch" href="https://a.basemaps.cartocdn.com" />
+        <link rel="preconnect" href="https://a.basemaps.cartocdn.com" crossOrigin="" />
+        <link rel="dns-prefetch" href="https://router.project-osrm.org" />
+        <link rel="preconnect" href="https://router.project-osrm.org" crossOrigin="" />
         <link
           rel="stylesheet"
           href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
