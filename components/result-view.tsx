@@ -433,9 +433,9 @@ export function ResultView() {
       : isCafe
       ? '☕ 카페 & 디저트'
       : isBoardGame
-      ? '🎲 보드게임카페'
+      ? '🎲 이색 체험 (보드게임)'
       : isEscapeRoom
-      ? '🔐 방탈출 카페'
+      ? '🔐 이색 체험 (방탈출)'
       : isPhoto
       ? '📸 셀프 포토 스튜디오'
       : isKaraoke

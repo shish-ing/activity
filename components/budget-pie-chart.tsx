@@ -30,18 +30,48 @@ export function BudgetPieChart({
       .join(', ')
     const addedTotalCost = addedSpots.reduce((acc, p) => acc + (p.cost || 0), 0)
 
-    // 동적 카테고리별 비용 가산
-    const addedCafeCost = places
-      .filter((p) => p.category.includes('카페') || p.category.includes('디저트') || p.isDessert || p.name.includes('스타벅스') || p.name.includes('스벅'))
-      .reduce((sum, p) => sum + (p.cost || 0), 0)
+    // 동적 카테고리별 정밀 분류 매처
+    const isActivityPlace = (p: Place) => {
+      const c = p.category || ''
+      const n = p.name || ''
+      return (
+        c.includes('체험') || c.includes('관람') || c.includes('문화') || c.includes('방탈출') || c.includes('보드게임') || c.includes('스튜디오') || c.includes('노래') ||
+        n.includes('방탈출') || n.includes('보드게임') || n.includes('네컷') || n.includes('포토') || n.includes('노래방') || n.includes('코노')
+      )
+    }
 
-    const addedDiningCost = places
-      .filter((p) => p.category.includes('식당') || p.category.includes('맛집') || p.isMeal || p.category.includes('노포'))
-      .reduce((sum, p) => sum + (p.cost || 0), 0)
+    const isCafePlace = (p: Place) => {
+      if (isActivityPlace(p)) return false
+      const c = p.category || ''
+      const n = p.name || ''
+      return c.includes('카페') || c.includes('디저트') || p.isDessert || n.includes('스타벅스') || n.includes('스벅') || n.includes('커피') || c.includes('찻집')
+    }
 
-    const addedActivityCost = places
-      .filter((p) => !p.isMeal && !p.isDessert && !p.category.includes('카페') && !p.category.includes('특산품'))
-      .reduce((sum, p) => sum + (p.cost || 0), 0)
+    const isDiningPlace = (p: Place) => {
+      if (isActivityPlace(p) || isCafePlace(p)) return false
+      const c = p.category || ''
+      const n = p.name || ''
+      return c.includes('식당') || c.includes('맛집') || p.isMeal || c.includes('노포') || c.includes('주점') || n.includes('통집') || n.includes('비빔밥')
+    }
+
+    const isShoppingPlace = (p: Place) => {
+      const c = p.category || ''
+      const n = p.name || ''
+      return c.includes('특산품') || c.includes('쇼핑') || n.includes('초코파이') || n.includes('모주') || n.includes('올리브영')
+    }
+
+    const addedActivitySpots = addedSpots.filter(isActivityPlace)
+    const addedCafeSpots = addedSpots.filter(isCafePlace)
+    const addedDiningSpots = addedSpots.filter(isDiningPlace)
+    const addedShoppingSpots = addedSpots.filter(isShoppingPlace)
+
+    const addedActivityCost = addedActivitySpots.reduce((sum, p) => sum + (p.cost || 0), 0)
+    const addedCafeCost = addedCafeSpots.reduce((sum, p) => sum + (p.cost || 0), 0)
+    const addedDiningCost = addedDiningSpots.reduce((sum, p) => sum + (p.cost || 0), 0)
+    const addedShoppingCost = addedShoppingSpots.reduce((sum, p) => sum + (p.cost || 0), 0)
+
+    const getNamesStr = (spots: Place[]) =>
+      spots.map((p) => p.name.replace(/\(.*\)/g, '').trim()).join(', ')
 
     if (userBudgetLimit === 0) {
       return {
@@ -104,7 +134,7 @@ export function BudgetPieChart({
       maxCafeCost = 45000
     }
 
-    // 4. 현실적 카테고리별 지출액 계산 (새로 추가된 장소 비용 반영)
+    // 4. 현실적 카테고리별 지출액 계산 (새로 추가된 장소 비용 100% 동적 분배)
     const diningAmount = Math.max(
       addedDiningCost,
       Math.min(
@@ -127,7 +157,7 @@ export function BudgetPieChart({
     )
 
     const shoppingAmount = Math.max(
-      0,
+      addedShoppingCost,
       targetSpent - diningAmount - cafeAmount - activityAmount - transportCost,
     )
 
@@ -144,7 +174,7 @@ export function BudgetPieChart({
         percentage: Math.round((diningAmount / totalCalculated) * 100),
         color: '#10b981', // 초록색 (에메랄드)
         icon: Utensils,
-        description: mealDesc,
+        description: addedDiningCost > 0 ? `추가 식비 '${getNamesStr(addedDiningSpots)}' (${addedDiningCost.toLocaleString('ko-KR')}원) 반영` : mealDesc,
       },
       {
         name: '🎟️ 관람 & 공방 체험료',
@@ -152,7 +182,7 @@ export function BudgetPieChart({
         percentage: Math.round((activityAmount / totalCalculated) * 100),
         color: '#f59e0b', // 노란색 (앰버)
         icon: Ticket,
-        description: '한지/도자기/부채 공방, 전주 난장, 어진박물관 등',
+        description: addedActivityCost > 0 ? `추가 체험 '${getNamesStr(addedActivitySpots)}' (${addedActivityCost.toLocaleString('ko-KR')}원) 반영` : '한지/도자기/부채 공방, 전주 난장, 어진박물관 등',
       },
       {
         name: '☕ 카페 & 전통 찻집',
@@ -160,7 +190,7 @@ export function BudgetPieChart({
         percentage: Math.round((cafeAmount / totalCalculated) * 100),
         color: '#06b6d4', // 시안 하늘색
         icon: Coffee,
-        description: addedCafeCost > 0 ? `추가 카페/스벅 비용 (${addedCafeCost.toLocaleString('ko-KR')}원) 반영` : '외할머니솜씨 팥빙수, 교동다원 전통 황차 1회',
+        description: addedCafeCost > 0 ? `추가 카페 '${getNamesStr(addedCafeSpots)}' (${addedCafeCost.toLocaleString('ko-KR')}원) 반영` : '외할머니솜씨 팥빙수, 교동다원 전통 황차 1회',
       },
       {
         name: '🛍️ 특산품 & 고급 선물 쇼핑',
@@ -168,7 +198,7 @@ export function BudgetPieChart({
         percentage: Math.round((shoppingAmount / totalCalculated) * 100),
         color: '#a855f7', // 보라색 (퍼플)
         icon: Gift,
-        description: '전주 수제 초코파이 선물세트, 전통주 모주, 한지 소품',
+        description: addedShoppingCost > 0 ? `추가 쇼핑 '${getNamesStr(addedShoppingSpots)}' (${addedShoppingCost.toLocaleString('ko-KR')}원) 반영` : '전주 수제 초코파이 선물세트, 전통주 모주, 한지 소품',
       },
       {
         name: transport === 'car' ? '🚗 주차 & 기름값' : transport === 'transit' ? '🚌 시내버스 교통비' : '🚶 도보 이동비',
