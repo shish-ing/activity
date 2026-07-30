@@ -53,10 +53,11 @@ export interface RealSpotRatingSummary {
     funScore: number
     comment: string
     date: string
+    tags?: string[]
   }[]
 }
 
-// 5. localStorage의 사용자 저장 세션(jeonju_saved_courses_*)에서 "실제 남긴" 평점만 순수하게 집계
+// 5. localStorage의 사용자 저장 세션(jeonju_saved_courses_*)에서 "실제 사용자가 작성한" 평점만 100% 집계
 export const getRealSpotRatingSummaries = (): Record<string, RealSpotRatingSummary> => {
   if (typeof window === 'undefined') return {}
   try {
@@ -71,6 +72,7 @@ export const getRealSpotRatingSummaries = (): Record<string, RealSpotRatingSumma
         const courses = JSON.parse(coursesStr)
 
         courses.forEach((course: any) => {
+          // 장소별 개별 평점 (날씨 조화 & 재미 점수 & 장소 한줄평)
           if (course.spotRatings && Array.isArray(course.spotRatings)) {
             course.spotRatings.forEach((sr: any) => {
               if (!sr.spotName) return
@@ -87,16 +89,47 @@ export const getRealSpotRatingSummaries = (): Record<string, RealSpotRatingSumma
 
               const item = summaries[sr.spotName]
               item.reviewCount += 1
-              item.avgWeatherScore += Number(sr.weatherScore || 0)
-              item.avgFunScore += Number(sr.funScore || 0)
+              item.avgWeatherScore += Number(sr.weatherScore || 5)
+              item.avgFunScore += Number(sr.funScore || 5)
 
-              if (sr.comment && sr.comment.trim()) {
+              item.reviews.push({
+                userName: userEmail.split('@')[0] || '사용자',
+                weatherScore: Number(sr.weatherScore || 5),
+                funScore: Number(sr.funScore || 5),
+                comment: sr.comment ? sr.comment.trim() : (course.reviewContent || '만족스러운 방문이었습니다.'),
+                date: course.reviewedAt || course.savedAt || '2026-07-30',
+                tags: course.satisfactionTags || [],
+              })
+            })
+          } else if (course.rating && course.spots && Array.isArray(course.spots)) {
+            // 개별 장소 평점 없이 코스 평점만 존재하는 경우
+            course.spots.forEach((spot: any) => {
+              const sName = typeof spot === 'string' ? spot : spot.name
+              if (!sName) return
+              if (!summaries[sName]) {
+                summaries[sName] = {
+                  spotName: sName,
+                  reviewCount: 0,
+                  avgWeatherScore: 0,
+                  avgFunScore: 0,
+                  overallRating: 0,
+                  reviews: [],
+                }
+              }
+
+              const item = summaries[sName]
+              item.reviewCount += 1
+              item.avgWeatherScore += Number(course.rating || 5)
+              item.avgFunScore += Number(course.rating || 5)
+
+              if (course.reviewContent) {
                 item.reviews.push({
                   userName: userEmail.split('@')[0] || '사용자',
-                  weatherScore: Number(sr.weatherScore || 0),
-                  funScore: Number(sr.funScore || 0),
-                  comment: sr.comment.trim(),
+                  weatherScore: Number(course.rating || 5),
+                  funScore: Number(course.rating || 5),
+                  comment: course.reviewContent.trim(),
                   date: course.reviewedAt || course.savedAt || '2026-07-30',
+                  tags: course.satisfactionTags || [],
                 })
               }
             })

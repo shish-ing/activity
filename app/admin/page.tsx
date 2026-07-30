@@ -218,10 +218,14 @@ export default function AdminPage() {
 
     const handleSync = () => loadAdminStateAndRealRatings()
     window.addEventListener('jeonju_admin_status_changed', handleSync)
+    window.addEventListener('jeonju_review_updated', handleSync)
+    window.addEventListener('jeonju_course_saved', handleSync)
     window.addEventListener('storage', handleSync)
 
     return () => {
       window.removeEventListener('jeonju_admin_status_changed', handleSync)
+      window.removeEventListener('jeonju_review_updated', handleSync)
+      window.removeEventListener('jeonju_course_saved', handleSync)
       window.removeEventListener('storage', handleSync)
     }
   }, [])

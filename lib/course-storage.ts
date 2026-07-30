@@ -123,6 +123,7 @@ export const updateCourseReviewInStorage = (
       return c
     })
     localStorage.setItem(key, JSON.stringify(updated))
+    window.dispatchEvent(new Event('jeonju_review_updated'))
     return true
   } catch (e) {
     return false
@@ -145,6 +146,7 @@ export const deleteCourseReviewFromStorage = (
       return c
     })
     localStorage.setItem(key, JSON.stringify(updated))
+    window.dispatchEvent(new Event('jeonju_review_updated'))
     return true
   } catch (e) {
     return false
