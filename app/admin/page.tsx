@@ -27,7 +27,11 @@ import {
   Star,
   SunMedium,
   Smile,
-  Filter
+  Filter,
+  Users,
+  UserCheck,
+  UserX,
+  BookOpen
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { JEONJU_PLACES_DATABASE } from '@/app/api/places/search/route'
@@ -35,7 +39,9 @@ import {
   getAdminPlaceStatuses,
   setAdminPlaceStatus,
   getRealSpotRatingSummaries,
-  type RealSpotRatingSummary
+  getAdminRegisteredUsers,
+  deleteAdminUser,
+  type RegisteredUserInfo
 } from '@/lib/admin-storage'
 
 export interface AdminPlaceItem {
@@ -60,7 +66,7 @@ export interface AdminPlaceItem {
   isTempClosed: boolean
   updatedAt: string
 
-  // ⭐ 실제 사용자가 남긴 평점 데이터 (임의의 더미 수치 없음! 순수 유저 평가 기반)
+  // ⭐ 실제 사용자가 남긴 평점 데이터 (순수 유저 평가 기반)
   avgWeatherScore: number // 0.0 ~ 5.0
   avgFunScore: number // 0.0 ~ 5.0
   overallRating: number // 0.0 ~ 5.0
@@ -75,7 +81,7 @@ export interface AdminPlaceItem {
   }[]
 }
 
-// 순수 초기 장소 데이터셋 (임의의 별점 숫자 0 처리, 유저가 남긴 리뷰만 적용)
+// 순수 초기 장소 데이터셋
 const INITIAL_ADMIN_PLACES: AdminPlaceItem[] = JEONJU_PLACES_DATABASE.map((p, idx) => ({
   id: `place_${idx + 1}`,
   name: p.name,
@@ -143,9 +149,14 @@ const INITIAL_REPORTS: UserReport[] = [
 ]
 
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState<'crud' | 'ratings' | 'hours' | 'simulator' | 'monitoring'>('crud')
+  const [activeTab, setActiveTab] = useState<'crud' | 'users' | 'hours' | 'ratings' | 'simulator' | 'monitoring'>('crud')
   const [places, setPlaces] = useState<AdminPlaceItem[]>(INITIAL_ADMIN_PLACES)
   const [reports, setReports] = useState<UserReport[]>(INITIAL_REPORTS)
+
+  // 👤 회원가입 유저 관리 State
+  const [registeredUsers, setRegisteredUsers] = useState<RegisteredUserInfo[]>([])
+  const [userSearchQuery, setUserSearchQuery] = useState('')
+  const [selectedUserCoursesModal, setSelectedUserCoursesModal] = useState<RegisteredUserInfo | null>(null)
 
   // 🔍 CRUD 검색 및 필터 State
   const [searchQuery, setSearchQuery] = useState('')
@@ -170,19 +181,18 @@ export default function AdminPage() {
   const [formStatus, setFormStatus] = useState<'active' | 'review' | 'inactive'>('active')
   const [formTags, setFormTags] = useState<string>('#전주 #핫플')
 
-  // 🌤️ 기상청 수동 폴백 모드 State
-  const [manualWeatherFallback, setManualWeatherFallback] = useState<boolean>(false)
-  const [forcedWeatherCondition] = useState<string>('rain')
-
   // 🎯 시뮬레이터 State
   const [simAuditResults, setSimAuditResults] = useState<any[] | null>(null)
 
-  // 💡 [핵심] LocalStorage에서 ① 영업/휴업 설정 상태 & ② 실제 작성된 유저 평점 집계 동기화
+  // 💡 [핵심] LocalStorage에서 ① 영업/휴업 설정 상태, ② 실제 유저 평점 집계, ③ 회원가입자 목록 동기화
   const loadAdminStateAndRealRatings = () => {
     if (typeof window === 'undefined') return
 
     const adminStatuses = getAdminPlaceStatuses()
     const realRatingsMap = getRealSpotRatingSummaries()
+    const users = getAdminRegisteredUsers()
+
+    setRegisteredUsers(users)
 
     setPlaces((prev) =>
       prev.map((p) => {
@@ -220,17 +230,30 @@ export default function AdminPage() {
     window.addEventListener('jeonju_admin_status_changed', handleSync)
     window.addEventListener('jeonju_review_updated', handleSync)
     window.addEventListener('jeonju_course_saved', handleSync)
+    window.addEventListener('jeonju_user_registered', handleSync)
     window.addEventListener('storage', handleSync)
 
     return () => {
       window.removeEventListener('jeonju_admin_status_changed', handleSync)
       window.removeEventListener('jeonju_review_updated', handleSync)
       window.removeEventListener('jeonju_course_saved', handleSync)
+      window.removeEventListener('jeonju_user_registered', handleSync)
       window.removeEventListener('storage', handleSync)
     }
   }, [])
 
-  // 📊 대시보드 통계 수치 (실제 평가 참여 장소들만 계산)
+  // 👤 회원 삭제 핸들러
+  const handleDeleteUserAccount = (email: string, name: string) => {
+    if (confirm(`정말로 회원 '${name} (${email})' 계정을 탈퇴/삭제 처리하시겠습니까?\n저장된 코스 데이터도 함께 삭제됩니다.`)) {
+      const ok = deleteAdminUser(email)
+      if (ok) {
+        alert(`회원 '${name}' 계정이 정상 삭제되었습니다.`)
+        loadAdminStateAndRealRatings()
+      }
+    }
+  }
+
+  // 📊 대시보드 통계 수치
   const stats = useMemo(() => {
     const total = places.length
     const active = places.filter((p) => p.status === 'active' && !p.isTempClosed).length
@@ -256,9 +279,33 @@ export default function AdminPage() {
         : null
 
     const totalReviews = places.reduce((sum, p) => sum + p.reviewCount, 0)
+    const totalUsersCount = registeredUsers.length
+    const pStyleUsersCount = registeredUsers.filter((u) => u.travelStyle === 'P').length
 
-    return { total, active, review, tempClosed, avgRatingAll, topWeatherSpot, topFunSpot, totalReviews }
-  }, [places])
+    return {
+      total,
+      active,
+      review,
+      tempClosed,
+      avgRatingAll,
+      topWeatherSpot,
+      topFunSpot,
+      totalReviews,
+      totalUsersCount,
+      pStyleUsersCount,
+    }
+  }, [places, registeredUsers])
+
+  // 필터링된 회원 목록
+  const filteredRegisteredUsers = useMemo(() => {
+    return registeredUsers.filter((u) => {
+      if (userSearchQuery.trim()) {
+        const q = userSearchQuery.toLowerCase()
+        return u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+      }
+      return true
+    })
+  }, [registeredUsers, userSearchQuery])
 
   // 필터링 및 정렬된 장소 목록 (CRUD용)
   const filteredPlaces = useMemo(() => {
@@ -526,6 +573,16 @@ export default function AdminPage() {
             </div>
           </div>
 
+          <div className="rounded-2xl border border-sky-500/30 bg-sky-950/20 p-4 shadow-md flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-sky-400">👤 회원가입 사용자 계정</p>
+              <p className="text-2xl font-black text-sky-300 mt-1">{stats.totalUsersCount}<span className="text-xs font-medium text-sky-500/80 ml-1">명 (P형 {stats.pStyleUsersCount}명)</span></p>
+            </div>
+            <div className="flex size-10 items-center justify-center rounded-xl bg-sky-500/20 text-sky-300 border border-sky-500/30">
+              <Users className="size-5" />
+            </div>
+          </div>
+
           <div className="rounded-2xl border border-amber-500/30 bg-amber-950/20 p-4 shadow-md flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold text-amber-400">⭐ 실 사용자 평균 평점</p>
@@ -568,16 +625,6 @@ export default function AdminPage() {
               <Smile className="size-5" />
             </div>
           </div>
-
-          <div className="rounded-2xl border border-sky-500/30 bg-sky-950/20 p-4 shadow-md flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-sky-400">💬 순수 사용자 리뷰 수</p>
-              <p className="text-2xl font-black text-sky-300 mt-1">{stats.totalReviews}<span className="text-xs font-medium text-sky-500/80 ml-1">건</span></p>
-            </div>
-            <div className="flex size-10 items-center justify-center rounded-xl bg-sky-500/20 text-sky-300 border border-sky-500/30">
-              <MessageSquare className="size-5" />
-            </div>
-          </div>
         </div>
 
         {/* 탭 메뉴 네비게이션 */}
@@ -593,6 +640,19 @@ export default function AdminPage() {
           >
             <Building2 className="size-4" />
             <span>1장. 장소 데이터 CRUD & 영업 상태 목록</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('users')}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all cursor-pointer border ${
+              activeTab === 'users'
+                ? 'bg-amber-500 text-amber-950 border-amber-400 shadow-md font-extrabold'
+                : 'bg-slate-800/80 text-slate-400 border-slate-700/80 hover:bg-slate-800 hover:text-slate-200'
+            }`}
+          >
+            <Users className="size-4" />
+            <span>👤 6장. 회원가입 사용자 관리 ({registeredUsers.length}명)</span>
           </button>
 
           <button
@@ -647,6 +707,117 @@ export default function AdminPage() {
             <span>4장. API 모니터링 & 사용자 신고함</span>
           </button>
         </div>
+
+        {/* ========================================================================= */}
+        {/* TAB 6: 👤 회원가입 사용자 현황 센터 */}
+        {/* ========================================================================= */}
+        {activeTab === 'users' && (
+          <div className="space-y-4 animate-in fade-in duration-200">
+            {/* 회원 검색 바 */}
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/80 p-4 shadow-md">
+              <div className="relative min-w-[280px] flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+                <input
+                  type="text"
+                  value={userSearchQuery}
+                  onChange={(e) => setUserSearchQuery(e.target.value)}
+                  placeholder="회원 이름, 닉네임, 이메일 검색..."
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 pl-9 pr-4 py-2 text-xs text-white placeholder:text-slate-500 outline-none focus:border-amber-400"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <UserCheck className="size-4 text-emerald-400" />
+                <span>총 가입자: <strong className="text-white">{registeredUsers.length}명</strong></span>
+              </div>
+            </div>
+
+            {/* 회원 가입자 테이블 */}
+            <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/80 shadow-xl">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs text-slate-300">
+                  <thead className="border-b border-slate-800 bg-slate-900/90 text-slate-400 font-bold">
+                    <tr>
+                      <th className="px-4 py-3">회원 이름 / 닉네임</th>
+                      <th className="px-4 py-3">이메일 주소</th>
+                      <th className="px-4 py-3">여행 성향 (MBTI)</th>
+                      <th className="px-4 py-3">가입 일시</th>
+                      <th className="px-4 py-3">저장 코스 / 평가 후기</th>
+                      <th className="px-4 py-3 text-right">계정 관리</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60">
+                    {filteredRegisteredUsers.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                          가입된 회원 검색 결과가 없거나 회원 목록이 비어 있습니다.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredRegisteredUsers.map((u, idx) => (
+                        <tr key={idx} className="hover:bg-slate-900/50 transition-colors">
+                          <td className="px-4 py-3.5 font-bold text-white text-sm">
+                            <div className="flex items-center gap-2">
+                              <span className="flex size-7 items-center justify-center rounded-full bg-slate-800 text-amber-300 text-xs font-black">
+                                👤
+                              </span>
+                              <span>{u.name}</span>
+                            </div>
+                          </td>
+
+                          <td className="px-4 py-3.5 text-slate-300 font-mono">
+                            {u.email}
+                          </td>
+
+                          <td className="px-4 py-3.5">
+                            {u.travelStyle === 'P' ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 border border-amber-400/40 px-2.5 py-0.5 text-[11px] font-bold text-amber-300">
+                                🎯 P (즉흥형 - 100% 추천 반응)
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/20 border border-sky-400/40 px-2.5 py-0.5 text-[11px] font-bold text-sky-300">
+                                📋 J (계획형)
+                              </span>
+                            )}
+                          </td>
+
+                          <td className="px-4 py-3.5 text-slate-400 font-mono text-[11px]">
+                            {u.createdAt}
+                          </td>
+
+                          <td className="px-4 py-3.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-amber-300 font-bold">
+                                📂 저장 코스 {u.savedCoursesCount}개
+                              </span>
+                              <span className="text-slate-600">•</span>
+                              <span className="text-emerald-400 font-bold">
+                                ✍️ 작성 리뷰 {u.reviewsCount}개
+                              </span>
+                            </div>
+                          </td>
+
+                          <td className="px-4 py-3.5 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteUserAccount(u.email, u.name)}
+                                className="rounded-lg border border-red-500/30 bg-red-950/40 px-2.5 py-1 text-red-300 hover:bg-red-900/60 font-bold text-[11px] cursor-pointer flex items-center gap-1"
+                              >
+                                <Trash2 className="size-3" />
+                                <span>회원 탈퇴</span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ========================================================================= */}
         {/* TAB 1: 🏢 장소 데이터 CRUD & 영업 상태 목록 */}
@@ -746,7 +917,6 @@ export default function AdminPage() {
                           <p className="text-slate-400 text-[11px] mt-0.5">{p.category} • {p.address}</p>
                         </td>
 
-                        {/* 🟢/🔴 영업중 vs 휴업 스위치 */}
                         <td className="px-4 py-3.5">
                           <button
                             type="button"
@@ -771,7 +941,6 @@ export default function AdminPage() {
                           </button>
                         </td>
 
-                        {/* ⭐ 사용자 평점 표시 (더미 없음) */}
                         <td className="px-4 py-3.5">
                           {p.reviewCount > 0 ? (
                             <div className="flex flex-col gap-0.5">
@@ -932,7 +1101,7 @@ export default function AdminPage() {
                   <span>실제 사용자가 작성한 장소별 평점 & 후기 모니터링</span>
                 </h2>
                 <p className="text-xs text-slate-400 mt-1">
-                  임의의 가짜 숫자가 아닌, 프론트엔드 [내 정보 관리]에서 소비자가 직접 평가한 점수만 표시됩니다.
+                  프론트엔드 [내 정보 관리]에서 소비자가 직접 평가한 점수만 표시됩니다.
                 </p>
               </div>
 

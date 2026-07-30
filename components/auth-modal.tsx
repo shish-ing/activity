@@ -199,6 +199,9 @@ export function AuthModal({
 
       const updatedUsers = [...users, newUser]
       saveStoredUsers(updatedUsers)
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('jeonju_user_registered'))
+      }
 
       // 로그인 세션 즉시 적용
       const sessionUser: RegisteredUser = {

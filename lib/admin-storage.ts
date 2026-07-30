@@ -154,3 +154,63 @@ export const getRealSpotRatingSummaries = (): Record<string, RealSpotRatingSumma
     return {}
   }
 }
+
+// 6. Admin용 회원가입 유저 데이터 구조
+export interface RegisteredUserInfo {
+  name: string
+  email: string
+  travelStyle?: string
+  createdAt?: string
+  savedCoursesCount: number
+  reviewsCount: number
+}
+
+// 7. LocalStorage에 회원가입한 모든 사용자 정보 및 활동 통계 읽기
+export const getAdminRegisteredUsers = (): RegisteredUserInfo[] => {
+  if (typeof window === 'undefined') return []
+  try {
+    const rawData = localStorage.getItem('jeonju_users')
+    const users = rawData ? JSON.parse(rawData) : []
+
+    return users.map((u: any) => {
+      const email = u.email ? u.email.toLowerCase() : ''
+      const key = `jeonju_saved_courses_${email}`
+      const courseStr = localStorage.getItem(key)
+      const courses = courseStr ? JSON.parse(courseStr) : []
+
+      const reviewsCount = courses.filter(
+        (c: any) => c.rating || (c.spotRatings && c.spotRatings.length > 0)
+      ).length
+
+      return {
+        name: u.name || '회원',
+        email: u.email || 'user@jeonju.com',
+        travelStyle: u.travelStyle || 'P',
+        createdAt: u.createdAt
+          ? new Date(u.createdAt).toISOString().slice(0, 16).replace('T', ' ')
+          : '2026-07-30 16:00',
+        savedCoursesCount: courses.length,
+        reviewsCount: reviewsCount,
+      }
+    })
+  } catch (e) {
+    return []
+  }
+}
+
+// 8. Admin 회원 관리 - 회원 삭제 처리
+export const deleteAdminUser = (email: string): boolean => {
+  if (typeof window === 'undefined') return false
+  try {
+    const rawData = localStorage.getItem('jeonju_users')
+    if (!rawData) return false
+    const users = JSON.parse(rawData)
+    const filtered = users.filter((u: any) => u.email.toLowerCase() !== email.toLowerCase())
+    localStorage.setItem('jeonju_users', JSON.stringify(filtered))
+    localStorage.removeItem(`jeonju_saved_courses_${email.toLowerCase()}`)
+    window.dispatchEvent(new Event('jeonju_user_registered'))
+    return true
+  } catch (e) {
+    return false
+  }
+}
