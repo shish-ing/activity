@@ -18,31 +18,6 @@ type MapPlaceholderProps = {
   onResetAll?: () => void
 }
 
-export function getDistinctLatLngs(places: Place[]): [number, number][] {
-  const result: [number, number][] = []
-
-  places.forEach((p, idx) => {
-    let lat = p.lat || 35.8133 + ((p.mapY ?? 50) - 50) * 0.0002
-    let lng = p.lng || 127.1492 + ((p.mapX ?? 50) - 30) * 0.0002
-
-    for (let j = 0; j < result.length; j++) {
-      const [existingLat, existingLng] = result[j]
-      const dLat = Math.abs(lat - existingLat)
-      const dLng = Math.abs(lng - existingLng)
-      if (dLat < 0.00035 && dLng < 0.00035) {
-        const angle = (idx + 1) * 1.5 + j * 0.8
-        lat += Math.sin(angle) * 0.00085 + 0.0004
-        lng += Math.cos(angle) * 0.00085 + 0.0004
-        break
-      }
-    }
-
-    result.push([lat, lng])
-  })
-
-  return result
-}
-
 export function MapPlaceholder({
   places,
   activeId,
@@ -86,38 +61,37 @@ export function MapPlaceholder({
   // 장소 구성 고유 식별키
   const placesKey = places.map((p) => p.id).join(',')
 
-  // OSRM 실시간 도로 길찾기 API 호출 (타임아웃 2.5s 제어 & 끊김 없는 핀 정밀 연동)
+  // OSRM 실시간 도로 길찾기 API 호출
   useEffect(() => {
     if (places.length < 2) return
 
     async function fetchOsrmRoutes() {
       const routesMap: Record<string, [number, number][]> = {}
-      const distinctCoords = getDistinctLatLngs(places)
 
       // 1) 순차 구간 (1-2, 2-3 ...)
       for (let i = 0; i < places.length - 1; i++) {
-        const [fromLat, fromLng] = distinctCoords[i]
-        const [toLat, toLng] = distinctCoords[i + 1]
+        const from = places[i]
+        const to = places[i + 1]
+        const fromLat = from.lat || 35.8133 + (from.mapY - 50) * 0.0002
+        const fromLng = from.lng || 127.1492 + (from.mapX - 30) * 0.0002
+        const toLat = to.lat || 35.8133 + (to.mapY - 50) * 0.0002
+        const toLng = to.lng || 127.1492 + (to.mapX - 30) * 0.0002
 
         const key = `${i + 1}-${i + 2}`
 
         try {
-          const controller = new AbortController()
-          const timeoutId = setTimeout(() => controller.abort(), 2500)
           const url = `https://router.project-osrm.org/route/v1/foot/${fromLng},${fromLat};${toLng},${toLat}?overview=full&geometries=geojson`
-          const res = await fetch(url, { signal: controller.signal })
-          clearTimeout(timeoutId)
+          const res = await fetch(url)
           if (res.ok) {
             const data = await res.json()
             const coords = data.routes?.[0]?.geometry?.coordinates
             if (coords && coords.length > 0) {
-              const mapped = coords.map((c: [number, number]) => [c[1], c[0]] as [number, number])
-              routesMap[key] = [[fromLat, fromLng], ...mapped, [toLat, toLng]]
+              routesMap[key] = coords.map((c: [number, number]) => [c[1], c[0]])
               continue
             }
           }
         } catch (e) {
-          // OSRM 타임아웃 또는 실패 시 핀 간 직접 직선 연동 폴백
+          console.warn(`OSRM Route error for ${key}:`, e)
         }
 
         routesMap[key] = [[fromLat, fromLng], [toLat, toLng]]
@@ -126,30 +100,28 @@ export function MapPlaceholder({
       // 2) 임의 핀 쌍 경로 (customPinPair가 지정된 경우)
       if (customPinPair) {
         const [pinA, pinB] = customPinPair
-        const fromCoord = distinctCoords[pinA - 1]
-        const toCoord = distinctCoords[pinB - 1]
-        if (fromCoord && toCoord) {
-          const [fromLat, fromLng] = fromCoord
-          const [toLat, toLng] = toCoord
+        const from = places[pinA - 1]
+        const to = places[pinB - 1]
+        if (from && to) {
+          const fromLat = from.lat || 35.8133 + (from.mapY - 50) * 0.0002
+          const fromLng = from.lng || 127.1492 + (from.mapX - 30) * 0.0002
+          const toLat = to.lat || 35.8133 + (to.mapY - 50) * 0.0002
+          const toLng = to.lng || 127.1492 + (to.mapX - 30) * 0.0002
 
           const customKey = `custom-${pinA}-${pinB}`
 
           try {
-            const controller = new AbortController()
-            const timeoutId = setTimeout(() => controller.abort(), 2500)
             const url = `https://router.project-osrm.org/route/v1/foot/${fromLng},${fromLat};${toLng},${toLat}?overview=full&geometries=geojson`
-            const res = await fetch(url, { signal: controller.signal })
-            clearTimeout(timeoutId)
+            const res = await fetch(url)
             if (res.ok) {
               const data = await res.json()
               const coords = data.routes?.[0]?.geometry?.coordinates
               if (coords && coords.length > 0) {
-                const mapped = coords.map((c: [number, number]) => [c[1], c[0]] as [number, number])
-                routesMap[customKey] = [[fromLat, fromLng], ...mapped, [toLat, toLng]]
+                routesMap[customKey] = coords.map((c: [number, number]) => [c[1], c[0]])
               }
             }
           } catch (e) {
-            // 실패 시 직통 연결
+            console.warn(`OSRM Custom Pair error for ${customKey}:`, e)
           }
 
           if (!routesMap[customKey]) {
@@ -179,7 +151,11 @@ export function MapPlaceholder({
     let L: any
     import('leaflet').then((leafletModule) => {
       L = leafletModule.default || leafletModule
-      const routeLatLngs = getDistinctLatLngs(places)
+      const routeLatLngs: [number, number][] = places.map((p) => {
+        const lat = p.lat || 35.8133 + (p.mapY - 50) * 0.0002
+        const lng = p.lng || 127.1492 + (p.mapX - 30) * 0.0002
+        return [lat, lng]
+      })
       const bounds = L.latLngBounds(routeLatLngs)
       mapRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 })
     })
@@ -258,8 +234,12 @@ export function MapPlaceholder({
       navPolylinesRef.current.forEach((pl) => pl.remove())
       navPolylinesRef.current = []
 
-      // 위경도 좌표 리스트 (중복 좌표 분리 오프셋 포함)
-      const routeLatLngs = getDistinctLatLngs(places)
+      // 위경도 좌표 리스트
+      const routeLatLngs: [number, number][] = places.map((p) => {
+        const lat = p.lat || 35.8133 + (p.mapY - 50) * 0.0002
+        const lng = p.lng || 127.1492 + (p.mapX - 30) * 0.0002
+        return [lat, lng]
+      })
 
       // ─── 1. 경로선 그리기 (routeMode === 'straight' vs routeMode === 'navigation') ───
       if (routeMode === 'straight') {
@@ -330,28 +310,14 @@ export function MapPlaceholder({
 
           navPolylinesRef.current.push(segPolyline)
         } else {
-          // 전 구간 통합 단일 100% 매끄럽게 연결되는 끊김 없는 도로 네비게이션 경로
-          const fullRoutePoints: [number, number][] = []
-
           for (let i = 0; i < places.length - 1; i++) {
             const key = `${i + 1}-${i + 2}`
             const roadPoints = osrmRoutes[key] || [routeLatLngs[i], routeLatLngs[i + 1]]
 
-            if (fullRoutePoints.length === 0) {
-              fullRoutePoints.push(routeLatLngs[i])
-            } else {
-              fullRoutePoints.push(routeLatLngs[i])
-            }
-
-            roadPoints.forEach((pt) => fullRoutePoints.push(pt))
-            fullRoutePoints.push(routeLatLngs[i + 1])
-          }
-
-          if (fullRoutePoints.length > 1) {
-            const navPolyline = L.polyline(fullRoutePoints, {
+            const navPolyline = L.polyline(roadPoints, {
               color: '#2563eb',
-              weight: 6,
-              opacity: 0.95,
+              weight: 5,
+              opacity: 0.9,
               lineCap: 'round',
               lineJoin: 'round',
             }).addTo(map)

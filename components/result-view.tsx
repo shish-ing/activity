@@ -488,12 +488,8 @@ export function ResultView() {
     const isSeoshin = query.includes('서신')
     const isSongcheon = query.includes('송천') || query.includes('에코')
 
-    const hash = getPlaceHash(addSearchInput)
-    const offsetLat = (((hash % 7) - 3) * 0.0012)
-    const offsetLng = ((((hash * 13) % 7) - 3) * 0.0012)
-
-    const customLat = (isTongjip || isJeonbukdae) ? 35.8485 + offsetLat : isHyoja ? 35.8115 + offsetLat : isSeoshin ? 35.8300 + offsetLat : isSongcheon ? 35.8670 + offsetLat : 35.8155 + offsetLat
-    const customLng = (isTongjip || isJeonbukdae) ? 127.1298 + offsetLng : isHyoja ? 127.1085 + offsetLng : isSeoshin ? 127.1180 + offsetLng : isSongcheon ? 127.1350 + offsetLng : 127.1525 + offsetLng
+    const customLat = (isTongjip || isJeonbukdae) ? 35.8485 : isHyoja ? 35.8115 : isSeoshin ? 35.8300 : isSongcheon ? 35.8670 : 35.8140
+    const customLng = (isTongjip || isJeonbukdae) ? 127.1298 : isHyoja ? 127.1085 : isSeoshin ? 127.1180 : isSongcheon ? 127.1350 : 127.1510
     const customAddress = (isTongjip || isJeonbukdae)
       ? '전북 전주시 덕진구 명륜3길 18-6 (전북대 구정문 부근)'
       : isHyoja
