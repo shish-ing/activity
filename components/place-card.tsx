@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { getPlaceImageUrl, type Place } from '@/lib/mock-data'
+import { isPlaceClosedByAdmin } from '@/lib/admin-storage'
 import { cn } from '@/lib/utils'
 
 type PlaceCardProps = {
@@ -55,6 +56,24 @@ export function PlaceCard({
 }: PlaceCardProps) {
   const [replacing, setReplacing] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
+
+  // 🟢/🔴 관리자 실시간 영업/휴업 상태 연동
+  const [isClosed, setIsClosed] = useState<boolean>(() => isPlaceClosedByAdmin(place.name))
+
+  useEffect(() => {
+    setIsClosed(isPlaceClosedByAdmin(place.name))
+
+    const handleSync = () => {
+      setIsClosed(isPlaceClosedByAdmin(place.name))
+    }
+    window.addEventListener('jeonju_admin_status_changed', handleSync)
+    window.addEventListener('storage', handleSync)
+
+    return () => {
+      window.removeEventListener('jeonju_admin_status_changed', handleSync)
+      window.removeEventListener('storage', handleSync)
+    }
+  }, [place.name])
 
   // 네이버 지도 API 실시간 버스 도착 타이머 & 수동 최신화 상태
   const [liveBusMins, setLiveBusMins] = useState(() => {
@@ -133,10 +152,22 @@ export function PlaceCard({
             {place.order}
           </span>
           <div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
               <h3 className="font-serif text-base font-bold text-foreground sm:text-lg">
                 {place.name}
               </h3>
+              {/* 🟢/🔴 관리자 연동 영업중/휴업 실시간 뱃지 아이콘 */}
+              {isClosed ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-red-100 border border-red-300 px-2 py-0.5 text-[10px] font-extrabold text-red-700 shadow-2xs animate-pulse">
+                  <span className="size-1.5 rounded-full bg-red-600"></span>
+                  🔴 휴업 · 영업마감
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[10px] font-extrabold text-emerald-800 shadow-2xs">
+                  <span className="size-1.5 rounded-full bg-emerald-600 animate-ping"></span>
+                  🟢 영업중
+                </span>
+              )}
               {place.isMustVisit ? (
                 <span className="inline-flex items-center gap-0.5 rounded-md bg-accent/20 px-1.5 py-0.5 text-[10px] font-semibold text-accent">
                   <Sparkles className="size-3" /> 필수

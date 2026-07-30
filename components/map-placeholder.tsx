@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Place } from '@/lib/mock-data'
 import { Button } from '@/components/ui/button'
 import { Maximize2, Sparkles } from 'lucide-react'
+import { isPlaceClosedByAdmin } from '@/lib/admin-storage'
 
 type MapPlaceholderProps = {
   places: Place[]
@@ -450,8 +451,13 @@ export function MapPlaceholder({
 
         const marker = L.marker([lat, lng], { icon: customIcon }).addTo(map)
 
+        const isClosedPin = isPlaceClosedByAdmin(place.name)
+        const statusBadgeHtml = isClosedPin
+          ? ' <span style="color:#ef4444; font-weight:bold;">(🔴 휴업·영업마감)</span>'
+          : ' <span style="color:#10b981; font-weight:bold;">(🟢 영업중)</span>'
+
         marker.bindTooltip(
-          `<b>${place.order}번. ${place.name}</b>${
+          `<b>${place.order}번. ${place.name}</b>${statusBadgeHtml}${
             isStartPinSpot
               ? ' <span style="color:#eab308; font-weight:bold;">(🎯 출발 선택됨 - 도착 핀 클릭!)</span>'
               : isHighlighted
