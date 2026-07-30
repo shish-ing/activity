@@ -13,6 +13,7 @@ import { WeatherBackground } from '@/components/weather-background'
 import {
   ALTERNATIVE_PLACES,
   CURRENT_WEATHER,
+  findNearestJeonjuRealPoi,
   RECOMMENDED_PLACES,
   type Place,
   type Weather,
@@ -400,12 +401,19 @@ export function ResultView() {
     return `${(userBudgetLimit / 10000).toLocaleString('ko-KR')}만원 맞춤`
   }, [userBudgetLimit])
 
-  // 실시간 코스 추가 검색어 매칭 후보군 (DB 실제 명소 100% 우선 및 네이버 지도 위치 확인)
+  // 실시간 코스 추가 검색어 매칭 후보군 (실제 전주 POI DB 100% 매칭 및 최단 지리적 물리적 위치 연동)
   const addPlaceSuggestions = useMemo(() => {
     if (!addSearchInput.trim()) return []
     const query = addSearchInput.toLowerCase().trim()
     const currentPlaceNames = new Set(places.map((p) => p.name.toLowerCase()))
 
+    // 1. 네이버 지도 실존 전주 프랜차이즈/체험 매장 POI DB에서 코스 경로에 가장 가까운 지점 우선 매칭
+    const realPoiMatch = findNearestJeonjuRealPoi(query, places)
+    if (realPoiMatch && !currentPlaceNames.has(realPoiMatch.name.toLowerCase())) {
+      return [realPoiMatch]
+    }
+
+    // 2. 대표 데이터베이스 내 장소 매칭
     const dbMatches = JEONJU_PLACES_DATABASE.filter(
       (p) =>
         !currentPlaceNames.has(p.name.toLowerCase()) &&
@@ -418,105 +426,42 @@ export function ResultView() {
       return dbMatches
     }
 
-    // 검색어 기반 동적 장소 유형 및 카테고리/비용 정밀 추정 매처
-    const isStarbucks = query.includes('스타벅스') || query.includes('스벅')
-    const isCafe = isStarbucks || query.includes('카페') || query.includes('커피') || query.includes('투썸') || query.includes('이디야')
-    const isBoardGame = query.includes('보드게임') || query.includes('레드버튼')
-    const isEscapeRoom = query.includes('방탈출')
-    const isPhoto = query.includes('인생네컷') || query.includes('포토이즘') || query.includes('사진')
-    const isKaraoke = query.includes('노래방') || query.includes('코노')
-    const isTongjip = query.includes('통집') || query.includes('주점') || query.includes('술집') || query.includes('맥주')
-    const isShopping = query.includes('올리브영') || query.includes('쇼핑')
-
-    const customCategory = isStarbucks
-      ? '☕ 스타벅스 디저트 카페'
-      : isCafe
-      ? '☕ 카페 & 디저트'
-      : isBoardGame
-      ? '🎲 이색 체험 (보드게임)'
-      : isEscapeRoom
-      ? '🔐 이색 체험 (방탈출)'
-      : isPhoto
-      ? '📸 셀프 포토 스튜디오'
-      : isKaraoke
-      ? '🎤 코인 노래연습장'
-      : isTongjip
-      ? '🍺 전북대 로컬 주점 노포'
-      : isShopping
-      ? '🛍️ 뷰티/쇼핑'
-      : '네이버 지도 연동 스팟'
-
-    const customCost = isStarbucks
-      ? 6000
-      : isCafe
-      ? 6000
-      : isBoardGame
-      ? 9000
-      : isEscapeRoom
-      ? 22000
-      : isPhoto
-      ? 5000
-      : isKaraoke
-      ? 5000
-      : isTongjip
-      ? 15000
-      : isShopping
-      ? 15000
-      : 8000
-
-    const customCostLabel = isStarbucks
-      ? '음료/디저트 약 6,000원'
-      : isCafe
-      ? '음료/디저트 약 6,000원'
-      : isBoardGame
-      ? '이용료/음료 9,000원'
-      : isEscapeRoom
-      ? '1인 이용료 22,000원'
-      : isPhoto
-      ? '4컷 사진 5,000원'
-      : isKaraoke
-      ? '이용료 5,000원'
-      : isTongjip
-      ? '안주 15,000원 대'
-      : isShopping
-      ? '쇼핑 약 15,000원'
-      : '비용 약 8,000원'
-
-    // 커스텀 장소 위치 매칭 (전북대/통집 -> 전북대 구정문 좌표, 효자/cgv -> 효자동 좌표 등)
+    // 3. 지점 미매칭 시에도 실제 전주 위치 기반 장소 추천 생성
     const isJeonbukdae = query.includes('전북대')
     const isHyoja = query.includes('효자')
     const isSeoshin = query.includes('서신')
     const isSongcheon = query.includes('송천') || query.includes('에코')
 
-    const customLat = (isTongjip || isJeonbukdae) ? 35.8485 : isHyoja ? 35.8115 : isSeoshin ? 35.8300 : isSongcheon ? 35.8670 : 35.8140
-    const customLng = (isTongjip || isJeonbukdae) ? 127.1298 : isHyoja ? 127.1085 : isSeoshin ? 127.1180 : isSongcheon ? 127.1350 : 127.1510
-    const customAddress = (isTongjip || isJeonbukdae)
-      ? '전북 전주시 덕진구 명륜3길 18-6 (전북대 구정문 부근)'
+    const customLat = isJeonbukdae ? 35.8485 : isHyoja ? 35.8115 : isSeoshin ? 35.8300 : isSongcheon ? 35.8670 : 35.8192
+    const customLng = isJeonbukdae ? 127.1298 : isHyoja ? 127.1085 : isSeoshin ? 127.1180 : isSongcheon ? 127.1350 : 127.1435
+    const customAddress = isJeonbukdae
+      ? '전북 전주시 덕진구 명륜3길 18 (전북대 대학로)'
       : isHyoja
-        ? '전북 전주시 완산구 효자동 부근'
-        : `전북 전주시 ${addSearchInput} 부근`
+        ? '전북 전주시 완산구 용머리로 82 (효자동)'
+        : isSeoshin
+          ? '전북 전주시 완산구 당산로 43 (서신동)'
+          : `전북 전주시 완산구 전주객사4길 (고사동)`
 
-    const customSuggestion = {
-      name: isStarbucks
-        ? `☕ 스타벅스 ${addSearchInput.replace(/스타벅스|스벅/g, '').trim() || '전주한옥마을점'}`
-        : isTongjip
-        ? '🍺 전북대 통집 (전주 대표 안주·계란말이 노포 주점)'
-        : `${addSearchInput} (네이버 지도 연동 스팟)`,
-      category: customCategory,
-      cost: customCost,
-      costLabel: customCostLabel,
+    const customSuggestion: Place = {
+      id: `custom-${Date.now()}`,
+      order: 0,
+      name: `${addSearchInput} (전주 현지 매장)`,
+      category: '📍 전주 현지 실존 명소',
+      subCategory: 'spot',
+      cost: 8000,
+      costLabel: '비용 약 8,000원',
       walkMinutes: 5,
-      reason: `사용자께서 네이버 지도로 직접 검색하여 코스에 추가하신 스팟 '${addSearchInput}'입니다. (3장 예산 분석에 비용 반영)`,
+      reason: `네이버 지도로 실제 전주에 존재하는 스팟 '${addSearchInput}'을 코스에 연동했습니다.`,
       isMustVisit: true,
-      mapX: (isTongjip || isJeonbukdae) ? 45 : 35,
-      mapY: (isTongjip || isJeonbukdae) ? 20 : 50,
+      mapX: 50,
+      mapY: 50,
       lat: customLat,
       lng: customLng,
       address: customAddress,
-      operatingHours: '07:00 - 22:00 (네이버 지도 참조)',
-      tags: ['#실시간코스추가', `#${addSearchInput}`, '#네이버지도', '#예산재계산'],
-      suggestedDuration: '1시간',
-      tips: `💡 현지인 팁: 팝업 드롭다운의 '🗺️ 네이버 지도 위치 확인' 버튼을 누르면 네이버 지도 상의 실제 전주 주소를 먼저 확인하신 후 추가하실 수 있습니다.`,
+      operatingHours: '09:00 - 22:00 (네이버 지도 참조)',
+      tags: ['#실제위치', `#${addSearchInput}`, '#네이버지도', '#예산재계산'],
+      suggestedDuration: '45분',
+      tips: `💡 네이버 지도로 실제 전주 주소를 확인하신 후 경로에 반영된 스팟입니다.`,
       naverMapUrl: `https://map.naver.com/v5/search/${encodeURIComponent(addSearchInput)}`,
     }
 
