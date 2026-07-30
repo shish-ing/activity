@@ -165,12 +165,29 @@ export interface RegisteredUserInfo {
   reviewsCount: number
 }
 
-// 7. LocalStorage에 회원가입한 모든 사용자 정보 및 활동 통계 읽기
+// 7. LocalStorage & 영구 서버 파일 백업 기반 회원가입 유저 목록 및 활동 통계 읽기
 export const getAdminRegisteredUsers = (): RegisteredUserInfo[] => {
   if (typeof window === 'undefined') return []
   try {
-    const rawData = localStorage.getItem('jeonju_users')
+    const rawData =
+      localStorage.getItem('jeonju_users') || localStorage.getItem('jeonju_users_backup')
     const users = rawData ? JSON.parse(rawData) : []
+
+    // 🛡️ 백그라운드 서버 영구 백업 API 비동기 복구 동기화
+    fetch('/api/admin/backup-users')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.users)) {
+          const localStr = localStorage.getItem('jeonju_users')
+          const localList = localStr ? JSON.parse(localStr) : []
+          if (data.users.length > localList.length) {
+            localStorage.setItem('jeonju_users', JSON.stringify(data.users))
+            localStorage.setItem('jeonju_users_backup', JSON.stringify(data.users))
+            window.dispatchEvent(new Event('jeonju_user_registered'))
+          }
+        }
+      })
+      .catch(() => {})
 
     return users.map((u: any) => {
       const email = u.email ? u.email.toLowerCase() : ''
@@ -198,16 +215,25 @@ export const getAdminRegisteredUsers = (): RegisteredUserInfo[] => {
   }
 }
 
-// 8. Admin 회원 관리 - 회원 삭제 처리
+// 8. Admin 회원 관리 - 회원 탈퇴 처리 (로컬 + 서버 파일 백업 동시 삭제)
 export const deleteAdminUser = (email: string): boolean => {
   if (typeof window === 'undefined') return false
   try {
-    const rawData = localStorage.getItem('jeonju_users')
+    const rawData =
+      localStorage.getItem('jeonju_users') || localStorage.getItem('jeonju_users_backup')
     if (!rawData) return false
     const users = JSON.parse(rawData)
     const filtered = users.filter((u: any) => u.email.toLowerCase() !== email.toLowerCase())
+
     localStorage.setItem('jeonju_users', JSON.stringify(filtered))
+    localStorage.setItem('jeonju_users_backup', JSON.stringify(filtered))
     localStorage.removeItem(`jeonju_saved_courses_${email.toLowerCase()}`)
+
+    // 🛡️ 서버 파일 백업에서도 동시 삭제
+    fetch(`/api/admin/backup-users?email=${encodeURIComponent(email)}`, {
+      method: 'DELETE',
+    }).catch(() => {})
+
     window.dispatchEvent(new Event('jeonju_user_registered'))
     return true
   } catch (e) {

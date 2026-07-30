@@ -21,11 +21,11 @@ interface AuthModalProps {
   onLoginSuccess?: (user: RegisteredUser) => void
 }
 
-// LocalStorage User Database Helpers
+// LocalStorage User Database & Server Backup Helpers
 export const getStoredUsers = (): RegisteredUser[] => {
   if (typeof window === 'undefined') return []
   try {
-    const data = localStorage.getItem('jeonju_users')
+    const data = localStorage.getItem('jeonju_users') || localStorage.getItem('jeonju_users_backup')
     if (data) {
       return JSON.parse(data)
     }
@@ -36,9 +36,11 @@ export const getStoredUsers = (): RegisteredUser[] => {
         email: 'test@jeonju.com',
         password: 'password123',
         travelStyle: 'P',
+        createdAt: '2026-07-30T10:00:00.000Z',
       },
     ]
     localStorage.setItem('jeonju_users', JSON.stringify(defaultUsers))
+    localStorage.setItem('jeonju_users_backup', JSON.stringify(defaultUsers))
     return defaultUsers
   } catch (e) {
     return []
@@ -49,6 +51,14 @@ export const saveStoredUsers = (users: RegisteredUser[]) => {
   if (typeof window === 'undefined') return
   try {
     localStorage.setItem('jeonju_users', JSON.stringify(users))
+    localStorage.setItem('jeonju_users_backup', JSON.stringify(users))
+
+    // 🛡️ 서버 파일 백업 API 전송 (브라우저 탭/화면이 꺼지더라도 100% 보존)
+    fetch('/api/admin/backup-users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ users }),
+    }).catch(() => {})
   } catch (e) {}
 }
 
