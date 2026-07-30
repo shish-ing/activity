@@ -43,6 +43,12 @@ import {
   deleteAdminUser,
   type RegisteredUserInfo
 } from '@/lib/admin-storage'
+import {
+  getStoredReports,
+  updateReportStatusInStorage,
+  deleteReportFromStorage,
+  type UserReportItem
+} from '@/lib/report-storage'
 
 export interface AdminPlaceItem {
   id: string
@@ -121,37 +127,13 @@ interface UserReport {
   status: 'pending' | 'processing' | 'resolved'
 }
 
-const INITIAL_REPORTS: UserReport[] = [
-  {
-    id: 'rep_1',
-    placeName: '전동성당',
-    reportType: '영업/관람 시간 오기',
-    content: '주말 성미사 시간 중 내부 관람 제한 시간이 명시되어 있지 않습니다.',
-    createdAt: '2026-07-30 11:30',
-    status: 'pending',
-  },
-  {
-    id: 'rep_2',
-    placeName: '객리단길 보드게임카페',
-    reportType: '임시휴업 미반영',
-    content: '오늘 내부 리모델링 공사로 임시 휴업 중입니다.',
-    createdAt: '2026-07-30 10:15',
-    status: 'processing',
-  },
-  {
-    id: 'rep_3',
-    placeName: '팔복예술공장',
-    reportType: '주차장 위치 변경',
-    content: '제2주차장 공사로 임시 주차공간 이용하라는 안내 필요합니다.',
-    createdAt: '2026-07-29 16:40',
-    status: 'resolved',
-  },
-]
+// 실사용자 정보 오류 신고 데이터 (AI 더미 데이터 100% 제거, 소비자 접수건만 관리)
+const INITIAL_REPORTS: UserReportItem[] = []
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<'crud' | 'users' | 'hours' | 'ratings' | 'simulator' | 'monitoring'>('crud')
   const [places, setPlaces] = useState<AdminPlaceItem[]>(INITIAL_ADMIN_PLACES)
-  const [reports, setReports] = useState<UserReport[]>(INITIAL_REPORTS)
+  const [reports, setReports] = useState<UserReportItem[]>(INITIAL_REPORTS)
 
   // 👤 회원가입 유저 관리 State
   const [registeredUsers, setRegisteredUsers] = useState<RegisteredUserInfo[]>([])
@@ -184,15 +166,17 @@ export default function AdminPage() {
   // 🎯 시뮬레이터 State
   const [simAuditResults, setSimAuditResults] = useState<any[] | null>(null)
 
-  // 💡 [핵심] LocalStorage에서 ① 영업/휴업 설정 상태, ② 실제 유저 평점 집계, ③ 회원가입자 목록 동기화
+  // 💡 [핵심] LocalStorage에서 ① 영업/휴업 설정 상태, ② 실제 유저 평점 집계, ③ 회원가입자 목록, ④ 소비자가 신고한 오류 접수 건 동기화
   const loadAdminStateAndRealRatings = () => {
     if (typeof window === 'undefined') return
 
     const adminStatuses = getAdminPlaceStatuses()
     const realRatingsMap = getRealSpotRatingSummaries()
     const users = getAdminRegisteredUsers()
+    const realReports = getStoredReports()
 
     setRegisteredUsers(users)
+    setReports(realReports)
 
     setPlaces((prev) =>
       prev.map((p) => {
@@ -231,6 +215,7 @@ export default function AdminPage() {
     window.addEventListener('jeonju_review_updated', handleSync)
     window.addEventListener('jeonju_course_saved', handleSync)
     window.addEventListener('jeonju_user_registered', handleSync)
+    window.addEventListener('jeonju_report_submitted', handleSync)
     window.addEventListener('storage', handleSync)
 
     return () => {
@@ -238,6 +223,7 @@ export default function AdminPage() {
       window.removeEventListener('jeonju_review_updated', handleSync)
       window.removeEventListener('jeonju_course_saved', handleSync)
       window.removeEventListener('jeonju_user_registered', handleSync)
+      window.removeEventListener('jeonju_report_submitted', handleSync)
       window.removeEventListener('storage', handleSync)
     }
   }, [])
@@ -1350,61 +1336,83 @@ export default function AdminPage() {
             </div>
 
             <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-5 space-y-4">
-              <h2 className="text-base font-bold text-white flex items-center gap-2">
-                <MessageSquare className="size-5 text-amber-400" />
-                <span>📥 사용자 정보 오류 신고 접수함</span>
+              <h2 className="text-base font-bold text-white flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <MessageSquare className="size-5 text-amber-400" />
+                  <span>📥 사용자 정보 오류 신고 접수함</span>
+                </span>
+                <span className="text-xs text-slate-400 font-semibold">
+                  실시간 접수건: <strong className="text-amber-300">{reports.length}건</strong>
+                </span>
               </h2>
 
               <div className="space-y-3">
-                {reports.map((rep) => (
-                  <div
-                    key={rep.id}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-4"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-white text-sm">{rep.placeName}</span>
-                        <span className="rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] px-2 py-0.5 font-semibold">
-                          {rep.reportType}
-                        </span>
-                        <span className="text-slate-500 text-[11px]">{rep.createdAt}</span>
-                      </div>
-                      <p className="text-xs text-slate-300 mt-1.5">{rep.content}</p>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      {rep.status === 'pending' ? (
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            setReports((prev) =>
-                              prev.map((r) => (r.id === rep.id ? { ...r, status: 'processing' } : r))
-                            )
-                          }}
-                          className="h-8 text-xs bg-amber-500 text-amber-950 font-bold hover:bg-amber-400 cursor-pointer"
-                        >
-                          접수 ➔ 확인 시작
-                        </Button>
-                      ) : rep.status === 'processing' ? (
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            setReports((prev) =>
-                              prev.map((r) => (r.id === rep.id ? { ...r, status: 'resolved' } : r))
-                            )
-                          }}
-                          className="h-8 text-xs bg-emerald-500 text-emerald-950 font-bold hover:bg-emerald-400 cursor-pointer"
-                        >
-                          수정 완료 처리
-                        </Button>
-                      ) : (
-                        <span className="text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-3 py-1 rounded-lg">
-                          ✓ 처리 완료
-                        </span>
-                      )}
-                    </div>
+                {reports.length === 0 ? (
+                  <div className="text-center py-10 bg-slate-900/40 rounded-xl border border-slate-800/80">
+                    <p className="text-xs text-slate-500">
+                      📥 현재 소비자가 프론트엔드에서 접수한 정보 오류 신고가 없습니다.
+                    </p>
                   </div>
-                ))}
+                ) : (
+                  reports.map((rep) => (
+                    <div
+                      key={rep.id}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-4"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-white text-sm">{rep.placeName}</span>
+                          <span className="rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] px-2 py-0.5 font-semibold">
+                            {rep.reportType}
+                          </span>
+                          <span className="text-slate-500 text-[11px]">{rep.createdAt}</span>
+                        </div>
+                        <p className="text-xs text-slate-300 mt-1.5 leading-relaxed">{rep.content}</p>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {rep.status === 'pending' ? (
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              updateReportStatusInStorage(rep.id, 'processing')
+                            }}
+                            className="h-8 text-xs bg-amber-500 text-amber-950 font-bold hover:bg-amber-400 cursor-pointer shadow-xs"
+                          >
+                            접수 ➔ 확인 시작
+                          </Button>
+                        ) : rep.status === 'processing' ? (
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              updateReportStatusInStorage(rep.id, 'resolved')
+                            }}
+                            className="h-8 text-xs bg-emerald-500 text-emerald-950 font-bold hover:bg-emerald-400 cursor-pointer shadow-xs"
+                          >
+                            수정 완료 처리
+                          </Button>
+                        ) : (
+                          <span className="text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-3 py-1 rounded-lg">
+                            ✓ 수정 처리 완료
+                          </span>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(`'${rep.placeName}' 오류 신고 건을 삭제하시겠습니까?`)) {
+                              deleteReportFromStorage(rep.id)
+                            }
+                          }}
+                          className="rounded-lg border border-red-500/30 bg-red-950/40 p-1.5 text-red-300 hover:bg-red-900/60 cursor-pointer"
+                          title="신고 항목 삭제"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>

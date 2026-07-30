@@ -26,6 +26,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { getPlaceImageUrl, type Place } from '@/lib/mock-data'
 import { isPlaceClosedByAdmin } from '@/lib/admin-storage'
+import { ReportErrorModal } from '@/components/report-error-modal'
 import { cn } from '@/lib/utils'
 
 type PlaceCardProps = {
@@ -56,6 +57,7 @@ export function PlaceCard({
 }: PlaceCardProps) {
   const [replacing, setReplacing] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false)
 
   // 🟢/🔴 관리자 실시간 영업/휴업 상태 연동
   const [isClosed, setIsClosed] = useState<boolean>(() => isPlaceClosedByAdmin(place.name))
@@ -192,6 +194,21 @@ export function PlaceCard({
             </Button>
           ) : null}
 
+          {/* 🚨 실사용자 장소 정보 오류 신고 버튼 */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation()
+              setIsReportModalOpen(true)
+            }}
+            className="h-8 gap-1 rounded-xl border-amber-200 bg-amber-50 px-2.5 text-[11px] font-bold text-amber-900 hover:bg-amber-400 hover:text-amber-950 transition-all cursor-pointer shadow-2xs"
+            title="이 장소의 영업시간이나 정보를 관리자에게 오류 신고"
+          >
+            <AlertTriangle className="size-3.5 text-amber-600" />
+            <span>오류 신고</span>
+          </Button>
+
           {canDelete && onDelete ? (
             <Button
               variant="outline"
@@ -207,6 +224,12 @@ export function PlaceCard({
               <span>삭제</span>
             </Button>
           ) : null}
+
+          <ReportErrorModal
+            isOpen={isReportModalOpen}
+            onClose={() => setIsReportModalOpen(false)}
+            defaultPlaceName={place.name}
+          />
         </div>
       </div>
 
