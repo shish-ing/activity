@@ -20,6 +20,7 @@ import {
   type Weather,
 } from '@/lib/mock-data'
 import { JEONJU_PLACES_DATABASE } from '@/app/api/places/search/route'
+import { isPlaceClosedByAdmin } from '@/lib/admin-storage'
 import { cn } from '@/lib/utils'
 
 function formatWon(value: number) {
@@ -986,6 +987,9 @@ export function ResultView() {
 
     const pureSpotsDatabase = JEONJU_PLACES_DATABASE.filter((p) => {
       if (p.isMeal || p.isDessert) return false
+
+      // 🔴 관리자가 '휴업(임시휴업)' 설정한 장소는 추천에서 즉시 제외
+      if (isPlaceClosedByAdmin(p.name)) return false
 
       if (userBudgetLimit === 0 && p.cost > 0 && !p.isMustVisit) {
         return false

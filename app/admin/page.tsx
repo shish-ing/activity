@@ -25,24 +25,18 @@ import {
   BarChart3,
   X,
   Star,
-  ThumbsUp,
   SunMedium,
   Smile,
-  ChevronDown,
-  ChevronUp,
-  Award,
   Filter
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { JEONJU_PLACES_DATABASE } from '@/app/api/places/search/route'
-
-export interface SpotReviewDetail {
-  userName: string
-  weatherScore: number
-  funScore: number
-  comment: string
-  date: string
-}
+import {
+  getAdminPlaceStatuses,
+  setAdminPlaceStatus,
+  getRealSpotRatingSummaries,
+  type RealSpotRatingSummary
+} from '@/lib/admin-storage'
 
 export interface AdminPlaceItem {
   id: string
@@ -66,79 +60,50 @@ export interface AdminPlaceItem {
   isTempClosed: boolean
   updatedAt: string
 
-  // ⭐ 장소별 평점 및 평가 데이터
-  avgWeatherScore: number // 1 ~ 5 (날씨 조화 평균 점수)
-  avgFunScore: number // 1 ~ 5 (재미/만족도 평균 점수)
-  overallRating: number // 1 ~ 5 (종합 평균 평점)
-  reviewCount: number // 평가 참여 수
-  isFeatured?: boolean // 피처링 추천 뱃지
-  reviewsList: SpotReviewDetail[]
+  // ⭐ 실제 사용자가 남긴 평점 데이터 (임의의 더미 수치 없음! 순수 유저 평가 기반)
+  avgWeatherScore: number // 0.0 ~ 5.0
+  avgFunScore: number // 0.0 ~ 5.0
+  overallRating: number // 0.0 ~ 5.0
+  reviewCount: number // 평가 참여 인원 수
+  isFeatured?: boolean
+  reviewsList: {
+    userName: string
+    weatherScore: number
+    funScore: number
+    comment: string
+    date: string
+  }[]
 }
 
-// 장소별 시드 더미 평점 데이터 생성 (실제 POI DB 연동)
-const INITIAL_ADMIN_PLACES: AdminPlaceItem[] = JEONJU_PLACES_DATABASE.map((p, idx) => {
-  // 장소별 고유의 현실적인 평점 부여
-  const baseWeather = 4.2 + ((idx * 7) % 8) / 10
-  const baseFun = 4.3 + ((idx * 9) % 7) / 10
-  const weatherScore = Number(Math.min(5.0, baseWeather).toFixed(1))
-  const funScore = Number(Math.min(5.0, baseFun).toFixed(1))
-  const overall = Number(((weatherScore + funScore) / 2).toFixed(1))
-  const count = 12 + ((idx * 13) % 45)
-
-  // 샘플 사용자 한줄평
-  const sampleComments: SpotReviewDetail[] = [
-    {
-      userName: '전주p탐험가',
-      weatherScore: 5,
-      funScore: 5,
-      comment: '날씨에 맞게 추천받아서 들렀는데 동선도 최고고 힐링하기 좋았어요!',
-      date: '2026-07-30 14:10',
-    },
-    {
-      userName: '여행러_민지',
-      weatherScore: Math.round(weatherScore),
-      funScore: Math.round(funScore),
-      comment: '사진 찍기에도 너무 고즈넉하고 카페 연계 코스가 완전 알찼습니다.',
-      date: '2026-07-29 18:30',
-    },
-    {
-      userName: '전북대생_준호',
-      weatherScore: 4,
-      funScore: 5,
-      comment: '친구들이랑 같이 방문했는데 예산 대비 가성비도 훌륭하고 만족스러워요.',
-      date: '2026-07-28 11:20',
-    },
-  ]
-
-  return {
-    id: `place_${idx + 1}`,
-    name: p.name,
-    category: p.category,
-    subCategory: p.subCategory,
-    address: p.address || '전북 전주시 완산구',
-    lat: p.lat || 35.8133,
-    lng: p.lng || 127.1492,
-    cost: p.cost,
-    costLabel: p.costLabel,
-    operatingHours: p.operatingHours || '10:00 - 20:00',
-    phone: p.phone || '063-280-0000',
-    reason: p.reason,
-    tips: p.tips || '',
-    isIndoor: p.isIndoor ?? true,
-    isMustVisit: p.isMustVisit ?? false,
-    suitableCompanions: p.suitableCompanions || ['couple', 'friends', 'family'],
-    tags: p.tags || ['#전주맛집', '#한옥마을'],
-    status: idx % 15 === 0 ? 'review' : idx % 23 === 0 ? 'inactive' : 'active',
-    isTempClosed: idx === 3 || idx === 12,
-    updatedAt: '2026-07-30 14:20',
-    avgWeatherScore: weatherScore,
-    avgFunScore: funScore,
-    overallRating: overall,
-    reviewCount: count,
-    isFeatured: idx === 0 || idx === 1 || idx === 4,
-    reviewsList: sampleComments,
-  }
-})
+// 순수 초기 장소 데이터셋 (임의의 별점 숫자 0 처리, 유저가 남긴 리뷰만 적용)
+const INITIAL_ADMIN_PLACES: AdminPlaceItem[] = JEONJU_PLACES_DATABASE.map((p, idx) => ({
+  id: `place_${idx + 1}`,
+  name: p.name,
+  category: p.category,
+  subCategory: p.subCategory,
+  address: p.address || '전북 전주시 완산구',
+  lat: p.lat || 35.8133,
+  lng: p.lng || 127.1492,
+  cost: p.cost,
+  costLabel: p.costLabel,
+  operatingHours: p.operatingHours || '10:00 - 20:00',
+  phone: p.phone || '063-280-0000',
+  reason: p.reason,
+  tips: p.tips || '',
+  isIndoor: p.isIndoor ?? true,
+  isMustVisit: p.isMustVisit ?? false,
+  suitableCompanions: p.suitableCompanions || ['couple', 'friends', 'family'],
+  tags: p.tags || ['#전주맛집', '#한옥마을'],
+  status: idx % 15 === 0 ? 'review' : idx % 23 === 0 ? 'inactive' : 'active',
+  isTempClosed: false,
+  updatedAt: '2026-07-30 16:20',
+  avgWeatherScore: 0,
+  avgFunScore: 0,
+  overallRating: 0,
+  reviewCount: 0,
+  isFeatured: idx === 0 || idx === 1,
+  reviewsList: [],
+}))
 
 // 유저 오류 신고 데이터
 interface UserReport {
@@ -186,7 +151,7 @@ export default function AdminPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'review' | 'inactive'>('all')
 
-  // ⭐ 평점 전용 필터 State
+  // ⭐ 평점 전용 정렬 State
   const [ratingSort, setRatingSort] = useState<'overall' | 'weather' | 'fun' | 'count'>('overall')
   const [selectedPlaceReviews, setSelectedPlaceReviews] = useState<AdminPlaceItem | null>(null)
 
@@ -212,90 +177,80 @@ export default function AdminPage() {
   // 🎯 시뮬레이터 State
   const [simAuditResults, setSimAuditResults] = useState<any[] | null>(null)
 
-  // 💡 LocalStorage에서 사용자가 직접 남긴 내 정보 관리 장소별 평점 데이터 실시간 합성
-  useEffect(() => {
+  // 💡 [핵심] LocalStorage에서 ① 영업/휴업 설정 상태 & ② 실제 작성된 유저 평점 집계 동기화
+  const loadAdminStateAndRealRatings = () => {
     if (typeof window === 'undefined') return
-    try {
-      const allUserKeys = Object.keys(localStorage).filter((k) =>
-        k.startsWith('jeonju_saved_courses_')
-      )
-      const userSpotRatingsMap: Record<
-        string,
-        { weatherSum: number; funSum: number; count: number; reviews: SpotReviewDetail[] }
-      > = {}
 
-      allUserKeys.forEach((key) => {
-        const coursesStr = localStorage.getItem(key)
-        if (!coursesStr) return
-        const courses = JSON.parse(coursesStr)
-        courses.forEach((c: any) => {
-          if (c.spotRatings && Array.isArray(c.spotRatings)) {
-            c.spotRatings.forEach((sr: any) => {
-              if (!userSpotRatingsMap[sr.spotName]) {
-                userSpotRatingsMap[sr.spotName] = {
-                  weatherSum: 0,
-                  funSum: 0,
-                  count: 0,
-                  reviews: [],
-                }
-              }
-              const entry = userSpotRatingsMap[sr.spotName]
-              entry.weatherSum += sr.weatherScore || 5
-              entry.funSum += sr.funScore || 5
-              entry.count += 1
-              if (sr.comment) {
-                entry.reviews.push({
-                  userName: key.replace('jeonju_saved_courses_', '').split('@')[0],
-                  weatherScore: sr.weatherScore || 5,
-                  funScore: sr.funScore || 5,
-                  comment: sr.comment,
-                  date: c.reviewedAt || '2026-07-30',
-                })
-              }
-            })
-          }
-        })
-      })
+    const adminStatuses = getAdminPlaceStatuses()
+    const realRatingsMap = getRealSpotRatingSummaries()
 
-      // places 실시간 업데이트
-      setPlaces((prev) =>
-        prev.map((p) => {
-          const userStats = userSpotRatingsMap[p.name]
-          if (!userStats || userStats.count === 0) return p
+    setPlaces((prev) =>
+      prev.map((p) => {
+        const adminStatus = adminStatuses[p.name]
+        const isClosed = adminStatus?.isClosed ?? p.isTempClosed
+        const placeStatus = adminStatus?.status ?? p.status
 
-          const newCount = p.reviewCount + userStats.count
-          const newWeatherAvg = Number(
-            ((p.avgWeatherScore * p.reviewCount + userStats.weatherSum) / newCount).toFixed(1)
-          )
-          const newFunAvg = Number(
-            ((p.avgFunScore * p.reviewCount + userStats.funSum) / newCount).toFixed(1)
-          )
-          const newOverall = Number(((newWeatherAvg + newFunAvg) / 2).toFixed(1))
-
+        const realSummary = realRatingsMap[p.name]
+        if (realSummary && realSummary.reviewCount > 0) {
           return {
             ...p,
-            reviewCount: newCount,
-            avgWeatherScore: newWeatherAvg,
-            avgFunScore: newFunAvg,
-            overallRating: newOverall,
-            reviewsList: [...userStats.reviews, ...p.reviewsList],
+            isTempClosed: isClosed,
+            status: placeStatus,
+            reviewCount: realSummary.reviewCount,
+            avgWeatherScore: realSummary.avgWeatherScore,
+            avgFunScore: realSummary.avgFunScore,
+            overallRating: realSummary.overallRating,
+            reviewsList: realSummary.reviews,
           }
-        })
-      )
-    } catch (e) {}
+        }
+
+        return {
+          ...p,
+          isTempClosed: isClosed,
+          status: placeStatus,
+        }
+      })
+    )
+  }
+
+  useEffect(() => {
+    loadAdminStateAndRealRatings()
+
+    const handleSync = () => loadAdminStateAndRealRatings()
+    window.addEventListener('jeonju_admin_status_changed', handleSync)
+    window.addEventListener('storage', handleSync)
+
+    return () => {
+      window.removeEventListener('jeonju_admin_status_changed', handleSync)
+      window.removeEventListener('storage', handleSync)
+    }
   }, [])
 
-  // 📊 대시보드 통계 수치
+  // 📊 대시보드 통계 수치 (실제 평가 참여 장소들만 계산)
   const stats = useMemo(() => {
     const total = places.length
     const active = places.filter((p) => p.status === 'active' && !p.isTempClosed).length
     const review = places.filter((p) => p.status === 'review').length
     const tempClosed = places.filter((p) => p.isTempClosed).length
-    const avgRatingAll = (
-      places.reduce((sum, p) => sum + p.overallRating, 0) / (total || 1)
-    ).toFixed(2)
-    const topWeatherSpot = [...places].sort((a, b) => b.avgWeatherScore - a.avgWeatherScore)[0]
-    const topFunSpot = [...places].sort((a, b) => b.avgFunScore - a.avgFunScore)[0]
+
+    const ratedPlaces = places.filter((p) => p.reviewCount > 0)
+    const ratedTotalCount = ratedPlaces.length
+
+    const avgRatingAll =
+      ratedTotalCount > 0
+        ? (ratedPlaces.reduce((sum, p) => sum + p.overallRating, 0) / ratedTotalCount).toFixed(2)
+        : '0.0'
+
+    const topWeatherSpot =
+      ratedTotalCount > 0
+        ? [...ratedPlaces].sort((a, b) => b.avgWeatherScore - a.avgWeatherScore)[0]
+        : null
+
+    const topFunSpot =
+      ratedTotalCount > 0
+        ? [...ratedPlaces].sort((a, b) => b.avgFunScore - a.avgFunScore)[0]
+        : null
+
     const totalReviews = places.reduce((sum, p) => sum + p.reviewCount, 0)
 
     return { total, active, review, tempClosed, avgRatingAll, topWeatherSpot, topFunSpot, totalReviews }
@@ -361,6 +316,7 @@ export default function AdminPage() {
             : item
         )
       )
+      setAdminPlaceStatus(formName, editingPlace.isTempClosed, formStatus)
       alert(`'${formName}' 장소 정보가 수정되었습니다!`)
     } else {
       const newPlace: AdminPlaceItem = {
@@ -381,13 +337,14 @@ export default function AdminPage() {
         status: formStatus,
         isTempClosed: false,
         updatedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
-        avgWeatherScore: 4.5,
-        avgFunScore: 4.5,
-        overallRating: 4.5,
-        reviewCount: 1,
+        avgWeatherScore: 0,
+        avgFunScore: 0,
+        overallRating: 0,
+        reviewCount: 0,
         reviewsList: [],
       }
       setPlaces((prev) => [newPlace, ...prev])
+      setAdminPlaceStatus(formName, false, formStatus)
       alert(`신규 장소 '${formName}'이(가) 등록되었습니다!`)
     }
 
@@ -423,18 +380,26 @@ export default function AdminPage() {
     setIsModalOpen(true)
   }
 
-  const handleToggleTempClosed = (id: string) => {
+  // 🔴 [영업중 / 휴업 설정 함수] Admin에서 설정하면 localStorage 및 실시간 추천 알고리즘에 즉각 연동!
+  const handleToggleTempClosed = (p: AdminPlaceItem) => {
+    const nextClosedState = !p.isTempClosed
+    setAdminPlaceStatus(p.name, nextClosedState, p.status)
+
     setPlaces((prev) =>
-      prev.map((p) => {
-        if (p.id === id) {
-          const nextState = !p.isTempClosed
-          alert(
-            `'${p.name}' 상태가 [${nextState ? '🔴 오늘 임시휴업' : '🟢 정상 운영중'}]으로 변경되었습니다.`
-          )
-          return { ...p, isTempClosed: nextState }
+      prev.map((item) => {
+        if (item.id === p.id) {
+          return { ...item, isTempClosed: nextClosedState }
         }
-        return p
+        return item
       })
+    )
+
+    alert(
+      `'${p.name}' 상태가 [${
+        nextClosedState
+          ? '🔴 휴업/임시휴업 (추천 제외)'
+          : '🟢 정상 영업중 (추천 포함)'
+      }]으로 즉시 적용되었습니다.`
     )
   }
 
@@ -453,7 +418,13 @@ export default function AdminPage() {
 
   const handleChangeStatus = (id: string, status: 'active' | 'review' | 'inactive') => {
     setPlaces((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, status } : p))
+      prev.map((p) => {
+        if (p.id === id) {
+          setAdminPlaceStatus(p.name, p.isTempClosed, status)
+          return { ...p, status }
+        }
+        return p
+      })
     )
   }
 
@@ -553,8 +524,11 @@ export default function AdminPage() {
 
           <div className="rounded-2xl border border-amber-500/30 bg-amber-950/20 p-4 shadow-md flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold text-amber-400">⭐ 전체 장소 평균 평점</p>
-              <p className="text-2xl font-black text-amber-300 mt-1">⭐ {stats.avgRatingAll}<span className="text-xs font-medium text-amber-500/80 ml-1">/ 5.0</span></p>
+              <p className="text-xs font-semibold text-amber-400">⭐ 실 사용자 평균 평점</p>
+              <p className="text-2xl font-black text-amber-300 mt-1">
+                {Number(stats.avgRatingAll) > 0 ? `⭐ ${stats.avgRatingAll}` : '평가 대기중'}
+                {Number(stats.avgRatingAll) > 0 && <span className="text-xs font-medium text-amber-500/80 ml-1">/ 5.0</span>}
+              </p>
             </div>
             <div className="flex size-10 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
               <Star className="size-5 fill-amber-400" />
@@ -565,9 +539,11 @@ export default function AdminPage() {
             <div>
               <p className="text-xs font-semibold text-emerald-400">🌤️ 날씨 어울림 1위 스팟</p>
               <p className="text-sm font-extrabold text-emerald-300 mt-1 truncate max-w-[120px]">
-                {stats.topWeatherSpot?.name || '경기전'}
+                {stats.topWeatherSpot ? stats.topWeatherSpot.name : '평가 작성 대기'}
               </p>
-              <p className="text-[10px] text-emerald-400/80 font-bold">⭐ {stats.topWeatherSpot?.avgWeatherScore}점</p>
+              <p className="text-[10px] text-emerald-400/80 font-bold">
+                {stats.topWeatherSpot ? `⭐ ${stats.topWeatherSpot.avgWeatherScore}점` : '유저 참여 필요'}
+              </p>
             </div>
             <div className="flex size-10 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
               <SunMedium className="size-5" />
@@ -578,9 +554,11 @@ export default function AdminPage() {
             <div>
               <p className="text-xs font-semibold text-purple-400">🎉 재미/만족도 1위 스팟</p>
               <p className="text-sm font-extrabold text-purple-300 mt-1 truncate max-w-[120px]">
-                {stats.topFunSpot?.name || '한국집'}
+                {stats.topFunSpot ? stats.topFunSpot.name : '평가 작성 대기'}
               </p>
-              <p className="text-[10px] text-purple-400/80 font-bold">⭐ {stats.topFunSpot?.avgFunScore}점</p>
+              <p className="text-[10px] text-purple-400/80 font-bold">
+                {stats.topFunSpot ? `⭐ ${stats.topFunSpot.avgFunScore}점` : '유저 참여 필요'}
+              </p>
             </div>
             <div className="flex size-10 items-center justify-center rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30">
               <Smile className="size-5" />
@@ -589,7 +567,7 @@ export default function AdminPage() {
 
           <div className="rounded-2xl border border-sky-500/30 bg-sky-950/20 p-4 shadow-md flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold text-sky-400">💬 누적 사용자 평점 리뷰</p>
+              <p className="text-xs font-semibold text-sky-400">💬 순수 사용자 리뷰 수</p>
               <p className="text-2xl font-black text-sky-300 mt-1">{stats.totalReviews}<span className="text-xs font-medium text-sky-500/80 ml-1">건</span></p>
             </div>
             <div className="flex size-10 items-center justify-center rounded-xl bg-sky-500/20 text-sky-300 border border-sky-500/30">
@@ -610,20 +588,7 @@ export default function AdminPage() {
             }`}
           >
             <Building2 className="size-4" />
-            <span>1장. 장소 데이터 CRUD & 평점 포함 목록</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('ratings')}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all cursor-pointer border ${
-              activeTab === 'ratings'
-                ? 'bg-amber-500 text-amber-950 border-amber-400 shadow-md font-extrabold'
-                : 'bg-slate-800/80 text-slate-400 border-slate-700/80 hover:bg-slate-800 hover:text-slate-200'
-            }`}
-          >
-            <Star className="size-4 fill-amber-950" />
-            <span>⭐ 5장. 장소별 평점 & 사용자 리뷰 검수 센터</span>
+            <span>1장. 장소 데이터 CRUD & 영업 상태 목록</span>
           </button>
 
           <button
@@ -636,7 +601,20 @@ export default function AdminPage() {
             }`}
           >
             <Clock className="size-4" />
-            <span>2장. 운영시간 & "오늘 임시휴업" 원클릭 스위치</span>
+            <span>2장. 장소별 영업중 / 휴업 설정 센터</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('ratings')}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all cursor-pointer border ${
+              activeTab === 'ratings'
+                ? 'bg-amber-500 text-amber-950 border-amber-400 shadow-md font-extrabold'
+                : 'bg-slate-800/80 text-slate-400 border-slate-700/80 hover:bg-slate-800 hover:text-slate-200'
+            }`}
+          >
+            <Star className="size-4 fill-amber-950" />
+            <span>⭐ 5장. 실 사용자 작성 평점 및 후기 모니터링</span>
           </button>
 
           <button
@@ -667,7 +645,7 @@ export default function AdminPage() {
         </div>
 
         {/* ========================================================================= */}
-        {/* TAB 1: 🏢 장소 데이터 CRUD & 평점 포함 목록 */}
+        {/* TAB 1: 🏢 장소 데이터 CRUD & 영업 상태 목록 */}
         {/* ========================================================================= */}
         {activeTab === 'crud' && (
           <div className="space-y-4 animate-in fade-in duration-200">
@@ -742,11 +720,10 @@ export default function AdminPage() {
                   <thead className="border-b border-slate-800 bg-slate-900/90 text-slate-400 font-bold">
                     <tr>
                       <th className="px-4 py-3">장소명 / 카테고리</th>
-                      <th className="px-4 py-3">⭐ 장소 평점 (날씨 / 재미)</th>
-                      <th className="px-4 py-3">상태</th>
+                      <th className="px-4 py-3">영업 상태 설정</th>
+                      <th className="px-4 py-3">⭐ 실 사용자 평점</th>
                       <th className="px-4 py-3">비용 및 체류시간</th>
                       <th className="px-4 py-3">실내/야외</th>
-                      <th className="px-4 py-3">임시휴업 토글</th>
                       <th className="px-4 py-3 text-right">관리 액션</th>
                     </tr>
                   </thead>
@@ -757,7 +734,7 @@ export default function AdminPage() {
                           <div className="font-bold text-white text-sm flex items-center gap-1.5">
                             <span>{p.name}</span>
                             {p.isFeatured && (
-                              <span className="rounded bg-amber-500/20 border border-amber-400/40 text-amber-300 text-[10px] px-1.5 py-0.2 font-bold flex items-center gap-0.5">
+                              <span className="rounded bg-amber-500/20 border border-amber-400/40 text-amber-300 text-[10px] px-1.5 py-0.2 font-bold">
                                 ⭐ 피처링
                               </span>
                             )}
@@ -765,37 +742,41 @@ export default function AdminPage() {
                           <p className="text-slate-400 text-[11px] mt-0.5">{p.category} • {p.address}</p>
                         </td>
 
-                        {/* ⭐ 장소별 세부 평점 수치 열 추가! */}
+                        {/* 🟢/🔴 영업중 vs 휴업 스위치 */}
                         <td className="px-4 py-3.5">
-                          <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-1.5 font-extrabold text-amber-300">
-                              <Star className="size-3.5 fill-amber-400 text-amber-400" />
-                              <span>⭐ {p.overallRating}</span>
-                              <span className="text-[10px] text-slate-400 font-normal">({p.reviewCount}건)</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-[10px]">
-                              <span className="text-emerald-400 font-semibold flex items-center gap-0.5">
-                                🌤️ 날씨 {p.avgWeatherScore}
-                              </span>
-                              <span className="text-purple-400 font-semibold flex items-center gap-0.5">
-                                🎉 재미 {p.avgFunScore}
-                              </span>
-                            </div>
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleTempClosed(p)}
+                            className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold cursor-pointer transition-all border shadow-xs ${
+                              p.isTempClosed
+                                ? 'bg-red-500/20 text-red-300 border-red-500/50 hover:bg-red-500/30'
+                                : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 hover:bg-emerald-500/30'
+                            }`}
+                          >
+                            {p.isTempClosed ? (
+                              <>
+                                <ToggleRight className="size-4 text-red-400" />
+                                <span>🔴 휴업 (추천 제외)</span>
+                              </>
+                            ) : (
+                              <>
+                                <ToggleLeft className="size-4 text-emerald-400" />
+                                <span>🟢 정상 영업중</span>
+                              </>
+                            )}
+                          </button>
                         </td>
 
+                        {/* ⭐ 사용자 평점 표시 (더미 없음) */}
                         <td className="px-4 py-3.5">
-                          {p.status === 'active' ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 px-2.5 py-0.5 text-[11px] font-bold text-emerald-300">
-                              <CheckCircle2 className="size-3" /> 승인 활성
-                            </span>
-                          ) : p.status === 'review' ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 border border-amber-500/40 px-2.5 py-0.5 text-[11px] font-bold text-amber-300">
-                              <Clock className="size-3" /> 검수 대기
-                            </span>
+                          {p.reviewCount > 0 ? (
+                            <div className="flex flex-col gap-0.5">
+                              <span className="font-extrabold text-amber-300">⭐ {p.overallRating}점 ({p.reviewCount}건)</span>
+                              <span className="text-[10px] text-slate-400">🌤️ {p.avgWeatherScore} • 🎉 {p.avgFunScore}</span>
+                            </div>
                           ) : (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-800 border border-slate-700 px-2.5 py-0.5 text-[11px] font-bold text-slate-400">
-                              <XCircle className="size-3" /> 비활성
+                            <span className="text-[11px] text-slate-500 italic bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-md">
+                              아직 작성된 평점 없음
                             </span>
                           )}
                         </td>
@@ -815,30 +796,6 @@ export default function AdminPage() {
                               🌳 야외 산책
                             </span>
                           )}
-                        </td>
-
-                        <td className="px-4 py-3.5">
-                          <button
-                            type="button"
-                            onClick={() => handleToggleTempClosed(p.id)}
-                            className={`flex items-center gap-1.5 rounded-xl px-2.5 py-1 text-xs font-bold cursor-pointer transition-all border ${
-                              p.isTempClosed
-                                ? 'bg-red-500/20 text-red-300 border-red-500/40 hover:bg-red-500/30'
-                                : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
-                            }`}
-                          >
-                            {p.isTempClosed ? (
-                              <>
-                                <ToggleRight className="size-4 text-red-400" />
-                                <span>🔴 오늘 임시휴업</span>
-                              </>
-                            ) : (
-                              <>
-                                <ToggleLeft className="size-4 text-slate-400" />
-                                <span>🟢 정상 운영</span>
-                              </>
-                            )}
-                          </button>
                         </td>
 
                         <td className="px-4 py-3.5 text-right">
@@ -895,23 +852,86 @@ export default function AdminPage() {
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 5: ⭐ 장소별 평점 & 사용자 리뷰 검수 센터 */}
+        {/* TAB 2: ⏱️ 장소별 영업중 / 휴업 설정 센터 */}
+        {/* ========================================================================= */}
+        {activeTab === 'hours' && (
+          <div className="space-y-4 animate-in fade-in duration-200">
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-950/20 p-4 text-xs text-amber-200 flex items-start gap-3">
+              <AlertCircle className="size-5 text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-amber-300">💡 영업중 vs 휴업(임시휴업) 상태 설정 안내</p>
+                <p className="mt-1 leading-relaxed text-slate-300">
+                  관리자에서 장소를 **[🔴 휴업]** 상태로 전환하시면, 사용자 코스 추천 생성 알고리즘에서 **즉각 제외**됩니다. 다시 **[🟢 영업중]**으로 전환하시면 추천 대상에 바로 포함됩니다.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {places.map((p) => (
+                <div
+                  key={p.id}
+                  className={`rounded-2xl border p-4 shadow-md transition-all ${
+                    p.isTempClosed
+                      ? 'border-red-500/50 bg-red-950/20'
+                      : 'border-slate-800 bg-slate-950/80'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <h3 className="font-bold text-white text-base">{p.name}</h3>
+                      <p className="text-xs text-slate-400 mt-0.5">{p.category}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleTempClosed(p)}
+                      className={`rounded-xl px-3 py-1.5 text-xs font-bold cursor-pointer transition-all border shadow-sm ${
+                        p.isTempClosed
+                          ? 'bg-red-500 text-white border-red-400 shadow-md'
+                          : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30'
+                      }`}
+                    >
+                      {p.isTempClosed ? '🔴 현재 휴업 중 (추천 제외)' : '🟢 현재 정상 영업중'}
+                    </button>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-slate-800 text-xs space-y-1.5 text-slate-300">
+                    <p className="flex items-center justify-between">
+                      <span className="text-slate-500">운영시간:</span>
+                      <span className="font-semibold text-white">{p.operatingHours}</span>
+                    </p>
+                    <p className="flex items-center justify-between">
+                      <span className="text-slate-500">실내/야외:</span>
+                      <span className="text-slate-300">{p.isIndoor ? '🏠 실내 100%' : '🌳 야외/산책'}</span>
+                    </p>
+                    <p className="flex items-center justify-between">
+                      <span className="text-slate-500">실제 작성 평점:</span>
+                      <span className="font-bold text-amber-300">
+                        {p.reviewCount > 0 ? `⭐ ${p.overallRating} (${p.reviewCount}건)` : '작성된 평점 없음'}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB 5: ⭐ 실 사용자 작성 평점 및 후기 모니터링 */}
         {/* ========================================================================= */}
         {activeTab === 'ratings' && (
           <div className="space-y-6 animate-in fade-in duration-200">
-            {/* 정렬 및 통계 바 */}
             <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-amber-500/30 bg-amber-950/20 p-4">
               <div>
                 <h2 className="text-base font-bold text-amber-200 flex items-center gap-2">
                   <Star className="size-5 text-amber-400 fill-amber-400" />
-                  <span>장소별 사용자 평점 분석 (날씨 어울림 & 재미/만족도)</span>
+                  <span>실제 사용자가 작성한 장소별 평점 & 후기 모니터링</span>
                 </h2>
                 <p className="text-xs text-slate-400 mt-1">
-                  내 정보 관리 페이지에서 소비자가 작성한 개별 장소 평점 데이터를 실시간 집계하여 보여줍니다.
+                  임의의 가짜 숫자가 아닌, 프론트엔드 [내 정보 관리]에서 소비자가 직접 평가한 점수만 표시됩니다.
                 </p>
               </div>
 
-              {/* 정렬 선택 스위치 */}
               <div className="flex items-center gap-1.5 bg-slate-900/90 border border-slate-800 p-1.5 rounded-xl text-xs">
                 <span className="text-slate-400 font-semibold px-2 flex items-center gap-1">
                   <Filter className="size-3.5" /> 정렬:
@@ -963,7 +983,6 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* 평점 데이터 그리드 카드 리스트 */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {sortedRatingPlaces.map((p) => (
                 <div
@@ -986,47 +1005,53 @@ export default function AdminPage() {
 
                       <div className="rounded-xl bg-amber-500/20 border border-amber-400/40 px-3 py-1 text-center">
                         <p className="text-xs font-semibold text-amber-400">종합 평점</p>
-                        <p className="text-lg font-black text-amber-300">⭐ {p.overallRating}</p>
+                        <p className="text-lg font-black text-amber-300">
+                          {p.reviewCount > 0 ? `⭐ ${p.overallRating}` : '평가없음'}
+                        </p>
                       </div>
                     </div>
 
-                    {/* 세부 별점 프로그래스 바 */}
-                    <div className="mt-4 pt-3 border-t border-slate-800 space-y-2.5 text-xs">
-                      {/* 날씨 어울림 점수 */}
-                      <div>
-                        <div className="flex justify-between text-emerald-400 font-semibold mb-1">
-                          <span className="flex items-center gap-1">
-                            <SunMedium className="size-3.5" /> 🌤️ 날씨 어울림 점수
-                          </span>
-                          <span className="font-bold">⭐ {p.avgWeatherScore} / 5.0</span>
+                    {p.reviewCount > 0 ? (
+                      <div className="mt-4 pt-3 border-t border-slate-800 space-y-2.5 text-xs">
+                        <div>
+                          <div className="flex justify-between text-emerald-400 font-semibold mb-1">
+                            <span className="flex items-center gap-1">
+                              <SunMedium className="size-3.5" /> 🌤️ 날씨 어울림 점수
+                            </span>
+                            <span className="font-bold">⭐ {p.avgWeatherScore} / 5.0</span>
+                          </div>
+                          <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
+                            <div
+                              className="h-full bg-emerald-400 rounded-full"
+                              style={{ width: `${(p.avgWeatherScore / 5) * 100}%` }}
+                            />
+                          </div>
                         </div>
-                        <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
-                          <div
-                            className="h-full bg-emerald-400 rounded-full"
-                            style={{ width: `${(p.avgWeatherScore / 5) * 100}%` }}
-                          />
-                        </div>
-                      </div>
 
-                      {/* 재미/만족도 점수 */}
-                      <div>
-                        <div className="flex justify-between text-purple-400 font-semibold mb-1">
-                          <span className="flex items-center gap-1">
-                            <Smile className="size-3.5" /> 🎉 재미/만족도 점수
-                          </span>
-                          <span className="font-bold">⭐ {p.avgFunScore} / 5.0</span>
-                        </div>
-                        <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
-                          <div
-                            className="h-full bg-purple-400 rounded-full"
-                            style={{ width: `${(p.avgFunScore / 5) * 100}%` }}
-                          />
+                        <div>
+                          <div className="flex justify-between text-purple-400 font-semibold mb-1">
+                            <span className="flex items-center gap-1">
+                              <Smile className="size-3.5" /> 🎉 재미/만족도 점수
+                            </span>
+                            <span className="font-bold">⭐ {p.avgFunScore} / 5.0</span>
+                          </div>
+                          <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
+                            <div
+                              className="h-full bg-purple-400 rounded-full"
+                              style={{ width: `${(p.avgFunScore / 5) * 100}%` }}
+                            />
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="mt-4 pt-3 border-t border-slate-800/80 text-center py-4">
+                        <p className="text-xs text-slate-500 font-medium">
+                          ✍️ 아직 사용자가 남긴 평점이 없습니다.
+                        </p>
+                      </div>
+                    )}
                   </div>
 
-                  {/* 사용자 작성 한줄평 보기 버튼 */}
                   <div className="pt-3 border-t border-slate-800 flex items-center justify-between">
                     <span className="text-slate-500 text-xs font-semibold">
                       총 {p.reviewCount}개 평가 참여
@@ -1034,71 +1059,13 @@ export default function AdminPage() {
                     <Button
                       size="sm"
                       variant="outline"
+                      disabled={p.reviewCount === 0}
                       onClick={() => setSelectedPlaceReviews(p)}
-                      className="rounded-xl border-slate-700 bg-slate-900 text-xs text-sky-300 hover:bg-slate-800 gap-1 cursor-pointer font-bold"
+                      className="rounded-xl border-slate-700 bg-slate-900 text-xs text-sky-300 hover:bg-slate-800 gap-1 cursor-pointer font-bold disabled:opacity-40"
                     >
                       <MessageSquare className="size-3.5 text-sky-400" />
                       <span>한줄평 후기 ({p.reviewsList.length})</span>
                     </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ========================================================================= */}
-        {/* TAB 2: ⏱️ 운영시간 & "오늘 임시휴업" 원클릭 스위치 */}
-        {/* ========================================================================= */}
-        {activeTab === 'hours' && (
-          <div className="space-y-4 animate-in fade-in duration-200">
-            <div className="rounded-2xl border border-amber-500/30 bg-amber-950/20 p-4 text-xs text-amber-200 flex items-start gap-3">
-              <AlertCircle className="size-5 text-amber-400 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-bold text-amber-300">💡 "오늘 임시휴업" 스위치 가이드</p>
-                <p className="mt-1 leading-relaxed text-slate-300">
-                  갑작스러운 매장 내부 리모델링, 기상 악화, 개인 사정 등으로 임시 휴업 시 스위치를 클릭하시면 코드 재배포 없이 사용자 실시간 코스 추천 알고리즘에서 **즉시 제척**됩니다.
-                </p>
-              </div>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {places.map((p) => (
-                <div
-                  key={p.id}
-                  className={`rounded-2xl border p-4 shadow-md transition-all ${
-                    p.isTempClosed
-                      ? 'border-red-500/40 bg-red-950/10'
-                      : 'border-slate-800 bg-slate-950/80'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h3 className="font-bold text-white text-base">{p.name}</h3>
-                      <p className="text-xs text-slate-400 mt-0.5">{p.category}</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleToggleTempClosed(p.id)}
-                      className={`rounded-xl px-3 py-1.5 text-xs font-bold cursor-pointer transition-all border ${
-                        p.isTempClosed
-                          ? 'bg-red-500 text-white border-red-400 shadow-md'
-                          : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30'
-                      }`}
-                    >
-                      {p.isTempClosed ? '🔴 휴업 중' : '🟢 정상 영업'}
-                    </button>
-                  </div>
-
-                  <div className="mt-4 pt-3 border-t border-slate-800 text-xs space-y-1.5 text-slate-300">
-                    <p className="flex items-center justify-between">
-                      <span className="text-slate-500">운영시간:</span>
-                      <span className="font-semibold text-white">{p.operatingHours}</span>
-                    </p>
-                    <p className="flex items-center justify-between">
-                      <span className="text-slate-500">주소:</span>
-                      <span className="text-slate-400 truncate max-w-[180px]">{p.address}</span>
-                    </p>
                   </div>
                 </div>
               ))}
@@ -1271,14 +1238,14 @@ export default function AdminPage() {
         )}
       </main>
 
-      {/* 💬 장소별 사용자 세부 리뷰 모달 */}
+      {/* 💬 장소별 실제 사용자 작성 세부 리뷰 모달 */}
       {selectedPlaceReviews && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="relative w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4 bg-slate-950/60">
               <div>
                 <h3 className="font-bold text-white text-base flex items-center gap-2">
-                  <span>💬 '{selectedPlaceReviews.name}' 사용자 세부 리뷰 목록</span>
+                  <span>💬 '{selectedPlaceReviews.name}' 실 사용자 리뷰 목록</span>
                 </h3>
                 <p className="text-xs text-amber-300 font-semibold mt-0.5">
                   종합 평점 ⭐ {selectedPlaceReviews.overallRating} (총 {selectedPlaceReviews.reviewCount}개 평가)
