@@ -528,9 +528,27 @@ export default function AdminPage() {
             : item
         )
       )
-      setAdminPlaceStatus(formName, editingPlace.isTempClosed, formStatus, formImageUrl.trim())
+      setAdminPlaceStatus(
+        formName,
+        editingPlace.isTempClosed,
+        formStatus,
+        formImageUrl.trim(),
+        formOperatingHours.trim(),
+        formCost,
+        formAddress.trim(),
+        formReason.trim()
+      )
       if (editingPlace.name !== formName) {
-        setAdminPlaceStatus(editingPlace.name, editingPlace.isTempClosed, formStatus, formImageUrl.trim())
+        setAdminPlaceStatus(
+          editingPlace.name,
+          editingPlace.isTempClosed,
+          formStatus,
+          formImageUrl.trim(),
+          formOperatingHours.trim(),
+          formCost,
+          formAddress.trim(),
+          formReason.trim()
+        )
       }
 
       // 커스텀 추가 장소인 경우 커스텀 장소 스토리지 업데이트

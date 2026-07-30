@@ -21,7 +21,7 @@ import {
   type Weather,
 } from '@/lib/mock-data'
 import { JEONJU_PLACES_DATABASE } from '@/app/api/places/search/route'
-import { isPlaceClosedByAdmin, isPlaceCurrentlyOpen, getAllPlacesWithAdminCustom } from '@/lib/admin-storage'
+import { isPlaceClosedByAdmin, isPlaceCurrentlyOpen, getAllPlacesWithAdminCustom, getPlaceOperatingHours } from '@/lib/admin-storage'
 import { cn } from '@/lib/utils'
 import { getAppLang, t, tPlaceName, tCategory, tWeatherSummary, tWeatherDetail, type AppLang } from '@/lib/i18n'
 
@@ -356,13 +356,14 @@ export function ResultView() {
     }
   }, [router])
 
-  // Admin 실시간 사진 및 상태 변경 이벤트 수신 시 places 이미지 최신화
+  // Admin 실시간 사진, 영업시간 및 상태 변경 이벤트 수신 시 places 최신화
   useEffect(() => {
     const handleAdminSync = () => {
       setPlaces((prev) =>
         prev.map((p) => ({
           ...p,
           imageUrl: getPlaceImageUrl(p.name, p.category, p.imageUrl),
+          operatingHours: getPlaceOperatingHours(p.name, p.operatingHours),
         }))
       )
     }

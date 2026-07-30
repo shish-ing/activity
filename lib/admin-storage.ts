@@ -2,12 +2,25 @@
 // 전주 여행 P들 어디가 — Admin 영업중/휴업 설정 & 실제 사용자 평점 집계 모듈
 // ---------------------------------------------------------------------------
 
+function cleanPlaceName(s: string): string {
+  if (!s) return ''
+  return s.replace(/[^\w\s가-힣]/g, '').trim().toLowerCase().replace(/\s+/g, '')
+}
+
 export type AdminPlaceStatusMap = Record<
   string,
-  { isClosed: boolean; status: 'active' | 'review' | 'inactive'; imageUrl?: string }
+  {
+    isClosed: boolean
+    status: 'active' | 'review' | 'inactive'
+    imageUrl?: string
+    operatingHours?: string
+    cost?: number
+    address?: string
+    reason?: string
+  }
 >
 
-// 1. 특정 장소의 [영업중/휴업], [승인 상태] 및 [대표 사진 URL] 읽기
+// 1. 특정 장소의 [영업중/휴업], [승인 상태] 및 [대표 사진 URL/영업시간] 읽기
 export const getAdminPlaceStatuses = (): AdminPlaceStatusMap => {
   if (typeof window === 'undefined') return {}
   try {
@@ -41,12 +54,16 @@ export const getAdminPlaceStatuses = (): AdminPlaceStatusMap => {
   }
 }
 
-// 2. 특정 장소의 [영업중/휴업], [승인 상태] 및 [대표 사진 URL] 저장 (Local + Vercel Global Sync)
+// 2. 특정 장소의 [영업중/휴업], [승인 상태], [대표 사진 URL] 및 [영업시간] 저장 (Local + Vercel Global Sync)
 export const setAdminPlaceStatus = (
   placeName: string,
   isClosed: boolean,
   status: 'active' | 'review' | 'inactive' = 'active',
-  imageUrl?: string
+  imageUrl?: string,
+  operatingHours?: string,
+  cost?: number,
+  address?: string,
+  reason?: string
 ) => {
   if (typeof window === 'undefined') return
   try {
@@ -57,6 +74,10 @@ export const setAdminPlaceStatus = (
       isClosed,
       status,
       ...(imageUrl !== undefined ? { imageUrl } : {}),
+      ...(operatingHours !== undefined ? { operatingHours } : {}),
+      ...(cost !== undefined ? { cost } : {}),
+      ...(address !== undefined ? { address } : {}),
+      ...(reason !== undefined ? { reason } : {}),
     }
 
     current[placeName] = updatedItem
@@ -75,33 +96,106 @@ export const setAdminPlaceStatus = (
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         type: 'SET_PLACE_STATUS',
-        payload: { placeName, isClosed, status, imageUrl },
+        payload: { placeName, isClosed, status, imageUrl, operatingHours, cost, address, reason },
       }),
     }).catch(() => {})
   } catch (e) {}
 }
 
+// 2-1. Admin에서 수정한 영업시간 읽기
+export const getPlaceOperatingHours = (placeName: string, defaultHours?: string): string => {
+  if (typeof window === 'undefined') return defaultHours || ''
+  try {
+    const statuses = getAdminPlaceStatuses()
+    const nameClean = cleanPlaceName(placeName)
+    const matchingKey = Object.keys(statuses).find((k) => {
+      const kClean = cleanPlaceName(k)
+      return (
+        kClean === nameClean ||
+        (nameClean.length >= 3 && kClean.includes(nameClean)) ||
+        (kClean.length >= 3 && nameClean.includes(kClean))
+      )
+    })
+    if (
+      matchingKey &&
+      statuses[matchingKey]?.operatingHours !== undefined &&
+      statuses[matchingKey].operatingHours!.trim() !== ''
+    ) {
+      return statuses[matchingKey].operatingHours!.trim()
+    }
+  } catch (e) {}
+
+  try {
+    const customData = localStorage.getItem('jeonju_admin_custom_places')
+    if (customData) {
+      const customPlaces: any[] = JSON.parse(customData)
+      const nameClean = cleanPlaceName(placeName)
+      const found = customPlaces.find((p) => {
+        const pClean = cleanPlaceName(p.name)
+        return (
+          pClean === nameClean ||
+          (nameClean.length >= 3 && pClean.includes(nameClean)) ||
+          (pClean.length >= 3 && nameClean.includes(pClean))
+        )
+      })
+      if (found?.operatingHours && found.operatingHours.trim()) {
+        return found.operatingHours.trim()
+      }
+    }
+  } catch (e) {}
+
+  return defaultHours || ''
+}
+
 // 3. 해당 장소가 관리자에 의해 휴업(임시휴업) 처리되었는지 확인
 export const isPlaceClosedByAdmin = (placeName: string): boolean => {
   const statuses = getAdminPlaceStatuses()
-  return statuses[placeName]?.isClosed ?? false
+  const nameClean = cleanPlaceName(placeName)
+  const matchingKey = Object.keys(statuses).find((k) => {
+    const kClean = cleanPlaceName(k)
+    return (
+      kClean === nameClean ||
+      (nameClean.length >= 3 && kClean.includes(nameClean)) ||
+      (kClean.length >= 3 && nameClean.includes(kClean))
+    )
+  })
+  return matchingKey ? (statuses[matchingKey]?.isClosed ?? false) : false
 }
 
 // 3-1. 해당 장소가 현재 실시간 시각 및 영업시간 기준 영업 중인지 판단 (영업시간 자동 감지 + 관리자 휴업 설정 100% 통합)
-export const isPlaceCurrentlyOpen = (placeName: string, operatingHours?: string): boolean => {
+export const isPlaceCurrentlyOpen = (placeName: string, defaultOperatingHours?: string): boolean => {
   // 1) 관리자 강제 휴업 설정 체크
   const statuses = getAdminPlaceStatuses()
-  if (statuses[placeName]?.isClosed) return false
+  const nameClean = cleanPlaceName(placeName)
+  const matchingKey = Object.keys(statuses).find((k) => {
+    const kClean = cleanPlaceName(k)
+    return (
+      kClean === nameClean ||
+      (nameClean.length >= 3 && kClean.includes(nameClean)) ||
+      (kClean.length >= 3 && nameClean.includes(kClean))
+    )
+  })
 
-  // 2) 영업시간 미작성 시 기본 영업중
-  if (!operatingHours) return true
+  if (matchingKey && statuses[matchingKey]?.isClosed) return false
 
-  const hoursStr = operatingHours.trim()
+  // 2) Admin 실시간 최신 영업시간 연동
+  const effectiveHours = getPlaceOperatingHours(placeName, defaultOperatingHours)
+  if (!effectiveHours) return true
+
+  const hoursStr = effectiveHours.trim()
   if (!hoursStr) return true
 
-  // 24시간 영업 or 상시 개방 (단, 09:00~18:00 같은 특정 시간 괄호 안내가 없는 경우)
-  if (hoursStr.includes('24시간') || (hoursStr.includes('상시 개방') && !hoursStr.match(/\d{1,2}:\d{2}/))) {
-    return true
+  // 24시간 영업 or 상시 개방 or 연중무휴 (시간 숫자가 없는 경유)
+  if (
+    hoursStr.includes('24시간') ||
+    hoursStr.includes('상시 개방') ||
+    hoursStr.includes('상시개방') ||
+    hoursStr.includes('연중무휴') ||
+    hoursStr.includes('상시')
+  ) {
+    if (!hoursStr.match(/\d{1,2}:\d{2}/)) {
+      return true
+    }
   }
 
   const now = new Date()

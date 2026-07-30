@@ -25,7 +25,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { getPlaceImageUrl, type Place } from '@/lib/mock-data'
-import { isPlaceClosedByAdmin, isPlaceCurrentlyOpen } from '@/lib/admin-storage'
+import { isPlaceClosedByAdmin, isPlaceCurrentlyOpen, getPlaceOperatingHours } from '@/lib/admin-storage'
 import { ReportErrorModal } from '@/components/report-error-modal'
 import { cn } from '@/lib/utils'
 import { getAppLang, t, tPlaceName, tCategory, tHours, tDistance, tTip, tWarning, type AppLang } from '@/lib/i18n'
@@ -65,6 +65,9 @@ export function PlaceCard({
   const [currentImageUrl, setCurrentImageUrl] = useState<string>(() =>
     getPlaceImageUrl(place.name, place.category, place.imageUrl)
   )
+  const [currentOperatingHours, setCurrentOperatingHours] = useState<string>(() =>
+    getPlaceOperatingHours(place.name, place.operatingHours)
+  )
   const [lang, setLang] = useState<AppLang>('ko')
 
   useEffect(() => {
@@ -81,10 +84,12 @@ export function PlaceCard({
   useEffect(() => {
     setIsClosed(!isPlaceCurrentlyOpen(place.name, place.operatingHours))
     setCurrentImageUrl(getPlaceImageUrl(place.name, place.category, place.imageUrl))
+    setCurrentOperatingHours(getPlaceOperatingHours(place.name, place.operatingHours))
 
     const handleSync = () => {
       setIsClosed(!isPlaceCurrentlyOpen(place.name, place.operatingHours))
       setCurrentImageUrl(getPlaceImageUrl(place.name, place.category, place.imageUrl))
+      setCurrentOperatingHours(getPlaceOperatingHours(place.name, place.operatingHours))
     }
     window.addEventListener('jeonju_admin_status_changed', handleSync)
     window.addEventListener('storage', handleSync)
@@ -347,10 +352,10 @@ export function PlaceCard({
                 <span className="truncate">{place.address}</span>
               </div>
             ) : null}
-            {place.operatingHours ? (
+            {currentOperatingHours ? (
               <div className="flex items-center gap-1.5">
                 <Clock className="size-3.5 text-accent shrink-0" />
-                <span>{t('영업: ', 'Hours: ', lang)}{tHours(place.operatingHours, lang)}</span>
+                <span>{t('영업: ', 'Hours: ', lang)}{tHours(currentOperatingHours, lang)}</span>
               </div>
             ) : null}
           </div>
