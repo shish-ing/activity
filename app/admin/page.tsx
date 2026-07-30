@@ -31,7 +31,10 @@ import {
   Users,
   UserCheck,
   UserX,
-  BookOpen
+  BookOpen,
+  LogOut,
+  ShieldCheck,
+  ShieldAlert
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { JEONJU_PLACES_DATABASE } from '@/app/api/places/search/route'
@@ -49,6 +52,15 @@ import {
   deleteReportFromStorage,
   type UserReportItem
 } from '@/lib/report-storage'
+import { AdminLoginGateway } from '@/components/admin-login-gateway'
+import {
+  getAdminAccounts,
+  updateAdminAccountStatus,
+  deleteAdminAccount,
+  getAdminSession,
+  setAdminSession,
+  type AdminAccount
+} from '@/lib/admin-auth-storage'
 
 export interface AdminPlaceItem {
   id: string
@@ -117,20 +129,14 @@ const INITIAL_ADMIN_PLACES: AdminPlaceItem[] = JEONJU_PLACES_DATABASE.map((p, id
   reviewsList: [],
 }))
 
-// 유저 오류 신고 데이터
-interface UserReport {
-  id: string
-  placeName: string
-  reportType: string
-  content: string
-  createdAt: string
-  status: 'pending' | 'processing' | 'resolved'
-}
-
 // 실사용자 정보 오류 신고 데이터 (AI 더미 데이터 100% 제거, 소비자 접수건만 관리)
 const INITIAL_REPORTS: UserReportItem[] = []
 
 export default function AdminPage() {
+  const [adminSessionState, setAdminSessionState] = useState<AdminAccount | null>(null)
+  const [adminAccountsList, setAdminAccountsList] = useState<AdminAccount[]>([])
+  const [isAuthLoaded, setIsAuthLoaded] = useState(false)
+
   const [activeTab, setActiveTab] = useState<'crud' | 'users' | 'hours' | 'ratings' | 'simulator' | 'monitoring'>('crud')
   const [places, setPlaces] = useState<AdminPlaceItem[]>(INITIAL_ADMIN_PLACES)
   const [reports, setReports] = useState<UserReportItem[]>(INITIAL_REPORTS)
@@ -166,7 +172,26 @@ export default function AdminPage() {
   // 🎯 시뮬레이터 State
   const [simAuditResults, setSimAuditResults] = useState<any[] | null>(null)
 
-  // 💡 [핵심] LocalStorage에서 ① 영업/휴업 설정 상태, ② 실제 유저 평점 집계, ③ 회원가입자 목록, ④ 소비자가 신고한 오류 접수 건 동기화
+  // 🔑 관리자 로그인 세션 및 계정 승인 동기화
+  useEffect(() => {
+    setAdminSessionState(getAdminSession())
+    setAdminAccountsList(getAdminAccounts())
+    setIsAuthLoaded(true)
+
+    const handleAuthSync = () => {
+      setAdminSessionState(getAdminSession())
+      setAdminAccountsList(getAdminAccounts())
+    }
+    window.addEventListener('jeonju_admin_auth_changed', handleAuthSync)
+    window.addEventListener('jeonju_admin_session_changed', handleAuthSync)
+
+    return () => {
+      window.removeEventListener('jeonju_admin_auth_changed', handleAuthSync)
+      window.removeEventListener('jeonju_admin_session_changed', handleAuthSync)
+    }
+  }, [])
+
+  // 💡 LocalStorage 동기화 함수
   const loadAdminStateAndRealRatings = () => {
     if (typeof window === 'undefined') return
 
@@ -505,6 +530,12 @@ export default function AdminPage() {
     setSimAuditResults(results)
   }
 
+  // 🔒 로그인하지 않은 경우 관리자 로그인 & 가입 관문 관문 표시!
+  if (!isAuthLoaded) return null
+  if (!adminSessionState) {
+    return <AdminLoginGateway onLoginSuccess={(account) => setAdminSessionState(account)} />
+  }
+
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 font-sans pb-16">
       {/* 🛡️ 관리자 최상단 헤더 바 */}
@@ -533,15 +564,37 @@ export default function AdminPage() {
             </div>
           </div>
 
+          {/* 관리자 프로필 & 로그아웃 버튼 */}
           <div className="flex items-center gap-3">
+            <div className="rounded-xl border border-amber-500/30 bg-amber-950/40 px-3.5 py-1.5 text-xs text-amber-200 flex items-center gap-2 shadow-xs">
+              <ShieldCheck className="size-4 text-amber-400 shrink-0" />
+              <div>
+                <p className="font-bold text-white leading-none">{adminSessionState.name}</p>
+                <p className="text-[10px] text-amber-400/80 mt-0.5 font-mono">{adminSessionState.email}</p>
+              </div>
+            </div>
+
             <Link
               href="/"
               target="_blank"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3.5 py-2 text-xs font-bold text-slate-200 hover:bg-slate-700 transition-colors shadow-sm"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-bold text-slate-200 hover:bg-slate-700 transition-colors shadow-sm"
             >
-              <span>🌐 사용자 프론트 바로가기</span>
+              <span>🌐 사용자 서비스</span>
               <ExternalLink className="size-3.5 text-slate-400" />
             </Link>
+
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                setAdminSession(null)
+                setAdminSessionState(null)
+              }}
+              className="h-9 rounded-xl border border-red-500/40 bg-red-950/40 text-red-300 hover:bg-red-900 font-bold text-xs gap-1.5 cursor-pointer shadow-xs"
+            >
+              <LogOut className="size-3.5" />
+              <span>로그아웃</span>
+            </Button>
           </div>
         </div>
       </header>
@@ -638,7 +691,7 @@ export default function AdminPage() {
             }`}
           >
             <Users className="size-4" />
-            <span>👤 6장. 회원가입 사용자 관리 ({registeredUsers.length}명)</span>
+            <span>👤 6장. 회원가입 사용자 & 관리자 승인 센터 ({registeredUsers.length}명)</span>
           </button>
 
           <button
@@ -695,111 +748,216 @@ export default function AdminPage() {
         </div>
 
         {/* ========================================================================= */}
-        {/* TAB 6: 👤 회원가입 사용자 현황 센터 */}
+        {/* TAB 6: 👤 회원가입 사용자 현황 & 관리자 계정 승인 센터 */}
         {/* ========================================================================= */}
         {activeTab === 'users' && (
-          <div className="space-y-4 animate-in fade-in duration-200">
-            {/* 회원 검색 바 */}
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/80 p-4 shadow-md">
-              <div className="relative min-w-[280px] flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
-                <input
-                  type="text"
-                  value={userSearchQuery}
-                  onChange={(e) => setUserSearchQuery(e.target.value)}
-                  placeholder="회원 이름, 닉네임, 이메일 검색..."
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 pl-9 pr-4 py-2 text-xs text-white placeholder:text-slate-500 outline-none focus:border-amber-400"
-                />
+          <div className="space-y-6 animate-in fade-in duration-200">
+            {/* 🛡️ 관리자 회원가입 신청 승인 목록 섹션 */}
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-950/20 p-5 space-y-4 shadow-xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-amber-200 text-base flex items-center gap-2">
+                    <ShieldCheck className="size-5 text-amber-400" />
+                    <span>🛡️ 관리자 회원가입 신청 승인 & 계정 센터 ({adminAccountsList.length}명)</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    신규 관리자가 가입 신청을 하면 승인 대기 목록에 표시됩니다. 기존 총괄 관리자가 **[🟢 승인 완료]**해야 관리자 로그인이 가능합니다.
+                  </p>
+                </div>
               </div>
 
-              <div className="flex items-center gap-2 text-xs text-slate-400">
-                <UserCheck className="size-4 text-emerald-400" />
-                <span>총 가입자: <strong className="text-white">{registeredUsers.length}명</strong></span>
-              </div>
-            </div>
-
-            {/* 회원 가입자 테이블 */}
-            <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/80 shadow-xl">
-              <div className="overflow-x-auto">
+              <div className="overflow-hidden rounded-xl border border-amber-500/30 bg-slate-950">
                 <table className="w-full text-left text-xs text-slate-300">
-                  <thead className="border-b border-slate-800 bg-slate-900/90 text-slate-400 font-bold">
+                  <thead className="border-b border-slate-800 bg-slate-900 text-slate-400 font-bold">
                     <tr>
-                      <th className="px-4 py-3">회원 이름 / 닉네임</th>
-                      <th className="px-4 py-3">이메일 주소</th>
-                      <th className="px-4 py-3">여행 성향 (MBTI)</th>
-                      <th className="px-4 py-3">가입 일시</th>
-                      <th className="px-4 py-3">저장 코스 / 평가 후기</th>
-                      <th className="px-4 py-3 text-right">계정 관리</th>
+                      <th className="px-4 py-3">관리자 성명</th>
+                      <th className="px-4 py-3">아이디 (이메일)</th>
+                      <th className="px-4 py-3">직책 / 권한</th>
+                      <th className="px-4 py-3">승인 상태</th>
+                      <th className="px-4 py-3 text-right">승인 / 거절 액션</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/60">
-                    {filteredRegisteredUsers.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
-                          가입된 회원 검색 결과가 없거나 회원 목록이 비어 있습니다.
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredRegisteredUsers.map((u, idx) => (
-                        <tr key={idx} className="hover:bg-slate-900/50 transition-colors">
-                          <td className="px-4 py-3.5 font-bold text-white text-sm">
-                            <div className="flex items-center gap-2">
-                              <span className="flex size-7 items-center justify-center rounded-full bg-slate-800 text-amber-300 text-xs font-black">
-                                👤
-                              </span>
-                              <span>{u.name}</span>
-                            </div>
-                          </td>
-
-                          <td className="px-4 py-3.5 text-slate-300 font-mono">
-                            {u.email}
-                          </td>
-
-                          <td className="px-4 py-3.5">
-                            {u.travelStyle === 'P' ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 border border-amber-400/40 px-2.5 py-0.5 text-[11px] font-bold text-amber-300">
-                                🎯 P (즉흥형 - 100% 추천 반응)
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/20 border border-sky-400/40 px-2.5 py-0.5 text-[11px] font-bold text-sky-300">
-                                📋 J (계획형)
+                    {adminAccountsList.map((acc) => (
+                      <tr key={acc.id} className="hover:bg-slate-900/50">
+                        <td className="px-4 py-3 font-bold text-white">
+                          <div className="flex items-center gap-2">
+                            <span>🛡️ {acc.name}</span>
+                            {acc.role === 'super' && (
+                              <span className="rounded bg-amber-500/20 text-amber-300 border border-amber-400/40 text-[10px] px-1.5 py-0.2 font-bold">
+                                총괄 슈퍼
                               </span>
                             )}
-                          </td>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 font-mono text-slate-300">{acc.email}</td>
+                        <td className="px-4 py-3 font-bold text-amber-400">
+                          {acc.role === 'super' ? '👑 총괄 슈퍼 관리자' : '🛡️ 일반 관리자'}
+                        </td>
+                        <td className="px-4 py-3">
+                          {acc.status === 'approved' ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 px-2.5 py-0.5 text-[11px] font-bold text-emerald-300">
+                              🟢 승인 완료
+                            </span>
+                          ) : acc.status === 'pending' ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 border border-amber-500/40 px-2.5 py-0.5 text-[11px] font-bold text-amber-300 animate-pulse">
+                              🔍 승인 대기중 (승인 필요)
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-red-500/20 border border-red-500/40 px-2.5 py-0.5 text-[11px] font-bold text-red-300">
+                              🔴 거절됨
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            {acc.status !== 'approved' && (
+                              <Button
+                                size="sm"
+                                onClick={() => updateAdminAccountStatus(acc.email, 'approved')}
+                                className="h-7 text-xs bg-emerald-500 text-emerald-950 font-extrabold hover:bg-emerald-400 cursor-pointer shadow-xs"
+                              >
+                                🟢 승인 완료
+                              </Button>
+                            )}
 
-                          <td className="px-4 py-3.5 text-slate-400 font-mono text-[11px]">
-                            {u.createdAt}
-                          </td>
+                            {acc.status !== 'rejected' && acc.role !== 'super' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => updateAdminAccountStatus(acc.email, 'rejected')}
+                                className="h-7 text-xs border-amber-500/40 text-amber-300 hover:bg-amber-900/50 cursor-pointer font-bold"
+                              >
+                                🔴 거절
+                              </Button>
+                            )}
 
-                          <td className="px-4 py-3.5">
-                            <div className="flex items-center gap-2">
-                              <span className="text-amber-300 font-bold">
-                                📂 저장 코스 {u.savedCoursesCount}개
-                              </span>
-                              <span className="text-slate-600">•</span>
-                              <span className="text-emerald-400 font-bold">
-                                ✍️ 작성 리뷰 {u.reviewsCount}개
-                              </span>
-                            </div>
-                          </td>
-
-                          <td className="px-4 py-3.5 text-right">
-                            <div className="flex items-center justify-end gap-2">
+                            {acc.role !== 'super' && (
                               <button
                                 type="button"
-                                onClick={() => handleDeleteUserAccount(u.email, u.name)}
-                                className="rounded-lg border border-red-500/30 bg-red-950/40 px-2.5 py-1 text-red-300 hover:bg-red-900/60 font-bold text-[11px] cursor-pointer flex items-center gap-1"
+                                onClick={() => {
+                                  if (confirm(`'${acc.name}' 관리자 계정을 삭제하시겠습니까?`)) {
+                                    deleteAdminAccount(acc.email)
+                                  }
+                                }}
+                                className="rounded-lg border border-red-500/30 bg-red-950/40 p-1 text-red-300 hover:bg-red-900/60 cursor-pointer"
+                                title="관리자 계정 삭제"
                               >
-                                <Trash2 className="size-3" />
-                                <span>회원 탈퇴</span>
+                                <Trash2 className="size-3.5" />
                               </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+
+            {/* 👤 서비스 회원 가입자 현황 목록 섹션 */}
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/80 p-4 shadow-md">
+                <div className="relative min-w-[280px] flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+                  <input
+                    type="text"
+                    value={userSearchQuery}
+                    onChange={(e) => setUserSearchQuery(e.target.value)}
+                    placeholder="서비스 회원 이름, 닉네임, 이메일 검색..."
+                    className="w-full rounded-xl border border-slate-700 bg-slate-900 pl-9 pr-4 py-2 text-xs text-white placeholder:text-slate-500 outline-none focus:border-amber-400"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 text-xs text-slate-400">
+                  <UserCheck className="size-4 text-emerald-400" />
+                  <span>총 회원 가입자: <strong className="text-white">{registeredUsers.length}명</strong></span>
+                </div>
+              </div>
+
+              {/* 회원 가입자 테이블 */}
+              <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/80 shadow-xl">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs text-slate-300">
+                    <thead className="border-b border-slate-800 bg-slate-900/90 text-slate-400 font-bold">
+                      <tr>
+                        <th className="px-4 py-3">회원 이름 / 닉네임</th>
+                        <th className="px-4 py-3">이메일 주소</th>
+                        <th className="px-4 py-3">여행 성향 (MBTI)</th>
+                        <th className="px-4 py-3">가입 일시</th>
+                        <th className="px-4 py-3">저장 코스 / 평가 후기</th>
+                        <th className="px-4 py-3 text-right">계정 관리</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60">
+                      {filteredRegisteredUsers.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                            가입된 서비스 회원 검색 결과가 없거나 회원 목록이 비어 있습니다.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredRegisteredUsers.map((u, idx) => (
+                          <tr key={idx} className="hover:bg-slate-900/50 transition-colors">
+                            <td className="px-4 py-3.5 font-bold text-white text-sm">
+                              <div className="flex items-center gap-2">
+                                <span className="flex size-7 items-center justify-center rounded-full bg-slate-800 text-amber-300 text-xs font-black">
+                                  👤
+                                </span>
+                                <span>{u.name}</span>
+                              </div>
+                            </td>
+
+                            <td className="px-4 py-3.5 text-slate-300 font-mono">
+                              {u.email}
+                            </td>
+
+                            <td className="px-4 py-3.5">
+                              {u.travelStyle === 'P' ? (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 border border-amber-400/40 px-2.5 py-0.5 text-[11px] font-bold text-amber-300">
+                                  🎯 P (즉흥형 - 100% 추천 반응)
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/20 border border-sky-400/40 px-2.5 py-0.5 text-[11px] font-bold text-sky-300">
+                                  📋 J (계획형)
+                                </span>
+                              )}
+                            </td>
+
+                            <td className="px-4 py-3.5 text-slate-400 font-mono text-[11px]">
+                              {u.createdAt}
+                            </td>
+
+                            <td className="px-4 py-3.5">
+                              <div className="flex items-center gap-2">
+                                <span className="text-amber-300 font-bold">
+                                  📂 저장 코스 {u.savedCoursesCount}개
+                                </span>
+                                <span className="text-slate-600">•</span>
+                                <span className="text-emerald-400 font-bold">
+                                  ✍️ 작성 리뷰 {u.reviewsCount}개
+                                </span>
+                              </div>
+                            </td>
+
+                            <td className="px-4 py-3.5 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteUserAccount(u.email, u.name)}
+                                  className="rounded-lg border border-red-500/30 bg-red-950/40 px-2.5 py-1 text-red-300 hover:bg-red-900/60 font-bold text-[11px] cursor-pointer flex items-center gap-1"
+                                >
+                                  <Trash2 className="size-3" />
+                                  <span>회원 탈퇴</span>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>

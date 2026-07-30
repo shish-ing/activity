@@ -1,0 +1,11 @@
+[
+  {
+    "id": "admin_super_1",
+    "name": "총괄 슈퍼 관리자",
+    "email": "ish30293029@gmail.com",
+    "password": "4640lsh",
+    "role": "super",
+    "status": "approved",
+    "createdAt": "2026-07-30 17:00"
+  }
+]
