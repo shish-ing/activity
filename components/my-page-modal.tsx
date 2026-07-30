@@ -134,15 +134,10 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
     setEditSpotRatings(initialSpotRatings)
   }
 
-  // 리뷰 저장
+  // 리뷰 및 평점 저장 (글을 안 적어도 평점만 100% 저장됨)
   const handleSaveReview = (e: React.FormEvent, courseId: string, c: SavedCourse) => {
     e.stopPropagation()
     e.preventDefault()
-
-    if (!editContent.trim()) {
-      alert('후기 소감 내용을 작성해주세요!')
-      return
-    }
 
     const spotRatingsList: SpotRating[] = c.spots.map((spot) => {
       const rating = editSpotRatings[spot.name] || { weatherScore: 5, funScore: 5, comment: '' }
@@ -150,7 +145,7 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
         spotName: spot.name,
         weatherScore: rating.weatherScore,
         funScore: rating.funScore,
-        comment: rating.comment,
+        comment: rating.comment ? rating.comment.trim() : undefined,
       }
     })
 
@@ -432,12 +427,19 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
                             </span>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[11px]">
                               {c.spotRatings.map((sr, srIdx) => (
-                                <div key={srIdx} className="flex items-center justify-between bg-white/90 px-2.5 py-1.5 rounded-lg border border-amber-200/80 shadow-2xs">
-                                  <span className="font-bold text-slate-900 truncate max-w-[130px]">{srIdx + 1}. {sr.spotName}</span>
-                                  <div className="flex items-center gap-2 font-bold text-[10px]">
-                                    <span className="text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded border border-sky-100">🌤️ {sr.weatherScore}점</span>
-                                    <span className="text-amber-800 bg-amber-100/70 px-1.5 py-0.5 rounded border border-amber-200">🎉 {sr.funScore}점</span>
+                                <div key={srIdx} className="flex flex-col bg-white/90 p-2 rounded-lg border border-amber-200/80 shadow-2xs space-y-1">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-bold text-slate-900 truncate max-w-[130px]">{srIdx + 1}. {sr.spotName}</span>
+                                    <div className="flex items-center gap-1.5 font-bold text-[10px]">
+                                      <span className="text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded border border-sky-100">🌤️ {sr.weatherScore}점</span>
+                                      <span className="text-amber-800 bg-amber-100/70 px-1.5 py-0.5 rounded border border-amber-200">🎉 {sr.funScore}점</span>
+                                    </div>
                                   </div>
+                                  {sr.comment && (
+                                    <p className="text-[10.5px] text-slate-700 bg-amber-50/60 p-1.5 rounded border border-amber-100 font-normal">
+                                      ✍️ "{sr.comment}"
+                                    </p>
+                                  )}
                                 </div>
                               ))}
                             </div>
@@ -612,6 +614,22 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
                                         <span className="text-[10px] font-bold text-amber-800 ml-1">{sRating.funScore}점</span>
                                       </div>
                                     </div>
+                                  </div>
+
+                                  {/* ✍️ 장소별 개별 한줄평 입력 (선택사항 - 안 적어도 평점 100% 저장됨) */}
+                                  <div className="pt-0.5">
+                                    <input
+                                      type="text"
+                                      value={sRating.comment || ''}
+                                      onChange={(e) => {
+                                        setEditSpotRatings({
+                                          ...editSpotRatings,
+                                          [spot.name]: { ...sRating, comment: e.target.value },
+                                        })
+                                      }}
+                                      placeholder="✍️ 이 장소 한줄평 후기 (선택사항 - 안 적어도 평점 100% 저장됨)"
+                                      className="w-full rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[11px] text-slate-800 outline-none focus:border-amber-400 placeholder:text-slate-400 font-normal"
+                                    />
                                   </div>
                                 </div>
                               )
