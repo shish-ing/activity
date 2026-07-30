@@ -86,10 +86,16 @@ export async function initDatabaseSchema() {
       );
     `
 
-    // 최초 총괄 슈퍼 관리자 자동 보장
+    // 최초 총괄 슈퍼 관리자 및 기본 회원 데이터 인서트 보장
     await sql`
       INSERT INTO admin_accounts (id, name, email, password, role, status, created_at)
       VALUES ('admin_super_1', '총괄 슈퍼 관리자', 'ish30293029@gmail.com', '4640lsh', 'super', 'approved', '2026-07-30 17:00')
+      ON CONFLICT (email) DO NOTHING;
+    `
+
+    await sql`
+      INSERT INTO users (id, name, email, password, travel_style, created_at)
+      VALUES ('usr_seed_1', '전주여행자', 'test@jeonju.com', 'password123', 'P', '2026-07-30T10:00:00.000Z')
       ON CONFLICT (email) DO NOTHING;
     `
 
