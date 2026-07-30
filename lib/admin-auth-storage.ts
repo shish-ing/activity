@@ -90,11 +90,17 @@ export const registerAdminAccount = (account: {
     localStorage.setItem('jeonju_admin_accounts', JSON.stringify(updated))
     window.dispatchEvent(new Event('jeonju_admin_auth_changed'))
 
-    // 서버 파일 영구 백업 전송
+    // 서버 파일 영구 백업 전송 & Vercel 글로벌 동기화
     fetch('/api/admin/auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'register', account: newAdmin }),
+    }).catch(() => {})
+
+    fetch('/api/admin/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'REGISTER_ADMIN', payload: newAdmin }),
     }).catch(() => {})
 
     return {
@@ -129,6 +135,12 @@ export const updateAdminAccountStatus = (
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'updateStatus', email, status }),
     }).catch(() => {})
+
+    fetch('/api/admin/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'UPDATE_ADMIN_STATUS', payload: { email, status } }),
+    }).catch(() => {})
   } catch (e) {}
 }
 
@@ -146,6 +158,12 @@ export const deleteAdminAccount = (email: string) => {
 
     fetch(`/api/admin/auth?email=${encodeURIComponent(email)}`, {
       method: 'DELETE',
+    }).catch(() => {})
+
+    fetch('/api/admin/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'DELETE_ADMIN', payload: { email } }),
     }).catch(() => {})
   } catch (e) {}
 }

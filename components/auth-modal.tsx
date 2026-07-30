@@ -59,6 +59,13 @@ export const saveStoredUsers = (users: RegisteredUser[]) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ users }),
     }).catch(() => {})
+
+    // 🛡️ Vercel 프로덕션 전역 동기화 전송
+    fetch('/api/admin/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'SYNC_ALL_USERS', payload: users }),
+    }).catch(() => {})
   } catch (e) {}
 }
 

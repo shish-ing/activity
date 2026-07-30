@@ -11,20 +11,21 @@ export interface UserReportItem {
   status: 'pending' | 'processing' | 'resolved'
 }
 
-// 1. 저장된 실사용자 오류 신고 목록 읽기 (AI 더미 데이터 없음)
+// 1. 저장된 실사용자 오류 신고 목록 읽기 (Local + Vercel Global Sync)
 export const getStoredReports = (): UserReportItem[] => {
   if (typeof window === 'undefined') return []
   try {
     const data = localStorage.getItem('jeonju_user_reports')
-    const reports = data ? JSON.parse(data) : []
+    const reports: UserReportItem[] = data ? JSON.parse(data) : []
 
-    // 서버 영구 백업 API 비동기 복구
-    fetch('/api/admin/reports')
+    // Vercel 프로덕션 전역 서버 동기화
+    fetch('/api/admin/sync')
       .then((res) => res.json())
       .then((resData) => {
-        if (resData.success && Array.isArray(resData.reports)) {
-          if (resData.reports.length > reports.length) {
-            localStorage.setItem('jeonju_user_reports', JSON.stringify(resData.reports))
+        if (resData.success && Array.isArray(resData.data?.reports)) {
+          const serverReports = resData.data.reports
+          if (serverReports.length > reports.length) {
+            localStorage.setItem('jeonju_user_reports', JSON.stringify(serverReports))
             window.dispatchEvent(new Event('jeonju_report_submitted'))
           }
         }
@@ -65,11 +66,11 @@ export const addReportToStorage = (report: {
     localStorage.setItem('jeonju_user_reports', JSON.stringify(updated))
     window.dispatchEvent(new Event('jeonju_report_submitted'))
 
-    // 서버 백업전송
-    fetch('/api/admin/reports', {
+    // Vercel 글로벌 동기화 전송
+    fetch('/api/admin/sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newReport),
+      body: JSON.stringify({ type: 'SUBMIT_REPORT', payload: newReport }),
     }).catch(() => {})
   } catch (e) {}
 }
@@ -86,10 +87,10 @@ export const updateReportStatusInStorage = (
     localStorage.setItem('jeonju_user_reports', JSON.stringify(updated))
     window.dispatchEvent(new Event('jeonju_report_submitted'))
 
-    fetch('/api/admin/reports', {
-      method: 'PUT',
+    fetch('/api/admin/sync', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, status }),
+      body: JSON.stringify({ type: 'UPDATE_REPORT_STATUS', payload: { id, status } }),
     }).catch(() => {})
   } catch (e) {}
 }
@@ -103,8 +104,10 @@ export const deleteReportFromStorage = (id: string) => {
     localStorage.setItem('jeonju_user_reports', JSON.stringify(updated))
     window.dispatchEvent(new Event('jeonju_report_submitted'))
 
-    fetch(`/api/admin/reports?id=${encodeURIComponent(id)}`, {
-      method: 'DELETE',
+    fetch('/api/admin/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'DELETE_REPORT', payload: { id } }),
     }).catch(() => {})
   } catch (e) {}
 }

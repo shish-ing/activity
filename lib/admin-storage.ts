@@ -7,18 +7,41 @@ export type AdminPlaceStatusMap = Record<
   { isClosed: boolean; status: 'active' | 'review' | 'inactive' }
 >
 
-// 1. Admin에서 설정한 장소별 영업중/휴업 상태 읽기
+// 1. 특정 장소의 [영업중/휴업] 및 [승인 상태] 읽기
 export const getAdminPlaceStatuses = (): AdminPlaceStatusMap => {
   if (typeof window === 'undefined') return {}
   try {
     const data = localStorage.getItem('jeonju_admin_place_statuses')
-    return data ? JSON.parse(data) : {}
+    const localMap: AdminPlaceStatusMap = data ? JSON.parse(data) : {}
+
+    // Vercel 프로덕션 전역 서버 동기화
+    fetch('/api/admin/sync')
+      .then((res) => res.json())
+      .then((resData) => {
+        if (resData.success && resData.data?.placeStatuses) {
+          const serverStatuses = resData.data.placeStatuses
+          let updated = false
+          Object.keys(serverStatuses).forEach((key) => {
+            if (JSON.stringify(localMap[key]) !== JSON.stringify(serverStatuses[key])) {
+              localMap[key] = serverStatuses[key]
+              updated = true
+            }
+          })
+          if (updated) {
+            localStorage.setItem('jeonju_admin_place_statuses', JSON.stringify(localMap))
+            window.dispatchEvent(new Event('jeonju_admin_status_changed'))
+          }
+        }
+      })
+      .catch(() => {})
+
+    return localMap
   } catch (e) {
     return {}
   }
 }
 
-// 2. Admin에서 장소 영업중/휴업 설정 저장
+// 2. 특정 장소의 [영업중/휴업] 및 [승인 상태] 저장 (Local + Vercel Global Sync)
 export const setAdminPlaceStatus = (
   placeName: string,
   isClosed: boolean,
@@ -29,8 +52,17 @@ export const setAdminPlaceStatus = (
     const current = getAdminPlaceStatuses()
     current[placeName] = { isClosed, status }
     localStorage.setItem('jeonju_admin_place_statuses', JSON.stringify(current))
-    // 실시간 동기화 이벤트 발생
     window.dispatchEvent(new Event('jeonju_admin_status_changed'))
+
+    // Vercel 글로벌 동기화 전송
+    fetch('/api/admin/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'SET_PLACE_STATUS',
+        payload: { placeName, isClosed, status },
+      }),
+    }).catch(() => {})
   } catch (e) {}
 }
 
