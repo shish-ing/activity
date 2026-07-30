@@ -9,6 +9,7 @@ type MapPlaceholderProps = {
   places: Place[]
   activeId: string | null
   onHover: (id: string | null) => void
+  startLocation?: string
   routeMode?: 'straight' | 'navigation'
   selectedSegment?: number | null
   customPinPair?: [number, number] | null
@@ -18,10 +19,28 @@ type MapPlaceholderProps = {
   onResetAll?: () => void
 }
 
+function getStartLocationCoords(startLocName?: string, firstPlace?: Place): { lat: number; lng: number; name: string } {
+  const loc = startLocName || firstPlace?.name || '전주 한옥마을'
+  if (loc.includes('전주역')) return { lat: 35.8490, lng: 127.1615, name: '전주역' }
+  if (loc.includes('터미널')) return { lat: 35.8360, lng: 127.1320, name: '전주고속버스터미널' }
+  if (loc.includes('전북대')) return { lat: 35.8470, lng: 127.1290, name: '전북대학교' }
+  if (loc.includes('서신')) return { lat: 35.8300, lng: 127.1180, name: '서신동' }
+  if (loc.includes('효자') || loc.includes('도청')) return { lat: 35.8170, lng: 127.1010, name: '전북도청/효자동' }
+  if (loc.includes('송천') || loc.includes('에코')) return { lat: 35.8670, lng: 127.1350, name: '송천동/에코시티' }
+  if (loc.includes('혁신') || loc.includes('만성')) return { lat: 35.8340, lng: 127.0650, name: '혁신도시' }
+  if (loc.includes('객사') || loc.includes('객리단길')) return { lat: 35.8178, lng: 127.1442, name: '전주 객사' }
+
+  if (firstPlace?.lat && firstPlace?.lng) {
+    return { lat: firstPlace.lat - 0.0015, lng: firstPlace.lng - 0.0015, name: loc }
+  }
+  return { lat: 35.8133, lng: 127.1492, name: '전주 한옥마을' }
+}
+
 export function MapPlaceholder({
   places,
   activeId,
   onHover,
+  startLocation,
   routeMode: externalRouteMode,
   selectedSegment: externalSelectedSegment,
   customPinPair: externalCustomPinPair,
@@ -33,11 +52,71 @@ export function MapPlaceholder({
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<any>(null)
   const markersRef = useRef<Record<string, any>>({})
+  const myLocationMarkerRef = useRef<any>(null)
   const polylineRef = useRef<any>(null)
   const navPolylinesRef = useRef<any[]>([])
   
   const isMapInitializedRef = useRef<boolean>(false)
   const prevPlacesKeyRef = useRef<string>('')
+
+  // 🔵 내 실시간 위치 (GPS 수신 또는 출발지 폴백)
+  const [myLocation, setMyLocation] = useState<{
+    lat: number
+    lng: number
+    isGps: boolean
+    name: string
+  } | null>(null)
+
+  useEffect(() => {
+    let isMounted = true
+    const fallbackLoc = getStartLocationCoords(startLocation, places[0])
+
+    if (typeof window !== 'undefined' && 'geolocation' in navigator) {
+      try {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            if (!isMounted) return
+            setMyLocation({
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+              isGps: true,
+              name: '현재 실시간 GPS',
+            })
+          },
+          (err) => {
+            console.warn('GPS position fallback to start location:', err)
+            if (!isMounted) return
+            setMyLocation({
+              lat: fallbackLoc.lat,
+              lng: fallbackLoc.lng,
+              isGps: false,
+              name: fallbackLoc.name,
+            })
+          },
+          { enableHighAccuracy: true, timeout: 5000, maximumAge: 10000 }
+        )
+      } catch (e) {
+        if (!isMounted) return
+        setMyLocation({
+          lat: fallbackLoc.lat,
+          lng: fallbackLoc.lng,
+          isGps: false,
+          name: fallbackLoc.name,
+        })
+      }
+    } else {
+      setMyLocation({
+        lat: fallbackLoc.lat,
+        lng: fallbackLoc.lng,
+        isGps: false,
+        name: fallbackLoc.name,
+      })
+    }
+
+    return () => {
+      isMounted = false
+    }
+  }, [startLocation, places])
 
   // 내부 모드 상태 (외부 프로퍼티가 안넘어올 경우 폴백)
   const [internalRouteMode, setInternalRouteMode] = useState<'straight' | 'navigation'>('navigation')
@@ -418,6 +497,51 @@ export function MapPlaceholder({
         markersRef.current[place.id] = marker
       })
 
+      // ─── 3. 🔵 내 위치 (GPS 실시간 위치 또는 출발지 기준) 마커 생성 ───
+      if (myLocationMarkerRef.current) {
+        myLocationMarkerRef.current.remove()
+        myLocationMarkerRef.current = null
+      }
+
+      if (myLocation) {
+        const myIconHtml = `
+          <div style="position: relative; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;">
+            <div style="position: absolute; inset: 0px; border-radius: 50%; background: rgba(37, 99, 235, 0.35); border: 2px solid #3b82f6;"></div>
+            <div style="
+              width: 26px;
+              height: 26px;
+              border-radius: 50%;
+              background: #2563eb;
+              color: white;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 13px;
+              font-weight: 900;
+              box-shadow: 0 0 14px rgba(37, 99, 235, 0.9);
+              border: 3px solid #ffffff;
+              z-index: 2;
+            ">
+              🔵
+            </div>
+          </div>
+        `
+
+        const myIcon = L.divIcon({
+          html: myIconHtml,
+          className: 'custom-my-location-marker',
+          iconSize: [34, 34],
+          iconAnchor: [17, 17],
+        })
+
+        const myMarker = L.marker([myLocation.lat, myLocation.lng], { icon: myIcon, zIndexOffset: 1000 }).addTo(map)
+        myMarker.bindTooltip(
+          `<b>🔵 내 위치</b> (${myLocation.isGps ? '실시간 GPS 연동' : '출발지 기준: ' + myLocation.name})`,
+          { direction: 'top', offset: [0, -18] }
+        )
+        myLocationMarkerRef.current = myMarker
+      }
+
       // 최초 1회만 카메라 자동 맞춤
       const isPlacesChanged = prevPlacesKeyRef.current !== placesKey
       if (routeLatLngs.length > 0 && (!isMapInitializedRef.current || isPlacesChanged)) {
@@ -427,7 +551,13 @@ export function MapPlaceholder({
         prevPlacesKeyRef.current = placesKey
       }
     })
-  }, [places, activeId, onHover, placesKey, routeMode, selectedSegment, customPinPair, customStartPin, osrmRoutes])
+  }, [places, activeId, onHover, placesKey, routeMode, selectedSegment, customPinPair, customStartPin, osrmRoutes, myLocation])
+
+  const handleFlyToMyLocation = () => {
+    if (mapRef.current && myLocation) {
+      mapRef.current.flyTo([myLocation.lat, myLocation.lng], 16, { duration: 1.2 })
+    }
+  }
 
   return (
     <div className="relative h-full min-h-[460px] w-full flex flex-col gap-2">
@@ -456,7 +586,25 @@ export function MapPlaceholder({
       <div className="relative h-full min-h-[460px] w-full overflow-hidden rounded-2xl border border-sky-200/80 bg-white shadow-xl flex-1">
         <div ref={containerRef} className="h-full w-full min-h-[460px] z-0" />
 
-        {/* 하단 전체 코스 보기 리셋 버튼 */}
+        {/* 좌측 상단: 내 위치 버튼 */}
+        {myLocation && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleFlyToMyLocation}
+            className="absolute top-3 left-3 z-10 h-8 gap-1.5 text-xs font-bold text-blue-900 bg-white/95 border-blue-300 hover:bg-blue-50 shadow-md backdrop-blur-md rounded-xl cursor-pointer"
+            title="현재 내 위치로 시점 이동"
+          >
+            <span className="relative flex size-2 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full size-2 bg-blue-600"></span>
+            </span>
+            <span>🔵 내 위치 ({myLocation.isGps ? 'GPS' : myLocation.name})</span>
+          </Button>
+        )}
+
+        {/* 우측 하단: 전체 코스 보기 리셋 버튼 */}
         <Button
           type="button"
           variant="outline"

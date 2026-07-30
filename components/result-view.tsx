@@ -1986,6 +1986,7 @@ export function ResultView() {
                   places={places}
                   activeId={activeId}
                   onHover={setActiveId}
+                  startLocation={startLocationParam}
                   routeMode={mapRouteMode}
                   selectedSegment={mapSelectedSegment}
                   customPinPair={mapCustomPinPair}
@@ -1993,7 +1994,6 @@ export function ResultView() {
                   setCustomStartPin={setMapCustomStartPin}
                   onSelectCustomPair={handleSelectMapCustomPair}
                   onResetAll={handleResetAllMap}
-                  transport={transport}
                 />
               </section>
             </div>
