@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { X, Mail, Compass, Bookmark, Trash2, Calendar, Clock, Wallet, Check, ExternalLink, Play, Star, MessageSquarePlus, Edit3, Tag, Send } from 'lucide-react'
+import { X, Mail, Compass, Bookmark, Trash2, Calendar, Clock, Wallet, Check, ExternalLink, Play, Star, MessageSquarePlus, Edit3, Tag, Send, MapPin, SunMedium } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { RegisteredUser } from '@/components/auth-modal'
 import {
@@ -9,6 +9,7 @@ import {
   SavedCourse,
   updateCourseReviewInStorage,
   deleteCourseReviewFromStorage,
+  SpotRating,
 } from '@/lib/course-storage'
 
 interface MyPageModalProps {
@@ -40,6 +41,9 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
   const [editTags, setEditTags] = useState<string[]>(['🚀 최적의 최단 동선', '🍱 알찬 맛집 배치'])
   const [editContent, setEditContent] = useState<string>('')
 
+  // 📍 장소별 개별 평점 (날씨 어울림 & 재미)
+  const [editSpotRatings, setEditSpotRatings] = useState<Record<string, { weatherScore: number; funScore: number; comment: string }>>({})
+
   useEffect(() => {
     if (isOpen && user?.email) {
       const saved = getSavedCourses(user.email)
@@ -67,10 +71,22 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
     setEditRating(c.rating || 5)
     setEditTags(c.satisfactionTags || ['🚀 최적의 최단 동선', '🍱 알찬 맛집 배치'])
     setEditContent(c.reviewContent || '')
+
+    // 장소별 개별 평점 초기화
+    const initialSpotRatings: Record<string, { weatherScore: number; funScore: number; comment: string }> = {}
+    c.spots.forEach((spot) => {
+      const existing = c.spotRatings?.find((sr) => sr.spotName === spot.name)
+      initialSpotRatings[spot.name] = {
+        weatherScore: existing?.weatherScore || 5,
+        funScore: existing?.funScore || 5,
+        comment: existing?.comment || '',
+      }
+    })
+    setEditSpotRatings(initialSpotRatings)
   }
 
   // 리뷰 저장
-  const handleSaveReview = (e: React.FormEvent, courseId: string) => {
+  const handleSaveReview = (e: React.FormEvent, courseId: string, c: SavedCourse) => {
     e.stopPropagation()
     e.preventDefault()
 
@@ -79,32 +95,44 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
       return
     }
 
+    const spotRatingsList: SpotRating[] = c.spots.map((spot) => {
+      const rating = editSpotRatings[spot.name] || { weatherScore: 5, funScore: 5, comment: '' }
+      return {
+        spotName: spot.name,
+        weatherScore: rating.weatherScore,
+        funScore: rating.funScore,
+        comment: rating.comment,
+      }
+    })
+
     const success = updateCourseReviewInStorage(user.email, courseId, {
       rating: editRating,
       satisfactionTags: editTags,
       reviewContent: editContent.trim(),
+      spotRatings: spotRatingsList,
     })
 
     if (success) {
       setCourses((prev) =>
-        prev.map((c) =>
-          c.id === courseId
+        prev.map((item) =>
+          item.id === courseId
             ? {
-                ...c,
+                ...item,
                 rating: editRating,
                 satisfactionTags: editTags,
                 reviewContent: editContent.trim(),
+                spotRatings: spotRatingsList,
                 reviewedAt: new Date().toLocaleDateString('ko-KR', {
                   year: 'numeric',
                   month: '2-digit',
                   day: '2-digit',
                 }),
               }
-            : c
+            : item
         )
       )
       setEditingCourseId(null)
-      setDeleteSuccessMsg('🎉 코스 별점과 후기가 저장되었습니다!')
+      setDeleteSuccessMsg('🎉 코스 및 장소별 세부 별점·후기가 저장되었습니다!')
       setTimeout(() => setDeleteSuccessMsg(''), 3000)
     }
   }
@@ -119,7 +147,7 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
       setCourses((prev) =>
         prev.map((c) => {
           if (c.id === courseId) {
-            const { rating, satisfactionTags, reviewContent, reviewedAt, ...rest } = c
+            const { rating, satisfactionTags, reviewContent, reviewedAt, spotRatings, ...rest } = c
             return rest
           }
           return c
@@ -168,7 +196,7 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-900">내 정보 관리 & 저장한 코스</h2>
-              <p className="text-xs text-slate-500">저장된 코스 카드에서 별점과 후기를 직접 작성하실 수 있습니다</p>
+              <p className="text-xs text-slate-500">저장된 코스에서 전체 평점 및 장소별 세부 평점(날씨 조화 & 재미)을 기록해보세요</p>
             </div>
           </div>
           <button
@@ -219,7 +247,7 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
           {/* Saved Courses Section */}
           <div>
             <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-1.5">
-              <Compass className="size-4 text-sky-600" /> 내가 저장한 여행 코스 목록 (각 코스별 평점 & 후기 작성)
+              <Compass className="size-4 text-sky-600" /> 내가 저장한 여행 코스 목록 (코스 및 장소별 세부 평점 작성)
             </h3>
 
             {courses.length === 0 ? (
@@ -264,7 +292,7 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
                         <button
                           onClick={(e) => handleStartReview(e, c)}
                           className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold bg-amber-100 text-amber-900 hover:bg-amber-200 transition-colors cursor-pointer border border-amber-300"
-                          title="이 코스에 평점 및 후기 작성"
+                          title="이 코스 및 장소별 평점 작성"
                         >
                           <Edit3 className="size-3.5 text-amber-700" />
                           <span>{c.rating ? '✏️ 평점/후기 수정' : '✍️ 평점/후기 작성'}</span>
@@ -310,13 +338,13 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
                       </div>
                     </div>
 
-                    {/* ✍️ 작성된 평점 & 후기 보기 영역 */}
+                    {/* ✍️ 작성된 평점 & 후기 및 장소별 세부 평가 리스트 표시 */}
                     {c.rating && editingCourseId !== c.id && (
-                      <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 space-y-2 text-xs">
+                      <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 space-y-2.5 text-xs">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1.5 font-bold text-amber-900">
                             <Star className="size-4 fill-amber-400 text-amber-400" />
-                            <span>내가 남긴 평점: {c.rating}.0 / 5.0 점</span>
+                            <span>코스 총 평점: {c.rating}.0 / 5.0 점</span>
                           </div>
 
                           <button
@@ -341,23 +369,44 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
                         )}
 
                         {c.reviewContent && (
-                          <p className="text-slate-800 font-medium bg-white/80 p-2.5 rounded-lg border border-amber-100 leading-relaxed">
+                          <p className="text-slate-800 font-medium bg-white/90 p-2.5 rounded-lg border border-amber-100 leading-relaxed">
                             💬 "{c.reviewContent}"
                           </p>
+                        )}
+
+                        {/* 📍 장소별 세부 점수 카드 리스트 */}
+                        {c.spotRatings && c.spotRatings.length > 0 && (
+                          <div className="space-y-1.5 pt-2 border-t border-amber-200/80">
+                            <span className="text-[11px] font-bold text-amber-950 flex items-center gap-1">
+                              <MapPin className="size-3.5 text-amber-700" />
+                              <span>📍 장소별 세부 평점 (🌤️ 날씨 어울림 / 🎉 재미)</span>
+                            </span>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[11px]">
+                              {c.spotRatings.map((sr, srIdx) => (
+                                <div key={srIdx} className="flex items-center justify-between bg-white/90 px-2.5 py-1.5 rounded-lg border border-amber-200/80 shadow-2xs">
+                                  <span className="font-bold text-slate-900 truncate max-w-[130px]">{srIdx + 1}. {sr.spotName}</span>
+                                  <div className="flex items-center gap-2 font-bold text-[10px]">
+                                    <span className="text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded border border-sky-100">🌤️ {sr.weatherScore}점</span>
+                                    <span className="text-amber-800 bg-amber-100/70 px-1.5 py-0.5 rounded border border-amber-200">🎉 {sr.funScore}점</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
                         )}
                       </div>
                     )}
 
-                    {/* ✍️ 평점 & 후기 인라인 작성/수정 박스 */}
+                    {/* ✍️ 코스 & 장소별 인라인 작성/수정 박스 */}
                     {editingCourseId === c.id && (
                       <div
                         onClick={(e) => e.stopPropagation()}
-                        className="rounded-xl border border-amber-300 bg-amber-50 p-4 space-y-3 animate-in fade-in"
+                        className="rounded-xl border border-amber-300 bg-amber-50 p-4 space-y-3.5 animate-in fade-in"
                       >
                         <div className="flex items-center justify-between border-b border-amber-200 pb-2">
                           <span className="font-bold text-amber-950 text-xs flex items-center gap-1">
                             <Star className="size-3.5 fill-amber-400 text-amber-400" />
-                            <span>이 저장 코스에 평점 & 후기 작성하기</span>
+                            <span>이 저장 코스 & 포함 장소별 평점 작성하기</span>
                           </span>
                           <button
                             onClick={(e) => {
@@ -370,9 +419,9 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
                           </button>
                         </div>
 
-                        {/* 별점 선택 */}
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-slate-700">별점:</span>
+                        {/* 1. 코스 전체 별점 선택 */}
+                        <div className="flex items-center gap-2 bg-white/80 p-2.5 rounded-lg border border-amber-200">
+                          <span className="text-xs font-bold text-slate-800">코스 전체 별점:</span>
                           <div className="flex items-center gap-1">
                             {[1, 2, 3, 4, 5].map((star) => (
                               <button
@@ -393,12 +442,12 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
                               </button>
                             ))}
                           </div>
-                          <span className="text-xs font-bold text-amber-800">
+                          <span className="text-xs font-bold text-amber-800 ml-1">
                             {(hoverRating || editRating)}.0점
                           </span>
                         </div>
 
-                        {/* 만족도 키워드 칩 선택 */}
+                        {/* 2. 코스 만족도 키워드 칩 선택 */}
                         <div className="space-y-1">
                           <span className="text-[11px] font-bold text-slate-700">만족도 키워드:</span>
                           <div className="flex flex-wrap gap-1">
@@ -422,20 +471,109 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
                           </div>
                         </div>
 
-                        {/* 후기 내용 작성 */}
-                        <textarea
-                          value={editContent}
-                          onChange={(e) => setEditContent(e.target.value)}
-                          rows={2}
-                          maxLength={300}
-                          placeholder="이 여행 코스의 맛집, 동선, 팁 등 솔직한 소감을 작성해 보세요."
-                          className="w-full rounded-lg border border-amber-200 bg-white p-2.5 text-xs outline-none focus:ring-2 focus:ring-amber-300 font-medium"
-                        />
+                        {/* 3. 코스 소감 글 작성 */}
+                        <div className="space-y-1">
+                          <span className="text-[11px] font-bold text-slate-700">코스 전체 소감:</span>
+                          <textarea
+                            value={editContent}
+                            onChange={(e) => setEditContent(e.target.value)}
+                            rows={2}
+                            maxLength={300}
+                            placeholder="이 여행 코스의 맛집, 동선, 팁 등 솔직한 소감을 작성해 보세요."
+                            className="w-full rounded-lg border border-amber-200 bg-white p-2.5 text-xs outline-none focus:ring-2 focus:ring-amber-300 font-medium"
+                          />
+                        </div>
+
+                        {/* 4. 📍 장소별 개별 세부 평점 (날씨 어울림 & 재미) */}
+                        <div className="space-y-2 pt-2 border-t border-amber-200/80">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold text-slate-900 flex items-center gap-1">
+                              <MapPin className="size-3.5 text-amber-700" />
+                              <span>📍 장소별 개별 평점 (날씨 조화 & 재미 평가):</span>
+                            </span>
+                            <span className="text-[10px] text-amber-800 font-medium">
+                              각 장소가 날씨에 어울렸는지, 얼마나 재미있었는지 평가해보세요!
+                            </span>
+                          </div>
+
+                          <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                            {c.spots.map((spot, sIdx) => {
+                              const sRating = editSpotRatings[spot.name] || { weatherScore: 5, funScore: 5, comment: '' }
+                              return (
+                                <div key={sIdx} className="rounded-lg border border-amber-200 bg-white p-2.5 space-y-1.5 text-xs shadow-2xs">
+                                  <div className="font-bold text-slate-900 flex items-center justify-between">
+                                    <span>{sIdx + 1}. {spot.name} <span className="text-[10px] font-normal text-slate-400">({spot.category})</span></span>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-amber-50/50 p-2 rounded-md border border-amber-100">
+                                    {/* 🌤️ 날씨 어울림 점수 */}
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[11px] font-medium text-slate-700">🌤️ 날씨 어울림:</span>
+                                      <div className="flex items-center gap-0.5">
+                                        {[1, 2, 3, 4, 5].map((star) => (
+                                          <button
+                                            key={star}
+                                            type="button"
+                                            onClick={() => {
+                                              setEditSpotRatings({
+                                                ...editSpotRatings,
+                                                [spot.name]: { ...sRating, weatherScore: star },
+                                              })
+                                            }}
+                                            className="p-0.5 hover:scale-110 transition-transform cursor-pointer"
+                                          >
+                                            <Star
+                                              className={`size-3.5 ${
+                                                star <= sRating.weatherScore
+                                                  ? 'text-sky-500 fill-sky-400'
+                                                  : 'text-slate-300 fill-slate-100'
+                                              }`}
+                                            />
+                                          </button>
+                                        ))}
+                                        <span className="text-[10px] font-bold text-sky-800 ml-1">{sRating.weatherScore}점</span>
+                                      </div>
+                                    </div>
+
+                                    {/* 🎉 재미 / 만족도 점수 */}
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[11px] font-medium text-slate-700">🎉 재미/즐거움:</span>
+                                      <div className="flex items-center gap-0.5">
+                                        {[1, 2, 3, 4, 5].map((star) => (
+                                          <button
+                                            key={star}
+                                            type="button"
+                                            onClick={() => {
+                                              setEditSpotRatings({
+                                                ...editSpotRatings,
+                                                [spot.name]: { ...sRating, funScore: star },
+                                              })
+                                            }}
+                                            className="p-0.5 hover:scale-110 transition-transform cursor-pointer"
+                                          >
+                                            <Star
+                                              className={`size-3.5 ${
+                                                star <= sRating.funScore
+                                                  ? 'text-amber-500 fill-amber-400'
+                                                  : 'text-slate-300 fill-slate-100'
+                                              }`}
+                                            />
+                                          </button>
+                                        ))}
+                                        <span className="text-[10px] font-bold text-amber-800 ml-1">{sRating.funScore}점</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
 
                         <div className="flex justify-end gap-2 pt-1">
                           <button
                             type="button"
-                            onClick={(e) => handleSaveReview(e, c.id)}
+                            onClick={(e) => handleSaveReview(e, c.id, c)}
                             className="rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold px-4 py-1.5 text-xs shadow-2xs cursor-pointer flex items-center gap-1"
                           >
                             <Send className="size-3" />

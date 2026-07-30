@@ -1,3 +1,10 @@
+export interface SpotRating {
+  spotName: string
+  weatherScore: number // 1 ~ 5점 (날씨 조화 점수)
+  funScore: number // 1 ~ 5점 (재미/만족도 점수)
+  comment?: string // 장소별 미니 후기
+}
+
 export interface SavedCourseSpot {
   name: string
   category: string
@@ -28,6 +35,7 @@ export interface SavedCourse {
   satisfactionTags?: string[]
   reviewContent?: string
   reviewedAt?: string
+  spotRatings?: SpotRating[]
 }
 
 export const getSavedCourses = (userEmail: string): SavedCourse[] => {
@@ -84,7 +92,12 @@ export const deleteCourseFromUser = (userEmail: string, courseId: string): boole
 export const updateCourseReviewInStorage = (
   userEmail: string,
   courseId: string,
-  review: { rating: number; satisfactionTags: string[]; reviewContent: string }
+  review: {
+    rating: number
+    satisfactionTags: string[]
+    reviewContent: string
+    spotRatings?: SpotRating[]
+  }
 ): boolean => {
   if (typeof window === 'undefined' || !userEmail) return false
   try {
@@ -97,6 +110,7 @@ export const updateCourseReviewInStorage = (
           rating: review.rating,
           satisfactionTags: review.satisfactionTags,
           reviewContent: review.reviewContent,
+          spotRatings: review.spotRatings,
           reviewedAt: new Date().toLocaleDateString('ko-KR', {
             year: 'numeric',
             month: '2-digit',
@@ -125,7 +139,7 @@ export const deleteCourseReviewFromStorage = (
     const existing = getSavedCourses(userEmail)
     const updated = existing.map((c) => {
       if (c.id === courseId) {
-        const { rating, satisfactionTags, reviewContent, reviewedAt, ...rest } = c
+        const { rating, satisfactionTags, reviewContent, reviewedAt, spotRatings, ...rest } = c
         return rest
       }
       return c
