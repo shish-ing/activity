@@ -1,8 +1,10 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ChipOption } from '@/lib/mock-data'
+import { getAppLang, type AppLang } from '@/lib/i18n'
 
 type ChipSelectProps = {
   options: ChipOption[]
@@ -19,9 +21,22 @@ export function ChipSelect({
   label,
   columns = 3,
 }: ChipSelectProps) {
+  const [lang, setLang] = useState<AppLang>('ko')
+
+  useEffect(() => {
+    setLang(getAppLang())
+    const handleLangChange = () => setLang(getAppLang())
+    window.addEventListener('jeonju_lang_changed', handleLangChange)
+    window.addEventListener('storage', handleLangChange)
+    return () => {
+      window.removeEventListener('jeonju_lang_changed', handleLangChange)
+      window.removeEventListener('storage', handleLangChange)
+    }
+  }, [])
+
   return (
     <fieldset>
-      <legend className="mb-2 text-sm font-medium text-foreground">
+      <legend className="mb-2 text-sm font-bold text-foreground">
         {label}
       </legend>
       <div
@@ -34,6 +49,9 @@ export function ChipSelect({
       >
         {options.map((opt) => {
           const active = value === opt.value
+          const displayLabel = lang === 'en' && opt.labelEn ? opt.labelEn : opt.label
+          const displayHint = lang === 'en' && opt.hintEn ? opt.hintEn : opt.hint
+
           return (
             <button
               key={opt.value}
@@ -42,26 +60,26 @@ export function ChipSelect({
               aria-checked={active}
               onClick={() => onChange(opt.value)}
               className={cn(
-                'flex flex-col items-start justify-center rounded-xl border px-3 py-2.5 text-left transition-all outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
+                'flex flex-col items-start justify-center rounded-xl border px-3 py-2.5 text-left transition-all outline-none focus-visible:ring-3 focus-visible:ring-ring/50 cursor-pointer',
                 active
                   ? 'border-amber-400 bg-amber-400 text-slate-950 font-bold shadow-md scale-[1.01]'
                   : 'border-slate-200/90 bg-white/85 text-slate-800 hover:border-amber-300 hover:bg-white shadow-2xs',
               )}
             >
               <span className="flex w-full items-center justify-between gap-1">
-                <span className="text-sm font-semibold">{opt.label}</span>
+                <span className="text-xs sm:text-sm font-extrabold">{displayLabel}</span>
                 {active ? <Check className="size-3.5 shrink-0 text-slate-950" /> : null}
               </span>
-              {opt.hint ? (
+              {displayHint ? (
                 <span
                   className={cn(
-                    'text-xs',
+                    'text-[11px] sm:text-xs mt-0.5',
                     active
-                      ? 'text-slate-900/80 font-medium'
+                      ? 'text-slate-900/80 font-bold'
                       : 'text-slate-500',
                   )}
                 >
-                  {opt.hint}
+                  {displayHint}
                 </span>
               ) : null}
             </button>

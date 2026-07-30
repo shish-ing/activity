@@ -34,18 +34,33 @@ import {
   BookOpen,
   LogOut,
   ShieldCheck,
-  ShieldAlert
+  ShieldAlert,
+  Megaphone,
+  PartyPopper,
+  Calendar,
+  MapPin
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { JEONJU_PLACES_DATABASE } from '@/app/api/places/search/route'
+import { getPlaceImageUrl } from '@/lib/mock-data'
 import {
   getAdminPlaceStatuses,
   setAdminPlaceStatus,
+  getAdminCustomPlaces,
+  saveAdminCustomPlace,
+  type AdminCustomPlace,
   getRealSpotRatingSummaries,
   getAdminRegisteredUsers,
   deleteAdminUser,
-  type RegisteredUserInfo
+  getAllUserCourseReviews,
+  type RegisteredUserInfo,
+  type CourseReviewItem
 } from '@/lib/admin-storage'
+import {
+  getAdminBanners,
+  saveAdminBanners,
+  type EventBannerItem
+} from '@/lib/banner-storage'
 import {
   getStoredReports,
   updateReportStatusInStorage,
@@ -83,6 +98,7 @@ export interface AdminPlaceItem {
   status: 'active' | 'review' | 'inactive'
   isTempClosed: boolean
   updatedAt: string
+  imageUrl?: string // 📷 대표 장소 실사 사진 URL (Admin에서 수정 가능)
 
   // ⭐ 실제 사용자가 남긴 평점 데이터 (순수 유저 평가 기반)
   avgWeatherScore: number // 0.0 ~ 5.0
@@ -137,7 +153,7 @@ export default function AdminPage() {
   const [adminAccountsList, setAdminAccountsList] = useState<AdminAccount[]>([])
   const [isAuthLoaded, setIsAuthLoaded] = useState(false)
 
-  const [activeTab, setActiveTab] = useState<'crud' | 'users' | 'hours' | 'ratings' | 'simulator' | 'monitoring'>('crud')
+  const [activeTab, setActiveTab] = useState<'crud' | 'users' | 'hours' | 'ratings' | 'monitoring' | 'banners'>('crud')
   const [places, setPlaces] = useState<AdminPlaceItem[]>(INITIAL_ADMIN_PLACES)
   const [reports, setReports] = useState<UserReportItem[]>(INITIAL_REPORTS)
 
@@ -150,7 +166,9 @@ export default function AdminPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'review' | 'inactive'>('all')
 
-  // ⭐ 평점 전용 정렬 State
+  // ⭐ 평점 및 후기 전용 서브탭 & 정렬 State
+  const [reviewSubTab, setReviewSubTab] = useState<'spot' | 'course'>('spot')
+  const [courseReviews, setCourseReviews] = useState<CourseReviewItem[]>([])
   const [ratingSort, setRatingSort] = useState<'overall' | 'weather' | 'fun' | 'count'>('overall')
   const [selectedPlaceReviews, setSelectedPlaceReviews] = useState<AdminPlaceItem | null>(null)
 
@@ -168,9 +186,21 @@ export default function AdminPage() {
   const [formIsIndoor, setFormIsIndoor] = useState(true)
   const [formStatus, setFormStatus] = useState<'active' | 'review' | 'inactive'>('active')
   const [formTags, setFormTags] = useState<string>('#전주 #핫플')
+  const [formImageUrl, setFormImageUrl] = useState<string>('')
 
-  // 🎯 시뮬레이터 State
-  const [simAuditResults, setSimAuditResults] = useState<any[] | null>(null)
+  // 🎉 축제 & 팝업 스토어 배너 관리 State
+  const [bannersList, setBannersList] = useState<EventBannerItem[]>([])
+  const [isBannerModalOpen, setIsBannerModalOpen] = useState(false)
+  const [editingBanner, setEditingBanner] = useState<EventBannerItem | null>(null)
+
+  // 배너 폼 State
+  const [bannerCategory, setBannerCategory] = useState('🎉 축제·행사')
+  const [bannerTitle, setBannerTitle] = useState('')
+  const [bannerPeriod, setBannerPeriod] = useState('')
+  const [bannerLocation, setBannerLocation] = useState('')
+  const [bannerDescription, setBannerDescription] = useState('')
+  const [bannerColor, setBannerColor] = useState<'amber' | 'emerald' | 'sky' | 'purple' | 'rose'>('amber')
+  const [bannerIsActive, setBannerIsActive] = useState(true)
 
   // 🔑 관리자 로그인 세션 및 계정 승인 동기화
   useEffect(() => {
@@ -196,18 +226,43 @@ export default function AdminPage() {
     if (typeof window === 'undefined') return
 
     const adminStatuses = getAdminPlaceStatuses()
+    const customPlaces = getAdminCustomPlaces()
     const realRatingsMap = getRealSpotRatingSummaries()
     const users = getAdminRegisteredUsers()
     const realReports = getStoredReports()
+    const realCourseReviews = getAllUserCourseReviews()
+    const currentBanners = getAdminBanners()
 
     setRegisteredUsers(users)
     setReports(realReports)
+    setCourseReviews(realCourseReviews)
+    setBannersList(currentBanners)
 
-    setPlaces((prev) =>
-      prev.map((p) => {
+    setPlaces((prev) => {
+      // Merge customPlaces into prev list
+      const existingMap = new Map(prev.map((p) => [p.name, p]))
+      customPlaces.forEach((cp) => {
+        if (!existingMap.has(cp.name)) {
+          existingMap.set(cp.name, {
+            ...cp,
+            isMustVisit: cp.isMustVisit ?? false,
+            suitableCompanions: cp.suitableCompanions ?? ['couple', 'friends'],
+            avgWeatherScore: 0,
+            avgFunScore: 0,
+            overallRating: 0,
+            reviewCount: 0,
+            reviewsList: [],
+          })
+        }
+      })
+
+      const combined = Array.from(existingMap.values())
+
+      return combined.map((p) => {
         const adminStatus = adminStatuses[p.name]
         const isClosed = adminStatus?.isClosed ?? p.isTempClosed
         const placeStatus = adminStatus?.status ?? p.status
+        const customImageUrl = adminStatus?.imageUrl || p.imageUrl
 
         const realSummary = realRatingsMap[p.name]
         if (realSummary && realSummary.reviewCount > 0) {
@@ -215,6 +270,7 @@ export default function AdminPage() {
             ...p,
             isTempClosed: isClosed,
             status: placeStatus,
+            imageUrl: customImageUrl,
             reviewCount: realSummary.reviewCount,
             avgWeatherScore: realSummary.avgWeatherScore,
             avgFunScore: realSummary.avgFunScore,
@@ -227,9 +283,10 @@ export default function AdminPage() {
           ...p,
           isTempClosed: isClosed,
           status: placeStatus,
+          imageUrl: customImageUrl,
         }
       })
-    )
+    })
   }
 
   useEffect(() => {
@@ -241,6 +298,7 @@ export default function AdminPage() {
     window.addEventListener('jeonju_course_saved', handleSync)
     window.addEventListener('jeonju_user_registered', handleSync)
     window.addEventListener('jeonju_report_submitted', handleSync)
+    window.addEventListener('jeonju_banners_changed', handleSync)
     window.addEventListener('storage', handleSync)
 
     return () => {
@@ -249,9 +307,100 @@ export default function AdminPage() {
       window.removeEventListener('jeonju_course_saved', handleSync)
       window.removeEventListener('jeonju_user_registered', handleSync)
       window.removeEventListener('jeonju_report_submitted', handleSync)
+      window.removeEventListener('jeonju_banners_changed', handleSync)
       window.removeEventListener('storage', handleSync)
     }
   }, [])
+
+  // 🎉 축제 / 팝업 배너 CRUD 조작 함수
+  const handleOpenNewBannerModal = () => {
+    setEditingBanner(null)
+    setBannerCategory('🎉 축제·행사')
+    setBannerTitle('')
+    setBannerPeriod('2026.08.01 ~ 08.15')
+    setBannerLocation('전주 경기전 & 태조로 일원')
+    setBannerDescription('')
+    setBannerColor('amber')
+    setBannerIsActive(true)
+    setIsBannerModalOpen(true)
+  }
+
+  const handleOpenEditBannerModal = (b: EventBannerItem) => {
+    setEditingBanner(b)
+    setBannerCategory(b.category)
+    setBannerTitle(b.title)
+    setBannerPeriod(b.period)
+    setBannerLocation(b.location)
+    setBannerDescription(b.description)
+    setBannerColor(b.badgeColor || 'amber')
+    setBannerIsActive(b.isActive)
+    setIsBannerModalOpen(true)
+  }
+
+  const handleSaveBanner = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!bannerTitle.trim() || !bannerDescription.trim()) {
+      alert('배너 제목과 상세 설명을 입력해 주세요!')
+      return
+    }
+
+    let updated: EventBannerItem[] = []
+    const now = new Date().toISOString().slice(0, 16).replace('T', ' ')
+
+    if (editingBanner) {
+      updated = bannersList.map((b) =>
+        b.id === editingBanner.id
+          ? {
+              ...b,
+              category: bannerCategory,
+              title: bannerTitle.trim(),
+              period: bannerPeriod.trim() || '일정 상시',
+              location: bannerLocation.trim() || '전주 한옥마을 일원',
+              description: bannerDescription.trim(),
+              badgeColor: bannerColor,
+              isActive: bannerIsActive,
+              updatedAt: now,
+            }
+          : b
+      )
+      alert(`축제/팝업 배너 '${bannerTitle}' 수정이 완료되었습니다!`)
+    } else {
+      const newBanner: EventBannerItem = {
+        id: `banner_${Date.now()}`,
+        category: bannerCategory,
+        title: bannerTitle.trim(),
+        period: bannerPeriod.trim() || '일정 상시',
+        location: bannerLocation.trim() || '전주 한옥마을 일원',
+        description: bannerDescription.trim(),
+        badgeColor: bannerColor,
+        isActive: bannerIsActive,
+        updatedAt: now,
+      }
+      updated = [newBanner, ...bannersList]
+      alert(`신규 축제/팝업 배너 '${bannerTitle}'이(가) 등록되었습니다!`)
+    }
+
+    setBannersList(updated)
+    saveAdminBanners(updated)
+    setIsBannerModalOpen(false)
+    setEditingBanner(null)
+  }
+
+  const handleToggleBannerActive = (b: EventBannerItem) => {
+    const updated = bannersList.map((item) =>
+      item.id === b.id ? { ...item, isActive: !item.isActive } : item
+    )
+    setBannersList(updated)
+    saveAdminBanners(updated)
+  }
+
+  const handleDeleteBanner = (id: string, title: string) => {
+    if (confirm(`'${title}' 배너를 정말 삭제하시겠습니까?`)) {
+      const updated = bannersList.filter((b) => b.id !== id)
+      setBannersList(updated)
+      saveAdminBanners(updated)
+    }
+  }
 
   // 👤 회원 삭제 핸들러
   const handleDeleteUserAccount = (email: string, name: string) => {
@@ -373,12 +522,40 @@ export default function AdminPage() {
                 isIndoor: formIsIndoor,
                 status: formStatus,
                 tags: tagList,
+                imageUrl: formImageUrl.trim() || undefined,
                 updatedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
               }
             : item
         )
       )
-      setAdminPlaceStatus(formName, editingPlace.isTempClosed, formStatus)
+      setAdminPlaceStatus(formName, editingPlace.isTempClosed, formStatus, formImageUrl.trim())
+      if (editingPlace.name !== formName) {
+        setAdminPlaceStatus(editingPlace.name, editingPlace.isTempClosed, formStatus, formImageUrl.trim())
+      }
+
+      // 커스텀 추가 장소인 경우 커스텀 장소 스토리지 업데이트
+      const updatedPlaceItem: AdminCustomPlace = {
+        id: editingPlace.id,
+        name: formName,
+        category: formCategory,
+        address: formAddress || '전북 전주시 완산구',
+        lat: editingPlace.lat || 35.814,
+        lng: editingPlace.lng || 127.151,
+        cost: formCost,
+        costLabel: formCost === 0 ? '무료' : `${formCost.toLocaleString()}원`,
+        operatingHours: formOperatingHours,
+        reason: formReason || '전주 추천 스팟입니다.',
+        isIndoor: formIsIndoor,
+        isMustVisit: editingPlace.isMustVisit,
+        suitableCompanions: editingPlace.suitableCompanions,
+        tags: tagList,
+        status: formStatus,
+        isTempClosed: editingPlace.isTempClosed,
+        imageUrl: formImageUrl.trim() || undefined,
+        updatedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+      }
+      saveAdminCustomPlace(updatedPlaceItem)
+
       alert(`'${formName}' 장소 정보가 수정되었습니다!`)
     } else {
       const newPlace: AdminPlaceItem = {
@@ -398,6 +575,7 @@ export default function AdminPage() {
         tags: tagList,
         status: formStatus,
         isTempClosed: false,
+        imageUrl: formImageUrl.trim() || undefined,
         updatedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
         avgWeatherScore: 0,
         avgFunScore: 0,
@@ -406,7 +584,8 @@ export default function AdminPage() {
         reviewsList: [],
       }
       setPlaces((prev) => [newPlace, ...prev])
-      setAdminPlaceStatus(formName, false, formStatus)
+      setAdminPlaceStatus(formName, false, formStatus, formImageUrl.trim())
+      saveAdminCustomPlace(newPlace)
       alert(`신규 장소 '${formName}'이(가) 등록되었습니다!`)
     }
 
@@ -425,6 +604,7 @@ export default function AdminPage() {
     setFormIsIndoor(p.isIndoor)
     setFormStatus(p.status)
     setFormTags(p.tags.join(' '))
+    setFormImageUrl(p.imageUrl || '')
     setIsModalOpen(true)
   }
 
@@ -439,6 +619,7 @@ export default function AdminPage() {
     setFormIsIndoor(true)
     setFormStatus('active')
     setFormTags('#전주공방 #한옥마을 #데이트')
+    setFormImageUrl('')
     setIsModalOpen(true)
   }
 
@@ -488,46 +669,6 @@ export default function AdminPage() {
         return p
       })
     )
-  }
-
-  const handleRun30CombinationAudit = () => {
-    const weatherList = [
-      { id: 'clear', name: '☀️ 맑음' },
-      { id: 'rain', name: '🌧️ 비/악천후' },
-      { id: 'snow', name: '❄️ 눈/한파' },
-      { id: 'wind', name: '💨 강풍/미세먼지' },
-      { id: 'hot', name: '🔥 폭염(30°C+)' },
-    ]
-    const timeList = [
-      { id: '1h', name: '1시간 (1곳)' },
-      { id: '3h', name: '3시간 (3곳)' },
-      { id: 'half', name: '반나절 (5곳)' },
-      { id: 'full', name: '하루 (7곳)' },
-      { id: '2days', name: '이틀 (10곳)' },
-      { id: '3days', name: '사흘 (14곳)' },
-    ]
-
-    const results: any[] = []
-    weatherList.forEach((w) => {
-      timeList.forEach((t) => {
-        const eligibleCount = places.filter((p) => {
-          if (p.status !== 'active' || p.isTempClosed) return false
-          if (w.id === 'rain' || w.id === 'snow') {
-            return p.isIndoor || p.isMustVisit
-          }
-          return true
-        }).length
-
-        results.push({
-          weather: w.name,
-          time: t.name,
-          count: eligibleCount,
-          isWarning: eligibleCount < 3,
-        })
-      })
-    })
-
-    setSimAuditResults(results)
   }
 
   // 🔒 로그인하지 않은 경우 관리자 로그인 & 가입 관문 관문 표시!
@@ -666,84 +807,162 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* 탭 메뉴 네비게이션 */}
-        <div className="flex flex-wrap items-center gap-2 border-b border-slate-800 pb-2 font-sans">
+        {/* 🎯 탭 메뉴 네비게이션 (1장~6장 순서대로 깔끔하게 정렬된 6열 그리드 네비게이션) */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 bg-slate-900/90 p-2.5 rounded-2xl border border-slate-800 shadow-xl font-sans">
+          {/* 1장 */}
           <button
             type="button"
             onClick={() => setActiveTab('crud')}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all cursor-pointer border ${
+            className={`flex flex-col items-start gap-1 rounded-xl p-3 text-xs font-bold transition-all cursor-pointer border text-left ${
               activeTab === 'crud'
-                ? 'bg-amber-500 text-amber-950 border-amber-400 shadow-md font-extrabold'
-                : 'bg-slate-800/80 text-slate-400 border-slate-700/80 hover:bg-slate-800 hover:text-slate-200'
+                ? 'bg-amber-500 text-amber-950 border-amber-400 shadow-md font-extrabold ring-2 ring-amber-400/30 scale-[1.02]'
+                : 'bg-slate-800/60 text-slate-300 border-slate-700/60 hover:bg-slate-800 hover:border-slate-600 hover:text-white'
             }`}
           >
-            <Building2 className="size-4" />
-            <span>1장. 장소 데이터 CRUD & 영업 상태 목록</span>
+            <div className="flex items-center justify-between w-full">
+              <span
+                className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-md ${
+                  activeTab === 'crud' ? 'bg-amber-950/30 text-amber-950 font-black' : 'bg-slate-700/80 text-amber-400'
+                }`}
+              >
+                01
+              </span>
+              <Building2 className="size-4 shrink-0" />
+            </div>
+            <span className="truncate w-full font-bold text-xs mt-1">1장. 장소 CRUD DB</span>
+            <span className={`text-[10px] truncate w-full ${activeTab === 'crud' ? 'text-amber-950/80 font-semibold' : 'text-slate-400'}`}>
+              장소 데이터 등록/수정
+            </span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('users')}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all cursor-pointer border ${
-              activeTab === 'users'
-                ? 'bg-amber-500 text-amber-950 border-amber-400 shadow-md font-extrabold'
-                : 'bg-slate-800/80 text-slate-400 border-slate-700/80 hover:bg-slate-800 hover:text-slate-200'
-            }`}
-          >
-            <Users className="size-4" />
-            <span>👤 6장. 회원가입 사용자 & 관리자 승인 센터 ({registeredUsers.length}명)</span>
-          </button>
-
+          {/* 2장 */}
           <button
             type="button"
             onClick={() => setActiveTab('hours')}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all cursor-pointer border ${
+            className={`flex flex-col items-start gap-1 rounded-xl p-3 text-xs font-bold transition-all cursor-pointer border text-left ${
               activeTab === 'hours'
-                ? 'bg-amber-500 text-amber-950 border-amber-400 shadow-md font-extrabold'
-                : 'bg-slate-800/80 text-slate-400 border-slate-700/80 hover:bg-slate-800 hover:text-slate-200'
+                ? 'bg-amber-500 text-amber-950 border-amber-400 shadow-md font-extrabold ring-2 ring-amber-400/30 scale-[1.02]'
+                : 'bg-slate-800/60 text-slate-300 border-slate-700/60 hover:bg-slate-800 hover:border-slate-600 hover:text-white'
             }`}
           >
-            <Clock className="size-4" />
-            <span>2장. 장소별 영업중 / 휴업 설정 센터</span>
+            <div className="flex items-center justify-between w-full">
+              <span
+                className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-md ${
+                  activeTab === 'hours' ? 'bg-amber-950/30 text-amber-950 font-black' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                }`}
+              >
+                02
+              </span>
+              <Clock className="size-4 shrink-0" />
+            </div>
+            <span className="truncate w-full font-bold text-xs mt-1">2장. 영업/휴업 설정</span>
+            <span className={`text-[10px] truncate w-full ${activeTab === 'hours' ? 'text-amber-950/80 font-semibold' : 'text-slate-400'}`}>
+              실시간 영업 상태 제어
+            </span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('ratings')}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all cursor-pointer border ${
-              activeTab === 'ratings'
-                ? 'bg-amber-500 text-amber-950 border-amber-400 shadow-md font-extrabold'
-                : 'bg-slate-800/80 text-slate-400 border-slate-700/80 hover:bg-slate-800 hover:text-slate-200'
-            }`}
-          >
-            <Star className="size-4 fill-amber-950" />
-            <span>⭐ 5장. 실 사용자 작성 평점 및 후기 모니터링</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('simulator')}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all cursor-pointer border ${
-              activeTab === 'simulator'
-                ? 'bg-amber-500 text-amber-950 border-amber-400 shadow-md font-extrabold'
-                : 'bg-slate-800/80 text-slate-400 border-slate-700/80 hover:bg-slate-800 hover:text-slate-200'
-            }`}
-          >
-            <Sparkles className="size-4" />
-            <span>3장. 추천 30조합 시뮬레이터 & 0건 점검</span>
-          </button>
-
+          {/* 3장 */}
           <button
             type="button"
             onClick={() => setActiveTab('monitoring')}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all cursor-pointer border ${
+            className={`flex flex-col items-start gap-1 rounded-xl p-3 text-xs font-bold transition-all cursor-pointer border text-left ${
               activeTab === 'monitoring'
-                ? 'bg-amber-500 text-amber-950 border-amber-400 shadow-md font-extrabold'
-                : 'bg-slate-800/80 text-slate-400 border-slate-700/80 hover:bg-slate-800 hover:text-slate-200'
+                ? 'bg-amber-500 text-amber-950 border-amber-400 shadow-md font-extrabold ring-2 ring-amber-400/30 scale-[1.02]'
+                : 'bg-slate-800/60 text-slate-300 border-slate-700/60 hover:bg-slate-800 hover:border-slate-600 hover:text-white'
             }`}
           >
-            <BarChart3 className="size-4" />
-            <span>4장. API 모니터링 & 사용자 신고함</span>
+            <div className="flex items-center justify-between w-full">
+              <span
+                className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-md ${
+                  activeTab === 'monitoring' ? 'bg-amber-950/30 text-amber-950 font-black' : 'bg-slate-700/80 text-amber-400'
+                }`}
+              >
+                03
+              </span>
+              <BarChart3 className="size-4 shrink-0" />
+            </div>
+            <span className="truncate w-full font-bold text-xs mt-1">3장. API & 신고 센터</span>
+            <span className={`text-[10px] truncate w-full ${activeTab === 'monitoring' ? 'text-amber-950/80 font-semibold' : 'text-slate-400'}`}>
+              API 모니터링 & 신고함
+            </span>
+          </button>
+
+          {/* 4장 */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('ratings')}
+            className={`flex flex-col items-start gap-1 rounded-xl p-3 text-xs font-bold transition-all cursor-pointer border text-left ${
+              activeTab === 'ratings'
+                ? 'bg-amber-500 text-amber-950 border-amber-400 shadow-md font-extrabold ring-2 ring-amber-400/30 scale-[1.02]'
+                : 'bg-slate-800/60 text-slate-300 border-slate-700/60 hover:bg-slate-800 hover:border-slate-600 hover:text-white'
+            }`}
+          >
+            <div className="flex items-center justify-between w-full">
+              <span
+                className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-md ${
+                  activeTab === 'ratings' ? 'bg-amber-950/30 text-amber-950 font-black' : 'bg-slate-700/80 text-amber-400'
+                }`}
+              >
+                04
+              </span>
+              <Star className={`size-4 shrink-0 ${activeTab === 'ratings' ? 'fill-amber-950' : 'fill-amber-400 text-amber-400'}`} />
+            </div>
+            <span className="truncate w-full font-bold text-xs mt-1">4장. 평점 & 후기 관리</span>
+            <span className={`text-[10px] truncate w-full ${activeTab === 'ratings' ? 'text-amber-950/80 font-semibold' : 'text-slate-400'}`}>
+              장소별 / 경로별 후기
+            </span>
+          </button>
+
+          {/* 5장 */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('users')}
+            className={`flex flex-col items-start gap-1 rounded-xl p-3 text-xs font-bold transition-all cursor-pointer border text-left ${
+              activeTab === 'users'
+                ? 'bg-amber-500 text-amber-950 border-amber-400 shadow-md font-extrabold ring-2 ring-amber-400/30 scale-[1.02]'
+                : 'bg-slate-800/60 text-slate-300 border-slate-700/60 hover:bg-slate-800 hover:border-slate-600 hover:text-white'
+            }`}
+          >
+            <div className="flex items-center justify-between w-full">
+              <span
+                className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-md ${
+                  activeTab === 'users' ? 'bg-amber-950/30 text-amber-950 font-black' : 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
+                }`}
+              >
+                05
+              </span>
+              <Users className="size-4 shrink-0" />
+            </div>
+            <span className="truncate w-full font-bold text-xs mt-1">5장. 사용자 & 승인 센터</span>
+            <span className={`text-[10px] truncate w-full ${activeTab === 'users' ? 'text-amber-950/80 font-semibold' : 'text-sky-300'}`}>
+              회원/승인 ({registeredUsers.length}명)
+            </span>
+          </button>
+
+          {/* 6장 */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('banners')}
+            className={`flex flex-col items-start gap-1 rounded-xl p-3 text-xs font-bold transition-all cursor-pointer border text-left ${
+              activeTab === 'banners'
+                ? 'bg-amber-500 text-amber-950 border-amber-400 shadow-md font-extrabold ring-2 ring-amber-400/30 scale-[1.02]'
+                : 'bg-slate-800/60 text-slate-300 border-slate-700/60 hover:bg-slate-800 hover:border-slate-600 hover:text-white'
+            }`}
+          >
+            <div className="flex items-center justify-between w-full">
+              <span
+                className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-md ${
+                  activeTab === 'banners' ? 'bg-amber-950/30 text-amber-950 font-black' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                }`}
+              >
+                06
+              </span>
+              <Megaphone className="size-4 shrink-0 text-amber-400" />
+            </div>
+            <span className="truncate w-full font-bold text-xs mt-1">6장. 축제/팝업 배너</span>
+            <span className={`text-[10px] truncate w-full ${activeTab === 'banners' ? 'text-amber-950/80 font-semibold' : 'text-rose-300'}`}>
+              이벤트 배너 ({bannersList.length}개)
+            </span>
           </button>
         </div>
 
@@ -1050,15 +1269,24 @@ export default function AdminPage() {
                     {filteredPlaces.map((p) => (
                       <tr key={p.id} className="hover:bg-slate-900/50 transition-colors">
                         <td className="px-4 py-3.5">
-                          <div className="font-bold text-white text-sm flex items-center gap-1.5">
-                            <span>{p.name}</span>
-                            {p.isFeatured && (
-                              <span className="rounded bg-amber-500/20 border border-amber-400/40 text-amber-300 text-[10px] px-1.5 py-0.2 font-bold">
-                                ⭐ 피처링
-                              </span>
-                            )}
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={getPlaceImageUrl(p.name, p.category, p.imageUrl)}
+                              alt={p.name}
+                              className="size-11 rounded-xl object-cover border border-slate-700 shrink-0 shadow-sm"
+                            />
+                            <div>
+                              <div className="font-bold text-white text-sm flex items-center gap-1.5">
+                                <span>{p.name}</span>
+                                {p.isFeatured && (
+                                  <span className="rounded bg-amber-500/20 border border-amber-400/40 text-amber-300 text-[10px] px-1.5 py-0.2 font-bold">
+                                    ⭐ 피처링
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-slate-400 text-[11px] mt-0.5">{p.category} • {p.address}</p>
+                            </div>
                           </div>
-                          <p className="text-slate-400 text-[11px] mt-0.5">{p.category} • {p.address}</p>
                         </td>
 
                         <td className="px-4 py-3.5">
@@ -1234,222 +1462,283 @@ export default function AdminPage() {
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 5: ⭐ 실 사용자 작성 평점 및 후기 모니터링 */}
+        {/* TAB 4: ⭐ 실 사용자 작성 평점 및 후기 모니터링 (장소별 + 경로/코스별) */}
         {/* ========================================================================= */}
         {activeTab === 'ratings' && (
           <div className="space-y-6 animate-in fade-in duration-200">
+            {/* 서브탭 헤더 네비게이션 */}
             <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-amber-500/30 bg-amber-950/20 p-4">
               <div>
                 <h2 className="text-base font-bold text-amber-200 flex items-center gap-2">
                   <Star className="size-5 text-amber-400 fill-amber-400" />
-                  <span>실제 사용자가 작성한 장소별 평점 & 후기 모니터링</span>
+                  <span>실제 사용자가 작성한 장소별 & 경로(코스)별 평점 후기 모니터링</span>
                 </h2>
                 <p className="text-xs text-slate-400 mt-1">
-                  프론트엔드 [내 정보 관리]에서 소비자가 직접 평가한 점수만 표시됩니다.
+                  프론트엔드 [내 정보 관리]에서 소비자가 직접 평가한 점수 및 여행 코스 후기가 100% 통합 집계됩니다.
                 </p>
               </div>
 
-              <div className="flex items-center gap-1.5 bg-slate-900/90 border border-slate-800 p-1.5 rounded-xl text-xs">
-                <span className="text-slate-400 font-semibold px-2 flex items-center gap-1">
-                  <Filter className="size-3.5" /> 정렬:
-                </span>
+              {/* 📍 장소별 후기 vs 🗺️ 경로(코스)별 후기 전환 서브탭 */}
+              <div className="flex items-center gap-2 bg-slate-900/90 border border-slate-800 p-1.5 rounded-xl text-xs">
                 <button
                   type="button"
-                  onClick={() => setRatingSort('overall')}
-                  className={`rounded-lg px-2.5 py-1 font-bold cursor-pointer transition-all ${
-                    ratingSort === 'overall'
-                      ? 'bg-amber-500 text-amber-950 shadow-xs'
+                  onClick={() => setReviewSubTab('spot')}
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-bold cursor-pointer transition-all ${
+                    reviewSubTab === 'spot'
+                      ? 'bg-amber-500 text-amber-950 shadow-md font-extrabold'
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  종합 평점순
+                  <Building2 className="size-3.5" />
+                  <span>📍 장소별 평점 후기</span>
                 </button>
+
                 <button
                   type="button"
-                  onClick={() => setRatingSort('weather')}
-                  className={`rounded-lg px-2.5 py-1 font-bold cursor-pointer transition-all ${
-                    ratingSort === 'weather'
-                      ? 'bg-emerald-500 text-emerald-950 shadow-xs'
+                  onClick={() => setReviewSubTab('course')}
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-bold cursor-pointer transition-all ${
+                    reviewSubTab === 'course'
+                      ? 'bg-amber-500 text-amber-950 shadow-md font-extrabold'
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  🌤️ 날씨 어울림순
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRatingSort('fun')}
-                  className={`rounded-lg px-2.5 py-1 font-bold cursor-pointer transition-all ${
-                    ratingSort === 'fun'
-                      ? 'bg-purple-500 text-purple-950 shadow-xs'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  🎉 재미/만족도순
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRatingSort('count')}
-                  className={`rounded-lg px-2.5 py-1 font-bold cursor-pointer transition-all ${
-                    ratingSort === 'count'
-                      ? 'bg-sky-500 text-sky-950 shadow-xs'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  리뷰 많은순
+                  <BookOpen className="size-3.5" />
+                  <span>🗺️ 경로(코스)별 후기 ({courseReviews.length}건)</span>
                 </button>
               </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {sortedRatingPlaces.map((p) => (
-                <div
-                  key={p.id}
-                  className="rounded-2xl border border-slate-800 bg-slate-950/80 p-5 shadow-xl space-y-4 hover:border-slate-700 transition-all flex flex-col justify-between"
-                >
-                  <div>
-                    <div className="flex items-start justify-between gap-2">
+            {/* 📍 [1] 장소별 평점 후기 모드 */}
+            {reviewSubTab === 'spot' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between bg-slate-900/60 p-3 rounded-xl border border-slate-800 text-xs">
+                  <span className="text-slate-400 font-semibold">📍 장소별 평가 집계 현황</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-400 font-semibold px-2 flex items-center gap-1">
+                      <Filter className="size-3.5" /> 정렬:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setRatingSort('overall')}
+                      className={`rounded-lg px-2.5 py-1 font-bold cursor-pointer transition-all ${
+                        ratingSort === 'overall'
+                          ? 'bg-amber-500 text-amber-950 shadow-xs'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      종합 평점순
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRatingSort('weather')}
+                      className={`rounded-lg px-2.5 py-1 font-bold cursor-pointer transition-all ${
+                        ratingSort === 'weather'
+                          ? 'bg-emerald-500 text-emerald-950 shadow-xs'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      🌤️ 날씨 어울림순
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRatingSort('fun')}
+                      className={`rounded-lg px-2.5 py-1 font-bold cursor-pointer transition-all ${
+                        ratingSort === 'fun'
+                          ? 'bg-purple-500 text-purple-950 shadow-xs'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      🎉 재미/만족도순
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRatingSort('count')}
+                      className={`rounded-lg px-2.5 py-1 font-bold cursor-pointer transition-all ${
+                        ratingSort === 'count'
+                          ? 'bg-sky-500 text-sky-950 shadow-xs'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      리뷰 많은순
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {sortedRatingPlaces.map((p) => (
+                    <div
+                      key={p.id}
+                      className="rounded-2xl border border-slate-800 bg-slate-950/80 p-5 shadow-xl space-y-4 hover:border-slate-700 transition-all flex flex-col justify-between"
+                    >
                       <div>
-                        <div className="flex items-center gap-1.5">
-                          <h3 className="font-bold text-white text-base">{p.name}</h3>
-                          {p.isFeatured && (
-                            <span className="rounded bg-amber-500/20 text-amber-300 text-[10px] px-1.5 py-0.5 font-bold border border-amber-400/40">
-                              ⭐ 피처링
-                            </span>
-                          )}
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <h3 className="font-bold text-white text-base">{p.name}</h3>
+                              {p.isFeatured && (
+                                <span className="rounded bg-amber-500/20 text-amber-300 text-[10px] px-1.5 py-0.5 font-bold border border-amber-400/40">
+                                  ⭐ 피처링
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-400 mt-0.5">{p.category}</p>
+                          </div>
+
+                          <div className="rounded-xl bg-amber-500/20 border border-amber-400/40 px-3 py-1 text-center">
+                            <p className="text-xs font-semibold text-amber-400">종합 평점</p>
+                            <p className="text-lg font-black text-amber-300">
+                              {p.reviewCount > 0 ? `⭐ ${p.overallRating}` : '평가없음'}
+                            </p>
+                          </div>
                         </div>
-                        <p className="text-xs text-slate-400 mt-0.5">{p.category}</p>
+
+                        {p.reviewCount > 0 ? (
+                          <div className="mt-4 pt-3 border-t border-slate-800 space-y-2.5 text-xs">
+                            <div>
+                              <div className="flex justify-between text-emerald-400 font-semibold mb-1">
+                                <span className="flex items-center gap-1">
+                                  <SunMedium className="size-3.5" /> 🌤️ 날씨 어울림 점수
+                                </span>
+                                <span className="font-bold">⭐ {p.avgWeatherScore} / 5.0</span>
+                              </div>
+                              <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
+                                <div
+                                  className="h-full bg-emerald-400 rounded-full"
+                                  style={{ width: `${(p.avgWeatherScore / 5) * 100}%` }}
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <div className="flex justify-between text-purple-400 font-semibold mb-1">
+                                <span className="flex items-center gap-1">
+                                  <Smile className="size-3.5" /> 🎉 재미/만족도 점수
+                                </span>
+                                <span className="font-bold">⭐ {p.avgFunScore} / 5.0</span>
+                              </div>
+                              <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
+                                <div
+                                  className="h-full bg-purple-400 rounded-full"
+                                  style={{ width: `${(p.avgFunScore / 5) * 100}%` }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="mt-4 pt-3 border-t border-slate-800/80 text-center py-4">
+                            <p className="text-xs text-slate-500 font-medium">
+                              ✍️ 아직 사용자가 남긴 평점이 없습니다.
+                            </p>
+                          </div>
+                        )}
                       </div>
 
-                      <div className="rounded-xl bg-amber-500/20 border border-amber-400/40 px-3 py-1 text-center">
-                        <p className="text-xs font-semibold text-amber-400">종합 평점</p>
-                        <p className="text-lg font-black text-amber-300">
-                          {p.reviewCount > 0 ? `⭐ ${p.overallRating}` : '평가없음'}
-                        </p>
+                      <div className="pt-3 border-t border-slate-800 flex items-center justify-between">
+                        <span className="text-slate-500 text-xs font-semibold">
+                          총 {p.reviewCount}개 평가 참여
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={p.reviewCount === 0}
+                          onClick={() => setSelectedPlaceReviews(p)}
+                          className="rounded-xl border-slate-700 bg-slate-900 text-xs text-sky-300 hover:bg-slate-800 gap-1 cursor-pointer font-bold disabled:opacity-40"
+                        >
+                          <MessageSquare className="size-3.5 text-sky-400" />
+                          <span>한줄평 후기 ({p.reviewsList.length})</span>
+                        </Button>
                       </div>
                     </div>
-
-                    {p.reviewCount > 0 ? (
-                      <div className="mt-4 pt-3 border-t border-slate-800 space-y-2.5 text-xs">
-                        <div>
-                          <div className="flex justify-between text-emerald-400 font-semibold mb-1">
-                            <span className="flex items-center gap-1">
-                              <SunMedium className="size-3.5" /> 🌤️ 날씨 어울림 점수
-                            </span>
-                            <span className="font-bold">⭐ {p.avgWeatherScore} / 5.0</span>
-                          </div>
-                          <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
-                            <div
-                              className="h-full bg-emerald-400 rounded-full"
-                              style={{ width: `${(p.avgWeatherScore / 5) * 100}%` }}
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="flex justify-between text-purple-400 font-semibold mb-1">
-                            <span className="flex items-center gap-1">
-                              <Smile className="size-3.5" /> 🎉 재미/만족도 점수
-                            </span>
-                            <span className="font-bold">⭐ {p.avgFunScore} / 5.0</span>
-                          </div>
-                          <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
-                            <div
-                              className="h-full bg-purple-400 rounded-full"
-                              style={{ width: `${(p.avgFunScore / 5) * 100}%` }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="mt-4 pt-3 border-t border-slate-800/80 text-center py-4">
-                        <p className="text-xs text-slate-500 font-medium">
-                          ✍️ 아직 사용자가 남긴 평점이 없습니다.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="pt-3 border-t border-slate-800 flex items-center justify-between">
-                    <span className="text-slate-500 text-xs font-semibold">
-                      총 {p.reviewCount}개 평가 참여
-                    </span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={p.reviewCount === 0}
-                      onClick={() => setSelectedPlaceReviews(p)}
-                      className="rounded-xl border-slate-700 bg-slate-900 text-xs text-sky-300 hover:bg-slate-800 gap-1 cursor-pointer font-bold disabled:opacity-40"
-                    >
-                      <MessageSquare className="size-3.5 text-sky-400" />
-                      <span>한줄평 후기 ({p.reviewsList.length})</span>
-                    </Button>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ========================================================================= */}
-        {/* TAB 3: 🎯 추천 30조합 시뮬레이터 & 0건 점검 */}
-        {/* ========================================================================= */}
-        {activeTab === 'simulator' && (
-          <div className="space-y-6 animate-in fade-in duration-200">
-            <div className="rounded-2xl border border-sky-500/30 bg-sky-950/20 p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-base font-bold text-sky-200 flex items-center gap-2">
-                    <Sparkles className="size-5 text-sky-400" />
-                    <span>🎯 추천 알고리즘 미리보기 & 30조합 0건 안전 검수</span>
-                  </h2>
-                  <p className="text-xs text-slate-400 mt-1">
-                    날씨 5종 × 시간 6개 조합 하에서 추천 스팟이 부족하여 0건이 발생하는 비상 상황을 사전에 100% 감지합니다.
-                  </p>
-                </div>
-
-                <Button
-                  type="button"
-                  onClick={handleRun30CombinationAudit}
-                  className="rounded-xl bg-sky-500 text-sky-950 hover:bg-sky-400 font-extrabold text-xs gap-1.5 shadow-lg cursor-pointer"
-                >
-                  <RefreshCw className="size-4" />
-                  <span>⚡ 30조합 일괄 점검 실행</span>
-                </Button>
               </div>
+            )}
 
-              {simAuditResults && (
-                <div className="mt-4 pt-4 border-t border-sky-500/30 space-y-3">
-                  <p className="text-xs font-bold text-white flex items-center justify-between">
-                    <span>📊 30조합 전수 점검결과 리포트</span>
-                    <span className="text-emerald-400 font-semibold">
-                      총 {simAuditResults.length}개 조합 검사 완료
-                    </span>
-                  </p>
-
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-6">
-                    {simAuditResults.map((res, idx) => (
+            {/* 🗺️ [2] 사용자 경로(코스)별 평점 후기 모드 */}
+            {reviewSubTab === 'course' && (
+              <div className="space-y-4">
+                {courseReviews.length === 0 ? (
+                  <div className="text-center py-12 rounded-2xl border border-slate-800 bg-slate-950/80">
+                    <BookOpen className="size-8 text-slate-600 mx-auto mb-2" />
+                    <p className="text-xs text-slate-400 font-bold">
+                      ✍️ 아직 작성된 사용자 경로(코스) 후기가 없습니다.
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      소비자가 [내 정보 관리] ➔ [저장한 여행 코스]에서 별점과 한줄평 후기를 작성하면 모니터링에 실시간 집계됩니다.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {courseReviews.map((cr) => (
                       <div
-                        key={idx}
-                        className={`rounded-xl border p-2.5 text-center text-xs space-y-1 ${
-                          res.isWarning
-                            ? 'border-red-500/60 bg-red-950/40 text-red-200'
-                            : 'border-emerald-500/30 bg-emerald-950/20 text-emerald-200'
-                        }`}
+                        key={cr.courseId}
+                        className="rounded-2xl border border-slate-800 bg-slate-950/90 p-5 shadow-xl space-y-3.5 hover:border-slate-700 transition-all flex flex-col justify-between"
                       >
-                        <p className="font-bold text-[11px] text-slate-300">{res.weather}</p>
-                        <p className="text-[10px] text-slate-400">{res.time}</p>
-                        <p className="text-sm font-black mt-1">
-                          {res.count}곳 추천 가능
-                        </p>
-                        {res.isWarning && (
-                          <p className="text-[9px] font-bold text-red-400">⚠️ 스팟 보강 필요</p>
-                        )}
+                        <div>
+                          <div className="flex items-start justify-between gap-2 border-b border-slate-800/80 pb-3">
+                            <div>
+                              <h3 className="font-extrabold text-white text-sm flex items-center gap-1.5">
+                                <span>🗺️ {cr.courseTitle}</span>
+                              </h3>
+                              <p className="text-[11px] text-slate-400 mt-1 font-mono flex items-center gap-2">
+                                <span>👤 {cr.userName}</span>
+                                <span className="text-slate-600">•</span>
+                                <span className="text-slate-500">{cr.userEmail}</span>
+                              </p>
+                            </div>
+
+                            <div className="rounded-xl bg-amber-500/20 border border-amber-400/40 px-2.5 py-1 text-center shrink-0">
+                              <p className="text-[10px] font-semibold text-amber-400">코스 평점</p>
+                              <p className="text-base font-black text-amber-300">⭐ {cr.rating}.0</p>
+                            </div>
+                          </div>
+
+                          {/* 태그 & 날씨 동행 정보 */}
+                          <div className="flex flex-wrap items-center gap-1.5 mt-3">
+                            <span className="rounded-md bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 text-[10px] px-2 py-0.5 font-bold">
+                              {cr.weatherSummary}
+                            </span>
+                            <span className="rounded-md bg-purple-500/10 text-purple-300 border border-purple-500/20 text-[10px] px-2 py-0.5 font-bold">
+                              👥 {cr.companion}
+                            </span>
+                            {cr.satisfactionTags.map((tag, tIdx) => (
+                              <span key={tIdx} className="rounded-md bg-amber-500/10 text-amber-300 border border-amber-500/20 text-[10px] px-2 py-0.5 font-bold">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+
+                          {/* 방문 포함 장소 동선 */}
+                          {cr.spots.length > 0 && (
+                            <div className="mt-3 rounded-xl bg-slate-900/80 border border-slate-800 p-2.5 space-y-1">
+                              <p className="text-[10px] font-bold text-slate-400">📍 코스 동선 목록 ({cr.spots.length}곳)</p>
+                              <p className="text-xs text-slate-200 font-semibold truncate">
+                                {cr.spots.join(' ➔ ')}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* 유저 작성 후기 내용 */}
+                          <div className="mt-3 rounded-xl bg-amber-950/20 border border-amber-500/20 p-3">
+                            <p className="text-[10px] font-bold text-amber-400 mb-1 flex items-center gap-1">
+                              <MessageSquare className="size-3" /> 작성 후기:
+                            </p>
+                            <p className="text-xs text-slate-200 leading-relaxed font-medium">
+                              "{cr.reviewContent}"
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500">
+                          <span>📅 작성일시: {cr.reviewedAt}</span>
+                          <span className="text-emerald-400 font-bold">🟢 실유저 후기 검증완료</span>
+                        </div>
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -1572,6 +1861,120 @@ export default function AdminPage() {
                   ))
                 )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB 6: 🎉 실시간 축제 & 팝업 스토어 배너 관리 센터 */}
+        {/* ========================================================================= */}
+        {activeTab === 'banners' && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-rose-500/30 bg-rose-950/20 p-5 shadow-xl">
+              <div>
+                <h2 className="text-base font-bold text-rose-200 flex items-center gap-2">
+                  <Megaphone className="size-5 text-rose-400" />
+                  <span>메인 화면 우측 전주 축제 & 팝업 스토어 배너 관리</span>
+                </h2>
+                <p className="text-xs text-slate-400 mt-1">
+                  메인 페이지(`http://localhost:3000`) 우측에 노출되는 실시간 이벤트/축제/팝업스토어 배너를 등록하고 수정합니다.
+                </p>
+              </div>
+
+              <Button
+                type="button"
+                onClick={handleOpenNewBannerModal}
+                className="rounded-xl bg-amber-500 text-amber-950 hover:bg-amber-400 font-extrabold text-xs gap-1.5 shadow-lg cursor-pointer"
+              >
+                <Plus className="size-4" />
+                <span>➕ 신규 축제/팝업 배너 등록</span>
+              </Button>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {bannersList.map((b) => (
+                <div
+                  key={b.id}
+                  className={`rounded-2xl border p-5 shadow-xl space-y-3.5 transition-all flex flex-col justify-between ${
+                    b.isActive
+                      ? 'border-slate-800 bg-slate-950/90'
+                      : 'border-slate-800/60 bg-slate-950/40 opacity-60'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-2 border-b border-slate-800/80 pb-3">
+                      <div>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 border border-amber-400/30 px-2.5 py-0.5 text-[11px] font-bold text-amber-300">
+                          {b.category}
+                        </span>
+                        <h3 className="font-extrabold text-white text-base mt-1.5">{b.title}</h3>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleToggleBannerActive(b)}
+                        className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold cursor-pointer transition-all border shrink-0 ${
+                          b.isActive
+                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                            : 'bg-slate-800 text-slate-400 border-slate-700'
+                        }`}
+                      >
+                        {b.isActive ? (
+                          <>
+                            <ToggleRight className="size-3.5 text-emerald-400" />
+                            <span>🟢 메인 노출중</span>
+                          </>
+                        ) : (
+                          <>
+                            <ToggleLeft className="size-3.5 text-slate-500" />
+                            <span>⚪ 숨김 (비활성)</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="mt-3 space-y-1.5 text-xs text-slate-300">
+                      <p className="font-bold text-amber-300 flex items-center gap-1">
+                        <Calendar className="size-3.5 text-amber-400" /> {b.period}
+                      </p>
+                      {b.location && (
+                        <p className="text-slate-400 flex items-center gap-1">
+                          <MapPin className="size-3.5 text-slate-500" /> {b.location}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="mt-3 rounded-xl bg-slate-900 p-3 border border-slate-800/80">
+                      <p className="text-xs text-slate-200 leading-relaxed font-medium">
+                        "{b.description}"
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
+                    <span className="text-[10px] text-slate-500">최종 수정: {b.updatedAt}</span>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleOpenEditBannerModal(b)}
+                        className="h-8 rounded-lg border-slate-700 bg-slate-900 text-xs text-amber-300 hover:bg-slate-800 gap-1 cursor-pointer font-bold"
+                      >
+                        <Edit3 className="size-3.5" />
+                        <span>수정</span>
+                      </Button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteBanner(b.id, b.title)}
+                        className="rounded-lg border border-red-500/30 bg-red-950/40 p-2 text-red-300 hover:bg-red-900/60 cursor-pointer"
+                        title="배너 삭제"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -1763,6 +2166,72 @@ export default function AdminPage() {
                 </div>
               </div>
 
+              {/* 📷 대표 장소 사진 URL 입력 및 실시간 미리보기 */}
+              <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3.5 space-y-2">
+                <label className="block text-slate-300 font-bold flex items-center justify-between">
+                  <span>📷 대표 장소 실사 사진 URL (Image URL)</span>
+                  <span className="text-[11px] text-amber-400 font-normal">네이버/Unsplash/외부 이미지 주소 변경 가능</span>
+                </label>
+                <input
+                  type="url"
+                  value={formImageUrl}
+                  onChange={(e) => setFormImageUrl(e.target.value)}
+                  placeholder="예: https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=800&q=80"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none focus:border-amber-400 font-mono text-xs"
+                />
+
+                {/* 빠른 이미지 프리셋 샘플 버튼 */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[10px] text-slate-400 font-bold">⚡ 샘플 프리셋:</span>
+                  <button
+                    type="button"
+                    onClick={() => setFormImageUrl('https://search.pstatic.net/common/?src=http%3A%2F%2Fblogfiles.naver.net%2FMjAyNTA2MDRfMTg5%2FMDAxNzQ5MDIwNTQyNDc5.hMnVe9xBm7-pRd6g63eqPprBa_TtMrFSYFD5F0gCc5Ig.6WRVtCMCaaDJ0I5JgDxqgKVHvyqhs-zSOecttSE97GIg.JPEG%2F570A9367-3.jpg')}
+                    className="rounded-md bg-slate-800 hover:bg-slate-700 px-2 py-0.5 text-[10px] text-amber-300 border border-slate-700 font-bold"
+                  >
+                    🏛️ 전동성당 실사
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormImageUrl('https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=800&q=80')}
+                    className="rounded-md bg-slate-800 hover:bg-slate-700 px-2 py-0.5 text-[10px] text-amber-300 border border-slate-700 font-bold"
+                  >
+                    ☕ 한옥 감성 카페
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormImageUrl('https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&w=800&q=80')}
+                    className="rounded-md bg-slate-800 hover:bg-slate-700 px-2 py-0.5 text-[10px] text-amber-300 border border-slate-700 font-bold"
+                  >
+                    🍷 전통주/양조장
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormImageUrl('https://images.unsplash.com/photo-1457369804613-52c61a468e7d?auto=format&fit=crop&w=800&q=80')}
+                    className="rounded-md bg-slate-800 hover:bg-slate-700 px-2 py-0.5 text-[10px] text-amber-300 border border-slate-700 font-bold"
+                  >
+                    📚 독립서점/문학관
+                  </button>
+                </div>
+
+                {/* 실시간 사진 미리보기 */}
+                {formImageUrl.trim() && (
+                  <div className="mt-2.5 rounded-xl border border-slate-800 bg-slate-900 p-2.5 flex items-center gap-3">
+                    <img
+                      src={formImageUrl.trim()}
+                      alt="사진 미리보기"
+                      className="size-14 rounded-lg object-cover border border-slate-700 shrink-0"
+                      onError={(e) => {
+                        ;(e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=800&q=80'
+                      }}
+                    />
+                    <div>
+                      <p className="text-[11px] font-bold text-emerald-400">🖼️ 대표 사진 실시간 연결 완료</p>
+                      <p className="text-[10px] text-slate-400 font-mono truncate max-w-sm">{formImageUrl}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label className="block text-slate-300 font-bold mb-1">해시태그 (공백 구별)</label>
                 <input
@@ -1788,6 +2257,141 @@ export default function AdminPage() {
                   className="rounded-xl bg-amber-500 text-amber-950 hover:bg-amber-400 font-bold cursor-pointer"
                 >
                   {editingPlace ? '수정사항 저장' : '신규 장소 등록 완료'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 📢 축제 & 팝업 스토어 배너 등록/수정 모달 */}
+      {isBannerModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4 bg-slate-950/60">
+              <h3 className="font-bold text-white text-base flex items-center gap-2">
+                <Megaphone className="size-5 text-amber-400" />
+                <span>{editingBanner ? `'${editingBanner.title}' 배너 수정` : '📢 신규 축제/팝업 배너 등록'}</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsBannerModalOpen(false)}
+                className="rounded-full p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveBanner} className="flex-1 overflow-y-auto p-6 space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-slate-300 font-bold mb-1">카테고리 구분 *</label>
+                  <select
+                    value={bannerCategory}
+                    onChange={(e) => setBannerCategory(e.target.value)}
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none focus:border-amber-400 font-bold"
+                  >
+                    <option value="🎉 축제·행사">🎉 축제·행사</option>
+                    <option value="🎁 팝업스토어">🎁 팝업스토어</option>
+                    <option value="🍺 푸드페스타">🍺 푸드페스타</option>
+                    <option value="🌙 야간이벤트">🌙 야간이벤트</option>
+                    <option value="🎨 전시·공연">🎨 전시·공연</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-bold mb-1">뱃지 색상 테마</label>
+                  <select
+                    value={bannerColor}
+                    onChange={(e) => setBannerColor(e.target.value as any)}
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none focus:border-amber-400 font-bold"
+                  >
+                    <option value="amber">🟠 앰버 (전주 한옥 감성)</option>
+                    <option value="purple">🟣 퍼플 (팝업스토어/공방)</option>
+                    <option value="emerald">🟢 에메랄드 (푸드/청량)</option>
+                    <option value="sky">🔵 스카이 (야외/산책)</option>
+                    <option value="rose">🔴 로즈 (특별 이벤트)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-bold mb-1">축제/팝업스토어 배너 제목 *</label>
+                <input
+                  type="text"
+                  required
+                  value={bannerTitle}
+                  onChange={(e) => setBannerTitle(e.target.value)}
+                  placeholder="예: 2026 전주 한옥마을 야행 & 팝업스토어"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none focus:border-amber-400 font-bold"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-slate-300 font-bold mb-1">행사 기간 / 일정 *</label>
+                  <input
+                    type="text"
+                    required
+                    value={bannerPeriod}
+                    onChange={(e) => setBannerPeriod(e.target.value)}
+                    placeholder="예: 2026.08.01 ~ 08.15 (주말 야간)"
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none focus:border-amber-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-bold mb-1">장소 / 위치 *</label>
+                  <input
+                    type="text"
+                    required
+                    value={bannerLocation}
+                    onChange={(e) => setBannerLocation(e.target.value)}
+                    placeholder="예: 전주 경기전 & 팔복예술공장"
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none focus:border-amber-400"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-bold mb-1">상세 안내 설명 문구 *</label>
+                <textarea
+                  rows={3}
+                  required
+                  value={bannerDescription}
+                  onChange={(e) => setBannerDescription(e.target.value)}
+                  placeholder="달빛 아래 펼쳐지는 한옥 야경 탐방과 로컬 청년 아티스트들의 팝업 스토어!"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none focus:border-amber-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-bold mb-1">메인 노출 상태</label>
+                <label className="flex items-center gap-2 cursor-pointer bg-slate-950 p-3 rounded-xl border border-slate-800">
+                  <input
+                    type="checkbox"
+                    checked={bannerIsActive}
+                    onChange={(e) => setBannerIsActive(e.target.checked)}
+                    className="size-4 rounded accent-amber-500 cursor-pointer"
+                  />
+                  <span className="text-white font-bold">🟢 메인 페이지(`http://localhost:3000`)에 즉시 노출</span>
+                </label>
+              </div>
+
+              <div className="pt-4 border-t border-slate-800 flex items-center justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsBannerModalOpen(false)}
+                  className="rounded-xl border-slate-700 text-slate-300 hover:bg-slate-800"
+                >
+                  취소
+                </Button>
+                <Button
+                  type="submit"
+                  className="rounded-xl bg-amber-500 text-amber-950 hover:bg-amber-400 font-bold cursor-pointer"
+                >
+                  {editingBanner ? '배너 수정사항 저장' : '신규 배너 등록 완료'}
                 </Button>
               </div>
             </form>

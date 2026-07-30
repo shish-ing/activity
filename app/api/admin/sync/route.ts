@@ -14,12 +14,49 @@ const DEFAULT_SUPER_ADMIN = {
   createdAt: '2026-07-30 17:00',
 }
 
+const DEFAULT_BANNERS = [
+  {
+    id: 'banner_1',
+    category: '🎉 축제·행사',
+    title: '2026 전주 한옥마을 야행 (夜行)',
+    period: '2026.08.01 ~ 08.10 (매일 18:00~23:00)',
+    location: '전주 경기전 & 태조로 거리 일원',
+    description: '달빛 아래 수놓아지는 낭만 한옥 야경 탐방과 전통 가야금 연주회 & 밤빛 포토존 페스티벌',
+    badgeColor: 'amber',
+    isActive: true,
+    updatedAt: '2026-07-30 20:00',
+  },
+  {
+    id: 'banner_2',
+    category: '🎁 팝업스토어',
+    title: '전주 청년 아티스트 한옥 팝업스토어',
+    period: '이번 주말 특별 오픈 (토/일 11:00~19:00)',
+    location: '전주 팔복예술공장 B동 & 한옥마을',
+    description: '전주 로컬 디자이너 20팀의 수제 한지 굿즈, 공방 일러스트 굿즈 및 한정판 수제 에디션',
+    badgeColor: 'purple',
+    isActive: true,
+    updatedAt: '2026-07-30 20:00',
+  },
+  {
+    id: 'banner_3',
+    category: '🍺 푸드페스타',
+    title: '2026 전주 가맥 & 전통 모주 쿨 페스타',
+    period: '2026.08.15 ~ 08.20 (6일간)',
+    location: '전주 종합경기장 & 남부시장 가맥거리',
+    description: '당일 생산된 당일 가맥 맥주와 달콤 시원한 전통 모주 칵테일을 즐기는 로컬 피서 페스티벌!',
+    badgeColor: 'emerald',
+    isActive: true,
+    updatedAt: '2026-07-30 20:00',
+  },
+]
+
 let memoryStore: {
   users: any[]
   reviews: any[]
   placeStatuses: Record<string, { isClosed: boolean; status: 'active' | 'review' | 'inactive' }>
   reports: any[]
   adminAccounts: any[]
+  banners: any[]
 } = {
   users: [
     {
@@ -34,6 +71,7 @@ let memoryStore: {
   placeStatuses: {},
   reports: [],
   adminAccounts: [DEFAULT_SUPER_ADMIN],
+  banners: DEFAULT_BANNERS,
 }
 
 // 🟢 클라우드 영구 DB에서 동기화 데이터 읽기
@@ -53,6 +91,7 @@ async function fetchCloudDbData() {
           placeStatuses: data.placeStatuses || memoryStore.placeStatuses,
           reports: Array.isArray(data.reports) ? data.reports : memoryStore.reports,
           adminAccounts: Array.isArray(data.adminAccounts) ? data.adminAccounts : memoryStore.adminAccounts,
+          banners: Array.isArray(data.banners) && data.banners.length > 0 ? data.banners : DEFAULT_BANNERS,
         }
       }
     }
@@ -156,6 +195,8 @@ export async function POST(request: Request) {
       memoryStore.reports = memoryStore.reports.filter((r) => r.id !== payload.id)
     } else if (type === 'SET_PLACE_STATUS' && payload) {
       memoryStore.placeStatuses[payload.placeName] = { isClosed: payload.isClosed, status: payload.status }
+    } else if (type === 'SET_BANNERS' && Array.isArray(payload)) {
+      memoryStore.banners = payload
     } else if (type === 'REGISTER_ADMIN' && payload) {
       const emailLower = payload.email.toLowerCase()
       if (!memoryStore.adminAccounts.some((a) => a.email.toLowerCase() === emailLower)) {

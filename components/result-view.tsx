@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { AlertCircle, ArrowRight, BookOpen, Bookmark, Bus, Calendar, Car, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Clock, Compass, Footprints, Heart, MapPin, Navigation, PieChart, Plus, RefreshCw, Route, Search, Share2, Sparkles, SunMedium, Utensils, Wallet, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PlaceCard } from '@/components/place-card'
@@ -16,12 +16,14 @@ import {
   findNearestJeonjuRealPoi,
   findNearestJeonjuRealPois,
   RECOMMENDED_PLACES,
+  getPlaceImageUrl,
   type Place,
   type Weather,
 } from '@/lib/mock-data'
 import { JEONJU_PLACES_DATABASE } from '@/app/api/places/search/route'
-import { isPlaceClosedByAdmin } from '@/lib/admin-storage'
+import { isPlaceClosedByAdmin, isPlaceCurrentlyOpen, getAllPlacesWithAdminCustom } from '@/lib/admin-storage'
 import { cn } from '@/lib/utils'
+import { getAppLang, t, tPlaceName, tCategory, tWeatherSummary, tWeatherDetail, type AppLang } from '@/lib/i18n'
 
 function formatWon(value: number) {
   return `${value.toLocaleString('ko-KR')}원`
@@ -319,6 +321,7 @@ function getRealJeonjuBusStopInfo(placeName: string): { boarding: string; alight
 }
 
 export function ResultView() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const rawMustVisit = searchParams.get('mustVisit')
   const time = searchParams.get('time') || '3h'
@@ -335,8 +338,41 @@ export function ResultView() {
   const [weather, setWeather] = useState<Weather>(CURRENT_WEATHER)
   const [weatherLoading, setWeatherLoading] = useState(false)
   const [lastFetchTime, setLastFetchTime] = useState<string>('')
-  // 3파트 책 넘기기 가로 탭 상태 (0: 1장 코스&지도, 1: 2장 이동&스팟추가, 2: 3장 예산분석)
   const [activeTab, setActiveTab] = useState<number>(0)
+  const [lang, setLang] = useState<AppLang>('ko')
+
+  // Admin 신규 장소 및 사진 최신화 통합 DB
+  const allPlacesDb = useMemo(() => getAllPlacesWithAdminCustom(JEONJU_PLACES_DATABASE), [])
+
+  useEffect(() => {
+    setLang(getAppLang())
+    const handleLangChange = () => setLang(getAppLang())
+    window.addEventListener('jeonju_lang_changed', handleLangChange)
+    window.addEventListener('storage', handleLangChange)
+    router.prefetch('/')
+    return () => {
+      window.removeEventListener('jeonju_lang_changed', handleLangChange)
+      window.removeEventListener('storage', handleLangChange)
+    }
+  }, [router])
+
+  // Admin 실시간 사진 및 상태 변경 이벤트 수신 시 places 이미지 최신화
+  useEffect(() => {
+    const handleAdminSync = () => {
+      setPlaces((prev) =>
+        prev.map((p) => ({
+          ...p,
+          imageUrl: getPlaceImageUrl(p.name, p.category, p.imageUrl),
+        }))
+      )
+    }
+    window.addEventListener('jeonju_admin_status_changed', handleAdminSync)
+    window.addEventListener('storage', handleAdminSync)
+    return () => {
+      window.removeEventListener('jeonju_admin_status_changed', handleAdminSync)
+      window.removeEventListener('storage', handleAdminSync)
+    }
+  }, [])
 
 
 
@@ -369,12 +405,12 @@ export function ResultView() {
   }
 
   const mapCurrentSegmentText = mapCustomPinPair
-    ? `🎯 ${mapCustomPinPair[0]}번 ➔ ${mapCustomPinPair[1]}번`
+    ? `🎯 #${mapCustomPinPair[0]} ➔ #${mapCustomPinPair[1]}`
     : mapSelectedSegment !== null
-    ? `📍 ${mapSelectedSegment}번 ➔ ${mapSelectedSegment + 1}번`
+    ? `📍 #${mapSelectedSegment} ➔ #${mapSelectedSegment + 1}`
     : mapCustomStartPin !== null
-    ? `📍 ${mapCustomStartPin}번 선택됨`
-    : `🌐 전체 ${places.length}개 코스`
+    ? t(`📍 ${mapCustomStartPin}번 선택됨`, `📍 Spot #${mapCustomStartPin} Selected`, lang)
+    : t(`🌐 전체 ${places.length}개 코스`, `🌐 All ${places.length} Spots`, lang)
 
   // 실시간 코스 추가 검색어 state
   const [addSearchInput, setAddSearchInput] = useState('')
@@ -398,10 +434,12 @@ export function ResultView() {
   }, [rawBudget])
 
   const budgetDisplayLabel = useMemo(() => {
-    if (userBudgetLimit === 0) return '0원 (100% 무료 명소 전용 코스)'
-    if (userBudgetLimit >= 500000) return '50만원 이상 (넉넉한 럭셔리 코스)'
-    return `${(userBudgetLimit / 10000).toLocaleString('ko-KR')}만원 맞춤`
-  }, [userBudgetLimit])
+    if (userBudgetLimit === 0) return t('0원 (100% 무료 명소 전용 코스)', '0 KRW (100% Free Spots)', lang)
+    if (userBudgetLimit >= 500000) return t('50만원 이상 (넉넉한 럭셔리 코스)', '500,000+ KRW (Luxury Course)', lang)
+    return lang === 'en'
+      ? `${userBudgetLimit.toLocaleString('en-US')} KRW`
+      : `${(userBudgetLimit / 10000).toLocaleString('ko-KR')}만원 맞춤`
+  }, [userBudgetLimit, lang])
 
   // 실시간 코스 추가 검색어 매칭 후보군 (실제 전주 POI DB 100% 매칭 및 최단 지리적 물리적 위치 연동)
   const addPlaceSuggestions = useMemo(() => {
@@ -415,7 +453,7 @@ export function ResultView() {
     )
 
     // 2. 대표 데이터베이스 내 장소 매칭
-    const dbMatches = JEONJU_PLACES_DATABASE.filter(
+    const dbMatches = allPlacesDb.filter(
       (p) =>
         !currentPlaceNames.has(p.name.toLowerCase()) &&
         !realPoiMatches.some((rpm) => rpm.name.toLowerCase() === p.name.toLowerCase()) &&
@@ -773,13 +811,13 @@ export function ResultView() {
   const transportLabel = useMemo(() => {
     switch (transport) {
       case 'car':
-        return { text: '🚗 자차 이동 전용 (팔복예술공장·수목원 등 전주 전역 드라이브 & 추천 주차장)', icon: Car }
+        return { text: t('🚗 자차 이동 전용 (팔복예술공장·수목원 등 전주 전역 드라이브 & 추천 주차장)', '🚗 Driving Course (Drive around Jeonju & Parking Info)', lang), icon: Car }
       case 'transit':
-        return { text: '🚌 대중교통 이동 전용 (시내버스 15분 내 중거리 스팟 & 정류장 안내)', icon: Bus }
+        return { text: t('🚌 대중교통 이동 전용 (시내버스 15분 내 중거리 스팟 & 정류장 안내)', '🚌 Transit Course (City Bus & Stop Info)', lang), icon: Bus }
       default:
-        return { text: '🚶 도보 이동 전용 (걸어서 부담 없는 300m~800m 인접 산책로 코스)', icon: Footprints }
+        return { text: t('🚶 도보 이동 전용 (걸어서 부담 없는 300m~800m 인접 산책로 코스)', '🚶 Walking Course (300m~800m Walking Distance)', lang), icon: Footprints }
     }
-  }, [transport])
+  }, [transport, lang])
 
   const TransportIcon = transportLabel.icon
 
@@ -787,21 +825,21 @@ export function ResultView() {
   const timeLabel = useMemo(() => {
     switch (time) {
       case '1h':
-        return '1시간 (가볍게 코스 · 1곳)'
+        return t('1시간 (가볍게 코스 · 1곳)', '1 Hour (Light Course · 1 Spot)', lang)
       case '3h':
-        return '3시간 (여유로운 코스 · 3곳)'
+        return t('3시간 (여유로운 코스 · 3곳)', '3 Hours (Relaxed Course · 3 Spots)', lang)
       case 'half':
-        return '반나절 (4~5시간 코스 · 5곳 스팟)'
+        return t('반나절 (4~5시간 코스 · 5곳 스팟)', 'Half-day (4~5 Hours · 5 Spots)', lang)
       case 'full':
-        return '하루 (전주 최단 순선 풀 코스 · 7곳)'
+        return t('하루 (전주 최단 순선 풀 코스 · 7곳)', 'Full-day (Jeonju Full Course · 7 Spots)', lang)
       case '2days':
-        return '이틀 (1박 2일 일정 · 10곳 전주 최단 순선 코스)'
+        return t('이틀 (1박 2일 일정 · 10곳 전주 최단 순선 코스)', '2 Days (1 Night 2 Days · 10 Spots)', lang)
       case '3days':
-        return '사흘 (2박 3일 일정 · 14곳 전주 풀 코스)'
+        return t('사흘 (2박 3일 일정 · 14곳 전주 풀 코스)', '3 Days (2 Nights 3 Days · 14 Spots)', lang)
       default:
-        return '시간 맞춤 추천'
+        return t('시간 맞춤 추천', 'Customized Time Recommendation', lang)
     }
-  }, [time])
+  }, [time, lang])
 
   // 실시간 기온 수치 추출 (기본값 20°C)
   const tempNum = useMemo(() => {
@@ -925,7 +963,7 @@ export function ResultView() {
 
     // 1. 사용자가 직접 검색/추가한 필수 방문지 먼저 추가
     mustVisitNames.forEach((name) => {
-      const foundInDb = JEONJU_PLACES_DATABASE.find(
+      const foundInDb = allPlacesDb.find(
         (p) => p.name.toLowerCase() === name.toLowerCase(),
       )
 
@@ -985,11 +1023,11 @@ export function ResultView() {
     const indoorTarget = Math.round(targetCount * indoorRatio)
     const outdoorTarget = targetCount - indoorTarget
 
-    const pureSpotsDatabase = JEONJU_PLACES_DATABASE.filter((p) => {
+    const pureSpotsDatabase = allPlacesDb.filter((p) => {
       if (p.isMeal || p.isDessert) return false
 
-      // 🔴 관리자가 '휴업(임시휴업)' 설정한 장소는 추천에서 즉시 제외
-      if (isPlaceClosedByAdmin(p.name)) return false
+      // 🔴 관리자가 '휴업' 설정했거나 실시간 영업시간 외인 경우 제외
+      if (!isPlaceCurrentlyOpen(p.name, p.operatingHours)) return false
 
       if (userBudgetLimit === 0 && p.cost > 0 && !p.isMustVisit) {
         return false
@@ -1060,7 +1098,7 @@ export function ResultView() {
 
     // 목표 장소 수 미달 시 보충
     if (generated.length < targetCount) {
-      const fallbackPool = JEONJU_PLACES_DATABASE.filter((p) => !p.isMeal && !p.isDessert)
+      const fallbackPool = allPlacesDb.filter((p) => !p.isMeal && !p.isDessert)
       fallbackPool.forEach((placeItem) => {
         if (generated.length >= targetCount) return
         if (addedNames.has(placeItem.name.toLowerCase())) return
@@ -1259,7 +1297,7 @@ export function ResultView() {
 
       const currentNames = new Set(prev.map((p) => p.name.toLowerCase()))
 
-      const pureSpotCandidates = JEONJU_PLACES_DATABASE.filter((p) => {
+      const pureSpotCandidates = allPlacesDb.filter((p) => {
         if (p.isMeal || p.isDessert || currentNames.has(p.name.toLowerCase())) return false
         if (userBudgetLimit === 0 && p.cost > 0) return false
         if (transport === 'walk') {
@@ -1502,10 +1540,10 @@ export function ResultView() {
 
   const distanceDisplayLabel = useMemo(() => {
     if (totalTravelKm < 1) {
-      return `약 ${Math.round(totalTravelKm * 1000)}m`
+      return `${t('약 ', '~', lang)}${Math.round(totalTravelKm * 1000)}m`
     }
-    return `약 ${totalTravelKm.toFixed(1)}km`
-  }, [totalTravelKm])
+    return `${t('약 ', '~', lang)}${totalTravelKm.toFixed(1)}km`
+  }, [totalTravelKm, lang])
 
   // 일차별로 그룹화 (이틀/사흘 코스 시)
   const groupedByDay = useMemo(() => {
@@ -1585,15 +1623,15 @@ export function ResultView() {
           <div>
             <div className="flex items-center gap-2">
               <p className="text-sm font-bold text-slate-900">
-                {weather.summary}
+                {tWeatherSummary(weather.summary, lang)}
               </p>
               {weatherParam !== 'auto' && (
                 <span className="rounded-full bg-amber-100 border border-amber-300/60 px-2 py-0.5 text-[10px] font-bold text-amber-800">
-                  예보 조건 맞춤
+                  {t('예보 조건 맞춤', 'Custom Forecast', lang)}
                 </span>
               )}
             </div>
-            <p className="text-xs text-slate-600 font-medium">{weather.detail}</p>
+            <p className="text-xs text-slate-600 font-medium">{tWeatherDetail(weather.detail, lang)}</p>
           </div>
         </div>
 
@@ -1602,14 +1640,14 @@ export function ResultView() {
             type="button"
             onClick={loadRealtimeWeather}
             disabled={weatherLoading}
-            title="기상청/실시간 날씨 새로고침"
-            className="flex shrink-0 items-center gap-1 text-xs font-semibold text-slate-600 hover:text-slate-900 disabled:opacity-50"
+            title={t('기상청/실시간 날씨 새로고침', 'Refresh Live Weather', lang)}
+            className="flex shrink-0 items-center gap-1 text-xs font-semibold text-slate-600 hover:text-slate-900 disabled:opacity-50 cursor-pointer"
           >
             <RefreshCw
               className={`size-3.5 ${weatherLoading ? 'animate-spin' : ''}`}
             />
             <span className="hidden sm:inline">
-              {lastFetchTime ? `${lastFetchTime} 갱신` : '새로고침'}
+              {lastFetchTime ? `${lastFetchTime} ${t('갱신', 'Updated', lang)}` : t('새로고침', 'Refresh', lang)}
             </span>
           </button>
         ) : null}
@@ -1623,11 +1661,11 @@ export function ResultView() {
               <BookOpen className="size-4" />
             </span>
             <span className="font-serif text-base font-bold text-slate-900">
-              전주 여행 코스 가이드북
+              {t('전주 여행 코스 가이드북', 'Jeonju Travel Guidebook', lang)}
             </span>
           </div>
           <span className="text-xs font-bold text-sky-800 bg-sky-100 px-3 py-1 rounded-full border border-sky-300/80">
-            {activeTab + 1} / 3장 ({activeTab === 0 ? '코스 & 경로지도' : activeTab === 1 ? '이동 & 장소추가' : '예산 지출분석'})
+            {activeTab + 1} / {t('3장', '3 Ch.', lang)} ({activeTab === 0 ? t('코스 & 경로지도', 'Course & Map', lang) : activeTab === 1 ? t('이동 & 장소추가', 'Route & Add', lang) : t('예산 지출분석', 'Budget Analysis', lang)})
           </span>
         </div>
 
@@ -1644,7 +1682,7 @@ export function ResultView() {
             )}
           >
             <MapPin className="size-4 shrink-0" />
-            <span>1장. 코스 & 지도</span>
+            <span>{t('1장. 코스 & 지도', 'Ch.1 Course & Map', lang)}</span>
           </button>
 
           <button
@@ -1658,7 +1696,7 @@ export function ResultView() {
             )}
           >
             <Bus className="size-4 shrink-0" />
-            <span>2장. 이동 & 추가</span>
+            <span>{t('2장. 이동 & 추가', 'Ch.2 Route & Add', lang)}</span>
           </button>
 
           <button
@@ -1672,11 +1710,11 @@ export function ResultView() {
             )}
           >
             <PieChart className="size-4 shrink-0" />
-            <span>3장. 예산 분석</span>
+            <span>{t('3장. 예산 분석', 'Ch.3 Budget Analysis', lang)}</span>
           </button>
         </div>
 
-        {/* 이전장 / 다음장 넘기기 화살표 슬라이드 컨트롤 & 1장(코스&지도) 선택 시 둥근 알약형 지도 컨트롤 바 배치 (w-full relative 완벽 정중앙 고정!) */}
+        {/* 이전장 / 다음장 넘기기 화살표 슬라이드 컨트롤 */}
         <div className="relative w-full flex items-center justify-between gap-2 pt-1 border-t border-border/50 min-h-[44px]">
           {/* 좌측: 이전 장 */}
           <button
@@ -1686,10 +1724,10 @@ export function ResultView() {
             className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-secondary/60 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed transition-all shrink-0 z-20"
           >
             <ChevronLeft className="size-4" />
-            <span className="hidden sm:inline">◀ 이전 장</span>
+            <span className="hidden sm:inline">{t('◀ 이전 장', '◀ Previous', lang)}</span>
           </button>
 
-          {/* 🎯 정중앙: 1장(코스 & 지도) 활성화 시 헤더 바 완벽 정중앙(absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2)에 둥근 알약형 지도 컨트롤 바 고정! */}
+          {/* 🎯 정중앙: 1장(코스 & 지도) 활성화 시 헤더 바 완벽 정중앙에 둥근 알약형 지도 컨트롤 바 고정 */}
           {activeTab === 0 && (
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 flex items-center justify-center gap-1.5 sm:gap-2">
               {/* 알약 용기 1: 직선 vs 도로 길찾기 */}
@@ -1705,7 +1743,7 @@ export function ResultView() {
                   )}
                 >
                   <Route className="size-3.5 text-amber-400" />
-                  <span>직선</span>
+                  <span>{t('직선', 'Straight Line', lang)}</span>
                 </button>
 
                 <button
@@ -1719,7 +1757,7 @@ export function ResultView() {
                   )}
                 >
                   <Navigation className="size-3.5 text-sky-200" />
-                  <span>🚗 🗺️ 도로 길찾기</span>
+                  <span>🚗 🗺️ {t('도로 길찾기', 'Navigation', lang)}</span>
                 </button>
               </div>
 
@@ -1882,7 +1920,7 @@ export function ResultView() {
             disabled={activeTab === 2}
             className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-secondary/60 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed transition-all shrink-0 z-20 ml-auto"
           >
-            <span className="hidden sm:inline">다음 장 ▶</span>
+            <span className="hidden sm:inline">{t('다음 장 ▶', 'Next ▶', lang)}</span>
             <ChevronRight className="size-4" />
           </button>
         </div>
@@ -1907,9 +1945,9 @@ export function ResultView() {
                 <div className="flex items-center gap-3 text-slate-600">
                   <span className="flex items-center gap-1 text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/70">
                     <Utensils className="size-3.5" />
-                    각 장소별 주변 맛집 3선 · 카페 3선 · 특산품 3선 풀 탑재
+                    {t('각 장소별 주변 맛집 3선 · 카페 3선 · 특산품 3선 풀 탑재', 'Top 3 Food, Cafe & Souvenirs included for each spot', lang)}
                   </span>
-                  <span className="font-semibold">총 {places.length}개 스팟</span>
+                  <span className="font-semibold">{t('총', 'Total', lang)} {places.length}{t('개 스팟', ' Spots', lang)}</span>
                 </div>
               </div>
 
@@ -1925,10 +1963,10 @@ export function ResultView() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-2xl border border-sky-200/80 bg-white/95 p-4 shadow-md backdrop-blur-md">
                   <h2 className="font-serif text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
                     <span className="text-xl">🚩</span>
-                    <span>{startLocationParam} 출발 맞춤 추천 코스</span>
+                    <span>{lang === 'en' ? `Course Starting from ${tPlaceName(startLocationParam, lang)}` : `${startLocationParam} 출발 맞춤 추천 코스`}</span>
                   </h2>
                   <span className="text-xs text-slate-600 bg-slate-100/90 px-2.5 py-1 rounded-lg border border-slate-200/80 w-fit font-medium">
-                    💡 카드를 누르거나 &apos;다른 장소 변경&apos; 클릭 시 교체돼요
+                    💡 {t("카드를 누르거나 '다른 장소 변경' 클릭 시 교체돼요", "Click cards or 'Change Spot' to replace places", lang)}
                   </span>
                 </div>
 
@@ -2008,7 +2046,7 @@ export function ResultView() {
                 onClick={() => setActiveTab(1)}
                 className="rounded-xl gap-2 bg-accent text-accent-foreground font-bold shadow-md hover:bg-accent/90 cursor-pointer"
               >
-                <span>🚌 2장. 이동노선 & 장소추가 보러가기</span>
+                <span>🚌 {t('2장. 이동노선 & 장소추가 보러가기', 'Go to Ch.2 Route & Add', lang)}</span>
                 <ChevronRight className="size-4" />
               </Button>
             </div>
@@ -2026,7 +2064,7 @@ export function ResultView() {
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-sky-200/60 pb-2.5">
                   <div className="flex items-center gap-2 font-bold text-sm text-sky-800">
                     <Bus className="size-4.5 text-sky-600 shrink-0" />
-                    <span>🚩 출발지에서 1번 '{places[0].name}'까지 이동 방법 & 추천 시내버스</span>
+                    <span>🚩 {lang === 'en' ? `Route & Recommended Bus from Start Location to Spot #1 '${tPlaceName(places[0].name, lang)}'` : `출발지에서 1번 '${places[0].name}'까지 이동 방법 & 추천 시내버스`}</span>
                   </div>
                   <a
                     href={firstPlaceTransitInfo.mapUrl}
@@ -2034,20 +2072,20 @@ export function ResultView() {
                     rel="noreferrer"
                     className="inline-flex items-center gap-1 rounded-xl bg-sky-100 px-3 py-1.5 text-xs font-bold text-sky-800 hover:bg-sky-200 transition-colors border border-sky-300 shadow-xs"
                   >
-                    <span>네이버 지도 실시간 길찾기</span>
+                    <span>{t('네이버 지도 실시간 길찾기', 'Naver Map Live Navigation', lang)}</span>
                     <ArrowRight className="size-3.5 text-sky-700" />
                   </a>
                 </div>
 
                 <div className="grid gap-2.5 sm:grid-cols-2 pt-1">
                   <div className="flex flex-col gap-1 rounded-xl bg-sky-50/80 p-3 border border-sky-200/70">
-                    <span className="font-bold text-sky-800 text-sm">{firstPlaceTransitInfo.busRoute}</span>
-                    <span className="text-slate-600 text-xs font-medium">🚏 탑승: {firstPlaceTransitInfo.boardStop}</span>
-                    <span className="text-slate-600 text-xs font-medium">🚏 하차: {firstPlaceTransitInfo.alightStop}</span>
+                    <span className="font-bold text-sky-800 text-sm">{firstPlaceTransitInfo.busRoute.replace('한옥마을 중심 인접 도보 이동', lang === 'en' ? 'Nearby Walk in Hanok Village' : '한옥마을 중심 인접 도보 이동').replace('추천 버스:', lang === 'en' ? 'Bus Route:' : '추천 버스:')}</span>
+                    <span className="text-slate-600 text-xs font-medium">🚏 {t('탑승:', 'Boarding:', lang)} {firstPlaceTransitInfo.boardStop.replace('출발지 출발', lang === 'en' ? 'Departure from Start Location' : '출발지 출발')}</span>
+                    <span className="text-slate-600 text-xs font-medium">🚏 {t('하차:', 'Alighting:', lang)} {tPlaceName(firstPlaceTransitInfo.alightStop, lang).replace('도보', lang === 'en' ? 'walk' : '도보')}</span>
                   </div>
                   <div className="flex flex-col gap-1 rounded-xl bg-emerald-50/80 p-3 border border-emerald-200/70">
-                    <span className="font-bold text-emerald-800 text-sm">⏱️ 대중교통 소요시간: {firstPlaceTransitInfo.duration}</span>
-                    <span className="text-slate-600 text-xs font-medium">🚗 자차 이동 소요시간: {firstPlaceTransitInfo.carDuration}</span>
+                    <span className="font-bold text-emerald-800 text-sm">⏱️ {t('대중교통 소요시간:', 'Transit Duration:', lang)} {firstPlaceTransitInfo.duration.replace('도보 산책 약', lang === 'en' ? '~' : '도보 산책 약').replace('이내', lang === 'en' ? 'walk' : '이내')}</span>
+                    <span className="text-slate-600 text-xs font-medium">🚗 {t('자차 이동 소요시간:', 'Driving Duration:', lang)} {firstPlaceTransitInfo.carDuration.replace('자차 차로 약', lang === 'en' ? '~' : '자차 차로 약').replace('분', lang === 'en' ? ' min' : '분')}</span>
                   </div>
                 </div>
               </div>
@@ -2058,9 +2096,9 @@ export function ResultView() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 font-bold text-base text-slate-900">
                   <Plus className="size-5 text-amber-600" />
-                  <span>➕ 동선 중간에 새로 가고 싶은 장소 검색해서 추가하기 (자동 최단 순선 재정렬)</span>
+                  <span>➕ {t('동선 중간에 새로 가고 싶은 장소 검색해서 추가하기 (자동 최단 순선 재정렬)', 'Search & Add a Custom Place into Route (Auto Reorder)', lang)}</span>
                 </div>
-                <span className="text-xs text-amber-700 font-bold bg-amber-100 px-2.5 py-0.5 rounded-md">네이버 지도 연동 스팟 검색</span>
+                <span className="text-xs text-amber-700 font-bold bg-amber-100 px-2.5 py-0.5 rounded-md">{t('네이버 지도 연동 스팟 검색', 'Naver Map Connected Search', lang)}</span>
               </div>
 
               {/* 토스트 노티피케이션 메세지 */}
@@ -2082,7 +2120,7 @@ export function ResultView() {
                       setAddSearchInput(e.target.value)
                       setShowAddSuggestions(true)
                     }}
-                    placeholder="추가하고 싶은 장소를 검색해 보세요! (예: 보드게임카페, 레드버튼, 방탈출, 인생네컷, 노래방, 올리브영, 만화카페)"
+                    placeholder={t('추가하고 싶은 장소를 검색해 보세요! (예: 보드게임카페, 레드버튼, 방탈출, 인생네컷, 노래방, 올리브영, 만화카페)', 'Search places to add! (e.g., Board game cafe, Escape room, Olive Young, Karaoke, Photo booth)', lang)}
                     className="w-full bg-transparent outline-none placeholder:text-slate-400 font-medium text-slate-900"
                   />
                 </div>
@@ -2091,8 +2129,8 @@ export function ResultView() {
                 {showAddSuggestions && addPlaceSuggestions.length > 0 ? (
                   <div className="absolute inset-x-0 top-full z-50 mt-1.5 max-h-64 overflow-y-auto rounded-2xl border border-sky-200 bg-white p-2 shadow-xl backdrop-blur-md">
                     <div className="px-3 py-2 text-xs font-bold text-sky-700 border-b border-slate-100 flex items-center justify-between">
-                      <span>🔍 네이버 지도 검색 결과 (위치를 먼저 확인 후 코스에 추가하실 수 있습니다)</span>
-                      <span className="text-[10px] text-slate-400">네이버 지도 연동</span>
+                      <span>🔍 {t('네이버 지도 검색 결과 (위치를 먼저 확인 후 코스에 추가하실 수 있습니다)', 'Naver Map Search Results (Check location before adding)', lang)}</span>
+                      <span className="text-[10px] text-slate-400">{t('네이버 지도 연동', 'Naver Map Linked', lang)}</span>
                     </div>
                     {addPlaceSuggestions.map((item) => {
                       const distTag = item.tags?.find((t) => t.startsWith('#거리_'))?.replace('#거리_', '거리 ')
@@ -2105,17 +2143,17 @@ export function ResultView() {
                         >
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <div className="flex flex-wrap items-center gap-1.5 font-bold text-slate-900 text-xs">
-                              <span>{item.name}</span>
+                              <span>{tPlaceName(item.name, lang)}</span>
                               <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-bold text-sky-800">
-                                {item.category}
+                                {tCategory(item.category, lang)}
                               </span>
                               {isNearest ? (
                                 <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-300">
-                                  🎯 최단 동선
+                                  🎯 {t('최단 동선', 'Shortest Route', lang)}
                                 </span>
                               ) : distTag ? (
                                 <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-700 border border-slate-200">
-                                  📍 {distTag}
+                                  📍 {distTag.replace('거리 ', lang === 'en' ? 'Dist ' : '거리 ')}
                                 </span>
                               ) : null}
                             </div>
@@ -2128,7 +2166,7 @@ export function ResultView() {
                                 className="inline-flex items-center gap-1 rounded-lg border border-sky-300 bg-sky-50 px-2 py-1 text-[11px] font-bold text-sky-700 hover:bg-sky-100 transition-colors shadow-2xs"
                               >
                                 <MapPin className="size-3 text-sky-600" />
-                                <span>🗺️ 네이버 지도 위치 확인</span>
+                                <span>🗺️ {t('네이버 지도 위치 확인', 'View on Naver Map', lang)}</span>
                               </a>
                               <Button
                                 size="sm"
@@ -2136,14 +2174,14 @@ export function ResultView() {
                                 onClick={() => handleAddPlaceToItinerary(item)}
                                 className="h-7 text-[11px] rounded-lg shrink-0 gap-1 font-bold bg-amber-400 text-slate-950 hover:bg-amber-300 cursor-pointer"
                               >
-                                <Plus className="size-3" /> 코스 추가
+                                <Plus className="size-3" /> {t('코스 추가', 'Add to Course', lang)}
                               </Button>
                             </div>
                           </div>
 
                           <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-500 pt-0.5">
-                            <span>📍 실제 주소: <strong className="text-slate-800">{item.address || '전북 전주시'}</strong></span>
-                            <span className="text-emerald-600 font-bold">{item.costLabel || '비용 정보'}</span>
+                            <span>📍 {t('실제 주소:', 'Address:', lang)} <strong className="text-slate-800">{item.address || 'Jeonju, Jeonbuk'}</strong></span>
+                            <span className="text-emerald-600 font-bold">{item.costLabel ? (item.costLabel === '무료' ? t('무료', 'Free', lang) : item.costLabel) : t('비용 정보', 'Cost Info', lang)}</span>
                           </div>
                         </div>
                       )
@@ -2161,14 +2199,14 @@ export function ResultView() {
                 className="rounded-xl gap-2 cursor-pointer"
               >
                 <ChevronLeft className="size-4" />
-                <span>🗺️ 1장. 코스 & 경로 지도</span>
+                <span>🗺️ {t('1장. 코스 & 경로 지도', 'Ch.1 Course & Map', lang)}</span>
               </Button>
 
               <Button
                 onClick={() => setActiveTab(2)}
                 className="rounded-xl gap-2 bg-accent text-accent-foreground font-bold shadow-md hover:bg-accent/90 cursor-pointer"
               >
-                <span>📊 3장. 예산 지출 분석 그래프 보러가기</span>
+                <span>📊 {t('3장. 예산 지출 분석 그래프 보러가기', 'Go to Ch.3 Budget Analysis', lang)}</span>
                 <ChevronRight className="size-4" />
               </Button>
             </div>
@@ -2196,7 +2234,7 @@ export function ResultView() {
                 className="rounded-xl gap-2 cursor-pointer"
               >
                 <ChevronLeft className="size-4" />
-                <span>🚌 2장. 이동 & 장소 추가로 돌아가기</span>
+                <span>🚌 {t('2장. 이동 & 장소 추가로 돌아가기', 'Back to Ch.2 Route & Add', lang)}</span>
               </Button>
             </div>
           </div>
@@ -2218,19 +2256,19 @@ export function ResultView() {
             <span className="flex items-center gap-1.5">
               <Wallet className="size-4 text-amber-600 shrink-0" />
               <span className="font-semibold text-foreground">
-                한도: {budgetDisplayLabel}
+                {t('한도:', 'Limit:', lang)} {budgetDisplayLabel}
               </span>
             </span>
             <span className="flex items-center gap-1.5">
               <Clock className="size-4 text-amber-600 shrink-0" />
               <span className="font-semibold text-foreground">
-                총 {totalTravelMinutes}분 이동
+                {t('총', 'Total', lang)} {totalTravelMinutes}{t('분 이동', ' min travel', lang)}
               </span>
             </span>
             <span className="flex items-center gap-1.5">
               <MapPin className="size-4 text-sky-600 shrink-0" />
               <span className="font-semibold text-foreground">
-                총 {distanceDisplayLabel} 이동
+                {t('총', 'Total', lang)} {distanceDisplayLabel}{t(' 이동', ' travel', lang)}
               </span>
             </span>
           </div>
@@ -2239,26 +2277,26 @@ export function ResultView() {
             <Button
               onClick={handleSaveCourseToMyPage}
               className={cn(
-                'rounded-xl text-xs sm:text-sm font-bold shadow-xs transition-all gap-1.5',
+                'rounded-xl text-xs sm:text-sm font-bold shadow-xs transition-all gap-1.5 cursor-pointer',
                 isSavedToMyPage
                   ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
                   : 'bg-amber-500 hover:bg-amber-600 text-amber-950'
               )}
             >
               <Bookmark className="size-4" />
-              {isSavedToMyPage ? '내 정보에 저장됨!' : '📌 이 코스 내 정보에 저장'}
+              {isSavedToMyPage ? t('내 정보에 저장됨!', 'Saved to My Info!', lang) : `📌 ${t('이 코스 내 정보에 저장', 'Save Course to My Info', lang)}`}
             </Button>
             <Button
               onClick={() => {
                 if (navigator.clipboard) {
                   navigator.clipboard.writeText(window.location.href)
-                  alert('추천 코스 링크가 클립보드에 복사되었습니다!')
+                  alert(t('추천 코스 링크가 클립보드에 복사되었습니다!', 'Course link copied to clipboard!', lang))
                 }
               }}
               variant="outline"
-              className="rounded-xl text-xs sm:text-sm"
+              className="rounded-xl text-xs sm:text-sm cursor-pointer"
             >
-              <Share2 className="size-4" /> 공유
+              <Share2 className="size-4" /> {t('공유', 'Share', lang)}
             </Button>
           </div>
         </div>

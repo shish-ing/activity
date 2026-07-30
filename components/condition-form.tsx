@@ -15,6 +15,7 @@ import {
 } from '@/lib/mock-data'
 import { cn } from '@/lib/utils'
 import { WeatherBackground } from '@/components/weather-background'
+import { getAppLang, t, type AppLang } from '@/lib/i18n'
 
 // 네이버 지도 연동 전주 대표 주요 출발지 & 상세 주소 데이터베이스
 const NAVER_MAP_START_ADDRESSES = [
@@ -36,9 +37,31 @@ const NAVER_MAP_START_ADDRESSES = [
   { name: '전주 송천동 에코시티', address: '전북 전주시 덕진구 세병동로 30', type: '주거지' },
 ]
 
+const BUDGET_STEPS = [
+  { value: 0, label: '0원(무료)', display: '0원 (100% 무료 명소 코스)', displayEn: '0 KRW (100% Free Attractions)', percent: 8.33 },
+  { value: 30000, label: '3만원', display: '3만원', displayEn: '30,000 KRW', percent: 25.0 },
+  { value: 50000, label: '5만원', display: '5만원', displayEn: '50,000 KRW', percent: 41.66 },
+  { value: 100000, label: '10만원', display: '10만원', displayEn: '100,000 KRW', percent: 58.33 },
+  { value: 300000, label: '30만원', display: '30만원', displayEn: '300,000 KRW', percent: 75.0 },
+  { value: 500000, label: '50만원+', display: '50만원+ (넉넉한 럭셔리 코스)', displayEn: '500,000+ KRW (Luxury)', percent: 91.66 },
+]
+
 export function ConditionForm() {
   const router = useRouter()
   const searchBoxRef = useRef<HTMLDivElement>(null)
+  const [lang, setLang] = useState<AppLang>('ko')
+
+  useEffect(() => {
+    setLang(getAppLang())
+    const handleLangChange = () => setLang(getAppLang())
+    window.addEventListener('jeonju_lang_changed', handleLangChange)
+    window.addEventListener('storage', handleLangChange)
+    router.prefetch('/result')
+    return () => {
+      window.removeEventListener('jeonju_lang_changed', handleLangChange)
+      window.removeEventListener('storage', handleLangChange)
+    }
+  }, [router])
 
   const [startInput, setStartInput] = useState<string>('전주 한옥마을 (전동성당)')
   const [selectedAddress, setSelectedAddress] = useState<string>('전북 전주시 완산구 태조로 51')
@@ -47,7 +70,7 @@ export function ConditionForm() {
   const [showSuggestions, setShowSuggestions] = useState(false)
 
   const [time, setTime] = useState<string | null>('3h')
-  const [budgetValue, setBudgetValue] = useState<number>(50000) // 0원 ~ 500,000원 슬라이더
+  const [budgetIndex, setBudgetIndex] = useState<number>(2) // 기본 5만원 (index 2)
   const [companion, setCompanion] = useState<string | null>('couple')
   const [weatherOpt, setWeatherOpt] = useState<string | null>('auto')
   const [transport, setTransport] = useState<string | null>('walk')
@@ -166,24 +189,20 @@ export function ConditionForm() {
       params.set('mustVisit', mustVisit.join(','))
     }
     if (time) params.set('time', time)
-    params.set('budget', String(budgetValue))
+    params.set('budget', String(BUDGET_STEPS[budgetIndex].value))
     if (companion) params.set('companion', companion)
     if (weatherOpt) params.set('weather', weatherOpt)
     if (transport) params.set('transport', transport)
 
-    setTimeout(() => {
-      router.push(`/result?${params.toString()}`)
-    }, 1000)
+    router.push(`/result?${params.toString()}`)
   }
 
-  const budgetDisplayLabel = (() => {
-    if (budgetValue === 0) return '0원 (100% 무료 명소 코스)'
-    if (budgetValue >= 500000) return '50만원 이상 (넉넉한 럭셔리 여행)'
-    return `${(budgetValue / 10000).toLocaleString('ko-KR')}만원`
-  })()
+  const budgetDisplayLabel = lang === 'en'
+    ? BUDGET_STEPS[budgetIndex].displayEn
+    : BUDGET_STEPS[budgetIndex].display
 
   return (
-    <div className="flex flex-col gap-4 relative z-10">
+    <div className="flex flex-col gap-4 relative z-10 font-sans">
       <WeatherBackground weather={weatherOpt || 'auto'} realtimeCondition={liveWeatherData?.condition || liveWeatherData?.summary} />
 
       {/* 네이버 지도 연동 출발지 주소 검색 & 실시간 GPS 카드 (z-30으로 하단 카드 위로 드롭다운 노출 보장) */}
@@ -191,7 +210,7 @@ export function ConditionForm() {
         <div className="flex items-center justify-between pt-1">
           <div className="flex items-center gap-2 font-bold text-sm text-slate-900">
             <MapPin className="size-4.5 text-sky-600" />
-            <span>🗺️ 네이버 지도 연동 출발지 / 주소 검색</span>
+            <span>🗺️ {t('네이버 지도 연동 출발지 / 주소 검색', 'Start Location / Address Search', lang)}</span>
           </div>
           <Button
             type="button"
@@ -202,7 +221,7 @@ export function ConditionForm() {
             className="h-8 text-xs gap-1.5 text-sky-700 border-sky-300 bg-sky-50 hover:bg-sky-100 rounded-xl font-bold"
           >
             <LocateFixed className={cn('size-3.5', isGpsLoading && 'animate-spin')} />
-            {isGpsLoading ? 'GPS 위치 조회 중...' : '🎯 실시간 내 GPS 위치 찾기'}
+            {isGpsLoading ? t('GPS 위치 조회 중...', 'Fetching GPS...', lang) : t('🎯 실시간 내 GPS 위치 찾기', '🎯 Find My Live GPS', lang)}
           </Button>
         </div>
 
@@ -220,7 +239,11 @@ export function ConditionForm() {
                 setIsFallbackToHanok(e.target.value.includes('한옥마을'))
                 setShowSuggestions(true)
               }}
-              placeholder="출발하고 싶은 장소명이나 도로명 주소를 입력하세요 (예: cgv 효자, 전주역, 가련산로, 태조로)"
+              placeholder={t(
+                '출발하고 싶은 장소명이나 도로명 주소를 입력하세요 (예: cgv 효자, 전주역, 가련산로, 태조로)',
+                'Enter starting place or address (e.g., Jeonju Station, Hanok Village, etc.)',
+                lang
+              )}
               className="w-full bg-transparent outline-none placeholder:text-slate-400 font-medium text-slate-900"
             />
           </div>
@@ -229,8 +252,8 @@ export function ConditionForm() {
           {showSuggestions && filteredSuggestions.length > 0 ? (
             <div className="absolute inset-x-0 top-full z-50 mt-1.5 max-h-64 overflow-y-auto rounded-xl border border-sky-200 bg-white/95 p-1.5 shadow-2xl backdrop-blur-lg animate-in fade-in">
               <div className="px-3 py-1.5 text-[11px] font-bold text-sky-600 border-b border-sky-100 flex items-center justify-between">
-                <span>🗺️ 네이버 지도 추천 전주 출발 주소</span>
-                <span className="text-[10px] text-slate-400 font-normal">선택 시 목록 자동 닫힘</span>
+                <span>🗺️ {t('네이버 지도 추천 전주 출발 주소', 'Recommended Starting Addresses', lang)}</span>
+                <span className="text-[10px] text-slate-400 font-normal">{t('선택 시 목록 자동 닫힘', 'Select to close', lang)}</span>
               </div>
               {filteredSuggestions.map((item) => (
                 <button
@@ -254,103 +277,78 @@ export function ConditionForm() {
       {/* 조건 입력 카드 */}
       <div className="flex flex-col gap-5 rounded-2xl border border-sky-200/80 bg-white/85 text-slate-900 backdrop-blur-md p-4 sm:p-5 shadow-xl">
         <ChipSelect
-          label="남은 시간"
+          label={t('남은 시간', 'Time Available', lang)}
           options={TIME_OPTIONS}
           value={time}
           onChange={setTime}
         />
 
-        {/* 예산 슬라이더 (막대바) 카드 UI */}
-        <div className="flex flex-col gap-2.5 rounded-xl border border-amber-300/80 bg-amber-50/70 p-3.5">
+        {/* 예산 슬라이더 (막대바) 카드 UI - 버튼 및 슬라이더 노브 100% 수직 정렬 */}
+        <div className="flex flex-col gap-3 rounded-xl border border-amber-300/80 bg-amber-50/70 p-3.5">
           <div className="flex flex-wrap items-center justify-between gap-1">
-            <div className="flex items-center gap-1.5 font-semibold text-sm text-foreground">
+            <div className="flex items-center gap-1.5 font-bold text-sm text-foreground">
               <Wallet className="size-4 text-accent" />
-              <span>1인당 여행 예산 (막대바로 조정)</span>
+              <span>{t('1인당 여행 예산 (막대바로 조정)', 'Budget per Person (Adjust with Slider)', lang)}</span>
             </div>
-            <span className="text-sm font-bold text-accent bg-accent/15 px-2.5 py-0.5 rounded-lg">
+            <span className="text-xs sm:text-sm font-black text-amber-950 bg-amber-400 px-3 py-0.5 rounded-lg shadow-2xs">
               {budgetDisplayLabel}
             </span>
           </div>
 
-          <div className="pt-1">
+          {/* 커스텀 100% 수직 일치 슬라이더 트랙 & 조작 노브 */}
+          <div className="relative py-2 my-1">
+            {/* 트랙 배경 바 */}
+            <div className="h-3 w-full rounded-full bg-amber-200/80 relative overflow-hidden shadow-inner">
+              {/* 채워지는 주황색 바 */}
+              <div
+                className="h-full bg-amber-500 rounded-full transition-all duration-200"
+                style={{ width: `${BUDGET_STEPS[budgetIndex].percent}%` }}
+              />
+            </div>
+
+            {/* 주황색 원형 슬라이더 노브 (하단 6개 버튼 위치와 1:1 수직 정렬) */}
+            <div
+              className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 size-5 rounded-full bg-amber-500 border-2 border-white shadow-md pointer-events-none transition-all duration-200 flex items-center justify-center"
+              style={{ left: `${BUDGET_STEPS[budgetIndex].percent}%` }}
+            >
+              <div className="size-1.5 rounded-full bg-amber-950/40" />
+            </div>
+
+            {/* 투명 range input (클릭 및 드래그 상호작용) */}
             <input
               type="range"
               min={0}
-              max={500000}
-              step={10000}
-              value={budgetValue}
-              onChange={(e) => setBudgetValue(Number(e.target.value))}
-              className="h-2.5 w-full cursor-pointer appearance-none rounded-lg bg-secondary accent-accent focus:outline-none"
+              max={5}
+              step={1}
+              value={budgetIndex}
+              onChange={(e) => setBudgetIndex(Number(e.target.value))}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+              aria-label="예산 조정 슬라이더"
             />
           </div>
 
-          {/* 주요 예산 프리셋 클릭 조절 칩 */}
-          <div className="flex flex-wrap items-center justify-between text-xs text-muted-foreground pt-1 gap-1">
-            <button
-              type="button"
-              onClick={() => setBudgetValue(0)}
-              className={cn(
-                'px-2 py-0.5 rounded-md transition-colors',
-                budgetValue === 0 ? 'bg-accent text-accent-foreground font-bold' : 'hover:bg-secondary hover:text-foreground',
-              )}
-            >
-              0원(무료)
-            </button>
-            <button
-              type="button"
-              onClick={() => setBudgetValue(30000)}
-              className={cn(
-                'px-2 py-0.5 rounded-md transition-colors',
-                budgetValue === 30000 ? 'bg-accent text-accent-foreground font-bold' : 'hover:bg-secondary hover:text-foreground',
-              )}
-            >
-              3만원
-            </button>
-            <button
-              type="button"
-              onClick={() => setBudgetValue(50000)}
-              className={cn(
-                'px-2 py-0.5 rounded-md transition-colors',
-                budgetValue === 50000 ? 'bg-accent text-accent-foreground font-bold' : 'hover:bg-secondary hover:text-foreground',
-              )}
-            >
-              5만원
-            </button>
-            <button
-              type="button"
-              onClick={() => setBudgetValue(100000)}
-              className={cn(
-                'px-2 py-0.5 rounded-md transition-colors',
-                budgetValue === 100000 ? 'bg-accent text-accent-foreground font-bold' : 'hover:bg-secondary hover:text-foreground',
-              )}
-            >
-              10만원
-            </button>
-            <button
-              type="button"
-              onClick={() => setBudgetValue(300000)}
-              className={cn(
-                'px-2 py-0.5 rounded-md transition-colors',
-                budgetValue === 300000 ? 'bg-accent text-accent-foreground font-bold' : 'hover:bg-secondary hover:text-foreground',
-              )}
-            >
-              30만원
-            </button>
-            <button
-              type="button"
-              onClick={() => setBudgetValue(500000)}
-              className={cn(
-                'px-2 py-0.5 rounded-md transition-colors',
-                budgetValue >= 500000 ? 'bg-accent text-accent-foreground font-bold' : 'hover:bg-secondary hover:text-foreground',
-              )}
-            >
-              50만원+
-            </button>
+          {/* 6개 주요 예산 프리셋 버튼 (슬라이더 노브와 1:1 수직 정렬) */}
+          <div className="grid grid-cols-6 text-center text-xs text-muted-foreground pt-1 gap-1">
+            {BUDGET_STEPS.map((step, idx) => (
+              <button
+                key={step.value}
+                type="button"
+                onClick={() => setBudgetIndex(idx)}
+                className={cn(
+                  'py-1 px-0.5 rounded-md transition-all font-medium text-[11px] sm:text-xs cursor-pointer',
+                  budgetIndex === idx
+                    ? 'bg-amber-500 text-amber-950 font-black shadow-2xs ring-1 ring-amber-400 scale-105'
+                    : 'hover:bg-amber-200/50 hover:text-foreground',
+                )}
+              >
+                <span className="block truncate">{lang === 'en' ? (idx === 0 ? 'Free' : idx === 1 ? '30k' : idx === 2 ? '50k' : idx === 3 ? '100k' : idx === 4 ? '300k' : '500k+') : step.label}</span>
+              </button>
+            ))}
           </div>
         </div>
 
         <ChipSelect
-          label="동행 유형"
+          label={t('동행 유형', 'Companion Type', lang)}
           options={COMPANION_OPTIONS}
           value={companion}
           onChange={setCompanion}
@@ -358,7 +356,7 @@ export function ConditionForm() {
         />
         <div className="flex flex-col gap-1.5">
           <ChipSelect
-            label="날씨 (실시간 연동 & 예보 직접 선택)"
+            label={t('날씨 (실시간 연동 & 예보 직접 선택)', 'Weather (Live Sync & Selection)', lang)}
             options={WEATHER_OPTIONS}
             value={weatherOpt}
             onChange={setWeatherOpt}
@@ -370,24 +368,24 @@ export function ConditionForm() {
                 <span className="text-base">{liveWeatherData?.emoji || '🌤️'}</span>
                 <div>
                   <div className="font-bold text-sky-900 flex items-center gap-1.5">
-                    <span>기상청/실시간 관측: {liveWeatherData?.summary || '실시간 기상 데이터 연동 중...'}</span>
+                    <span>{t('기상청/실시간 관측: ', 'Live Weather: ', lang)}{liveWeatherData?.summary || t('실시간 기상 데이터 연동 중...', 'Fetching live weather data...', lang)}</span>
                     {isLiveWeatherLoading && <Loader2 className="size-3 animate-spin text-sky-600" />}
                   </div>
                   <div className="text-[11px] text-slate-600 font-medium mt-0.5">
-                    {liveWeatherData?.detail || '전주시 실시간 기온, 체감온도 및 강수확률을 자동으로 측정하고 있습니다.'}
+                    {liveWeatherData?.detail || t('전주시 실시간 기온, 체감온도 및 강수확률을 자동으로 측정하고 있습니다.', 'Automatically fetching live temperature & weather.', lang)}
                   </div>
                 </div>
               </div>
               {liveWeatherData?.lastUpdated && (
                 <span className="text-[10px] text-sky-700 font-semibold shrink-0 bg-sky-100 px-2 py-0.5 rounded-full border border-sky-200">
-                  ⏱️ {liveWeatherData.lastUpdated} 갱신
+                  ⏱️ {liveWeatherData.lastUpdated} {t('갱신', 'Updated', lang)}
                 </span>
               )}
             </div>
           )}
         </div>
         <ChipSelect
-          label="이동수단"
+          label={t('이동수단', 'Transport Mode', lang)}
           options={TRANSPORT_OPTIONS}
           value={transport}
           onChange={setTransport}
@@ -409,10 +407,10 @@ export function ConditionForm() {
         {loading ? (
           <div className="flex items-center gap-2">
             <Loader2 className="size-5 animate-spin text-white" />
-            <span>최단 여행 코스 생성 중...</span>
+            <span>{t('최단 여행 코스 생성 중...', 'Generating Optimal Course...', lang)}</span>
           </div>
         ) : (
-          <span>맞춤 여행 코스 추천받기</span>
+          <span>{t('맞춤 여행 코스 추천받기', 'Generate Customized Travel Course', lang)}</span>
         )}
       </Button>
 
@@ -428,10 +426,10 @@ export function ConditionForm() {
             {loading ? (
               <div className="flex items-center gap-2">
                 <Loader2 className="size-5 animate-spin text-amber-400" />
-                <span>최단 여행 코스 생성 중...</span>
+                <span>{t('최단 여행 코스 생성 중...', 'Generating Optimal Course...', lang)}</span>
               </div>
             ) : (
-              <span>맞춤 여행 코스 추천받기</span>
+              <span>✨ {t('맞춤 여행 코스 추천받기', 'Generate Customized Travel Course', lang)}</span>
             )}
           </Button>
         </div>

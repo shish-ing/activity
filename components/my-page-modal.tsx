@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { X, Mail, Compass, Bookmark, Trash2, Calendar, Clock, Wallet, Check, ExternalLink, Play, Star, MessageSquarePlus, Edit3, Tag, Send, MapPin, SunMedium } from 'lucide-react'
+import { X, Mail, Compass, Bookmark, Trash2, Calendar, Clock, Wallet, Check, ExternalLink, Play, Star, Edit3, Send, MapPin, Globe } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { RegisteredUser } from '@/components/auth-modal'
+import { getAppLang, setAppLang, t, tPlaceName, tWeatherSummary, type AppLang } from '@/lib/i18n'
 import {
   getSavedCourses,
   deleteCourseFromUser,
@@ -29,13 +30,55 @@ const SATISFACTION_TAG_OPTIONS = [
   '☕ 특색있는 카페',
 ]
 
+const TAG_EN_MAP: Record<string, string> = {
+  '🚀 최적의 최단 동선': '🚀 Optimal Shortest Route',
+  '🎒 여유롭고 한적함': '🎒 Relaxed & Peaceful',
+  '🍱 알찬 맛집 배치': '🍱 Great Food Places',
+  '🌧️ 날씨 맞춤 유용함': '🌧️ Useful Weather Match',
+  '📸 인스타 감성 포토존': '📸 Instagrammable Photo Spot',
+  '💰 가성비 만점': '💰 Great Value for Money',
+  '👟 걷기 좋은 코스': '👟 Great Walking Course',
+  '☕ 특색있는 카페': '☕ Unique Cafe Experience',
+}
+
+function tTag(tag: string, lang: AppLang): string {
+  if (lang === 'ko') return tag
+  return TAG_EN_MAP[tag] || tag
+}
+
+function tCourseTitle(title: string, lang: AppLang): string {
+  if (lang === 'ko' || !title) return title
+  return title
+    .replace('전주 실시간:', 'Jeonju Live:')
+    .replace('맞춤 즉흥 코스', 'Customized Course')
+    .replace('개 스팟', ' Spots')
+    .replace('맑음', 'Sunny')
+    .replace('구름 많음', 'Cloudy')
+    .replace('흐림', 'Overcast')
+    .replace('비 옴', 'Rainy')
+    .replace('눈 옴', 'Snowy')
+}
+
 export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
   const router = useRouter()
   const [courses, setCourses] = useState<SavedCourse[]>([])
   const [deleteSuccessMsg, setDeleteSuccessMsg] = useState('')
+  const [lang, setLang] = useState<AppLang>('ko')
 
-  // 👤 현재 로그인 유저 세션 관리 (부모 user prop 또는 localStorage 자동 복원)
+  // 👤 현재 로그인 유저 세션 및 다국어 상태 관리
   const [currentUser, setCurrentUser] = useState<RegisteredUser | null>(user)
+
+  useEffect(() => {
+    setLang(getAppLang())
+    const handleLangChange = () => setLang(getAppLang())
+    window.addEventListener('jeonju_lang_changed', handleLangChange)
+    window.addEventListener('storage', handleLangChange)
+
+    return () => {
+      window.removeEventListener('jeonju_lang_changed', handleLangChange)
+      window.removeEventListener('storage', handleLangChange)
+    }
+  }, [])
 
   useEffect(() => {
     if (user) {
@@ -87,15 +130,15 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
           <div className="size-12 mx-auto flex items-center justify-center rounded-2xl bg-amber-100 text-amber-900 text-2xl font-bold">
             📂
           </div>
-          <h3 className="text-lg font-bold text-slate-900">로그인이 필요한 서비스입니다</h3>
+          <h3 className="text-lg font-bold text-slate-900">{t('로그인이 필요한 서비스입니다', 'Login Required', lang)}</h3>
           <p className="text-xs text-slate-500 leading-relaxed">
-            저장한 여행 코스 관리 및 세부 평점 기능을 이용하시려면 먼저 상단에서 로그인해 주세요!
+            {t('저장한 여행 코스 관리 및 세부 평점 기능을 이용하시려면 먼저 상단에서 로그인해 주세요!', 'Please log in to manage saved courses and leave reviews!', lang)}
           </p>
           <Button
             onClick={onClose}
             className="w-full rounded-xl bg-amber-500 hover:bg-amber-600 text-amber-950 font-bold cursor-pointer"
           >
-            확인
+            {t('확인', 'OK', lang)}
           </Button>
         </div>
       </div>
@@ -104,11 +147,11 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
 
   const handleDeleteCourse = (e: React.MouseEvent, courseId: string) => {
     e.stopPropagation()
-    if (!confirm('이 저장된 여행 코스를 삭제하시겠습니까?')) return
+    if (!confirm(t('이 저장된 여행 코스를 삭제하시겠습니까?', 'Delete this saved course?', lang))) return
     const success = deleteCourseFromUser(currentUser.email, courseId)
     if (success) {
       setCourses((prev) => prev.filter((c) => c.id !== courseId))
-      setDeleteSuccessMsg('코스가 삭제되었습니다.')
+      setDeleteSuccessMsg(t('코스가 삭제되었습니다.', 'Course deleted.', lang))
       setTimeout(() => setDeleteSuccessMsg(''), 2000)
     }
   }
@@ -134,7 +177,7 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
     setEditSpotRatings(initialSpotRatings)
   }
 
-  // 리뷰 및 평점 저장 (글을 안 적어도 평점만 100% 저장됨)
+  // 리뷰 및 평점 저장
   const handleSaveReview = (e: React.FormEvent, courseId: string, c: SavedCourse) => {
     e.stopPropagation()
     e.preventDefault()
@@ -176,7 +219,7 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
         )
       )
       setEditingCourseId(null)
-      setDeleteSuccessMsg('🎉 코스 및 장소별 세부 별점·후기가 저장되었습니다!')
+      setDeleteSuccessMsg(t('🎉 코스 및 장소별 세부 별점·후기가 저장되었습니다!', '🎉 Review and ratings saved!', lang))
       setTimeout(() => setDeleteSuccessMsg(''), 3000)
     }
   }
@@ -184,7 +227,7 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
   // 리뷰 삭제
   const handleDeleteReview = (e: React.MouseEvent, courseId: string) => {
     e.stopPropagation()
-    if (!confirm('작성하신 별점과 후기를 삭제하시겠습니까?')) return
+    if (!confirm(t('작성하신 별점과 후기를 삭제하시겠습니까?', 'Delete rating and review?', lang))) return
 
     const success = deleteCourseReviewFromStorage(currentUser.email, courseId)
     if (success) {
@@ -197,7 +240,7 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
           return c
         })
       )
-      setDeleteSuccessMsg('후기가 삭제되었습니다.')
+      setDeleteSuccessMsg(t('후기가 삭제되었습니다.', 'Review deleted.', lang))
       setTimeout(() => setDeleteSuccessMsg(''), 2000)
     }
   }
@@ -239,8 +282,8 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
               📂
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900">내 정보 관리 & 저장한 코스</h2>
-              <p className="text-xs text-slate-500">저장된 코스에서 전체 평점 및 장소별 세부 평점(날씨 조화 & 재미)을 기록해보세요</p>
+              <h2 className="text-base font-bold text-slate-900">{t('내 정보 관리 & 저장한 코스', 'My Info & Saved Courses', lang)}</h2>
+              <p className="text-xs text-slate-500">{t('저장된 코스에서 전체 평점 및 장소별 세부 평점(날씨 조화 & 재미)을 기록해보세요', 'Manage saved courses and ratings', lang)}</p>
             </div>
           </div>
           <button
@@ -254,6 +297,38 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
 
         {/* Modal Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* 🌐 다국어 언어 설정 (Language Settings) 카드 */}
+          <div className="flex items-center justify-between rounded-xl border border-amber-300/80 bg-amber-50/80 px-4 py-3 text-xs shadow-2xs">
+            <div className="flex items-center gap-2 font-bold text-amber-950">
+              <Globe className="size-4 text-amber-700" />
+              <span>🌐 {t('언어 설정 (Language)', 'Language Settings', lang)}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setAppLang('ko')}
+                className={`px-3 py-1 rounded-lg font-black transition-all text-xs cursor-pointer ${
+                  lang === 'ko'
+                    ? 'bg-amber-500 text-amber-950 shadow-xs border border-amber-400'
+                    : 'bg-white text-slate-700 hover:bg-amber-100/70 border border-slate-200'
+                }`}
+              >
+                🇰🇷 한국어
+              </button>
+              <button
+                type="button"
+                onClick={() => setAppLang('en')}
+                className={`px-3 py-1 rounded-lg font-black transition-all text-xs cursor-pointer ${
+                  lang === 'en'
+                    ? 'bg-amber-500 text-amber-950 shadow-xs border border-amber-400'
+                    : 'bg-white text-slate-700 hover:bg-amber-100/70 border border-slate-200'
+                }`}
+              >
+                🇺🇸 English
+              </button>
+            </div>
+          </div>
+
           {/* User Profile Card */}
           <div className="rounded-xl border border-amber-200/80 bg-gradient-to-r from-amber-50/80 to-amber-100/40 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -265,7 +340,7 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-slate-900 text-base">{currentUser.name}</span>
                     <span className="inline-flex items-center gap-1 rounded-full bg-amber-200/70 border border-amber-300 px-2 py-0.5 text-[10px] font-bold text-amber-900">
-                      ⚡ {currentUser.travelStyle === 'J' ? '계획형 (J)' : '즉흥형 (P)'}
+                      ⚡ {currentUser.travelStyle === 'J' ? t('계획형 (J)', 'Planner (J)', lang) : t('즉흥형 (P)', 'Spontaneous (P)', lang)}
                     </span>
                   </div>
                   <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
@@ -276,7 +351,7 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
 
               <div className="flex items-center gap-2 text-xs font-semibold bg-white/80 border border-amber-200 px-3 py-1.5 rounded-lg text-amber-950 shadow-2xs">
                 <Bookmark className="size-4 text-amber-600" />
-                저장한 코스 <span className="text-amber-700 font-extrabold">{courses.length}</span>개
+                {t('저장한 코스', 'Saved Courses', lang)} <span className="text-amber-700 font-extrabold">{courses.length}</span>{t('개', '', lang)}
               </div>
             </div>
           </div>
@@ -291,16 +366,16 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
           {/* Saved Courses Section */}
           <div>
             <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-1.5">
-              <Compass className="size-4 text-sky-600" /> 내가 저장한 여행 코스 목록 (코스 및 장소별 세부 평점 작성)
+              <Compass className="size-4 text-sky-600" /> {t('내가 저장한 여행 코스 목록 (코스 및 장소별 세부 평점 작성)', 'My Saved Travel Courses (Course & Spot Ratings)', lang)}
             </h3>
 
             {courses.length === 0 ? (
               <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center bg-slate-50/50">
                 <p className="text-2xl mb-2">📌</p>
-                <p className="text-sm font-semibold text-slate-700">아직 저장한 여행 코스가 없습니다</p>
+                <p className="text-sm font-semibold text-slate-700">{t('아직 저장한 여행 코스가 없습니다', 'No saved travel courses yet', lang)}</p>
                 <p className="text-xs text-slate-500 mt-1">
-                  메인 화면에서 날씨·위치·예산 맞춤 코스를 추천받은 후 <br />
-                  <span className="font-bold text-amber-800">[📌 이 코스 내 정보에 저장하기]</span> 버튼을 눌러보세요!
+                  {t('메인 화면에서 날씨·위치·예산 맞춤 코스를 추천받은 후', 'Get custom course recommendations on the main page and click', lang)} <br />
+                  <span className="font-bold text-amber-800">[{t('📌 이 코스 내 정보에 저장하기', '📌 Save Course to My Info', lang)}]</span> {t('버튼을 눌러보세요!', 'to save courses!', lang)}
                 </p>
               </div>
             ) : (
@@ -313,7 +388,7 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
                   >
                     {/* Hover Highlight Banner */}
                     <div className="absolute top-0 right-0 bg-sky-500 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-bl-lg opacity-90 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                      <span>결과화면 풀버전 열기</span>
+                      <span>{t('결과화면 풀버전 열기', 'Open Full Result Page', lang)}</span>
                       <ExternalLink className="size-3" />
                     </div>
 
@@ -321,14 +396,14 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-slate-900 text-base group-hover:text-sky-700 transition-colors">
-                            {c.title}
+                            {tCourseTitle(c.title, lang)}
                           </span>
                           <span className="text-xs font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
-                            {c.weatherEmoji} {c.weatherSummary}
+                            {c.weatherEmoji} {tWeatherSummary(c.weatherSummary, lang)}
                           </span>
                         </div>
                         <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-1">
-                          <Calendar className="size-3" /> 저장일시: {c.savedAt}
+                          <Calendar className="size-3" /> {t('저장일시:', 'Saved:', lang)} {c.savedAt}
                         </p>
                       </div>
 
@@ -336,10 +411,10 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
                         <button
                           onClick={(e) => handleStartReview(e, c)}
                           className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold bg-amber-100 text-amber-900 hover:bg-amber-200 transition-colors cursor-pointer border border-amber-300"
-                          title="이 코스 및 장소별 평점 작성"
+                          title={t('이 코스 및 장소별 평점 작성', 'Edit rating & review', lang)}
                         >
                           <Edit3 className="size-3.5 text-amber-700" />
-                          <span>{c.rating ? '✏️ 평점/후기 수정' : '✍️ 평점/후기 작성'}</span>
+                          <span>{c.rating ? t('✏️ 평점/후기 수정', '✏️ Edit Rating / Review', lang) : t('✍️ 평점/후기 작성', '✍️ Write Rating / Review', lang)}</span>
                         </button>
 
                         <button
@@ -347,7 +422,7 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
                           className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer border border-transparent hover:border-red-200"
                           title="코스 삭제"
                         >
-                          <Trash2 className="size-3.5" /> 삭제
+                          <Trash2 className="size-3.5" /> {t('삭제', 'Delete', lang)}
                         </button>
                       </div>
                     </div>
@@ -355,24 +430,24 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
                     {/* Course Summary Chips */}
                     <div className="flex flex-wrap items-center gap-3 text-xs text-slate-700 bg-sky-50/60 p-2.5 rounded-xl border border-sky-100 font-medium">
                       <span className="flex items-center gap-1 font-semibold">
-                        <Clock className="size-3.5 text-amber-600" /> 총 {c.totalTravelMinutes}분
+                        <Clock className="size-3.5 text-amber-600" /> {t('총', 'Total', lang)} {c.totalTravelMinutes}{t('분', ' min', lang)}
                       </span>
                       <span className="flex items-center gap-1 font-semibold">
-                        <Wallet className="size-3.5 text-emerald-600" /> 약 {c.totalCost.toLocaleString()}원
+                        <Wallet className="size-3.5 text-emerald-600" /> ~{c.totalCost.toLocaleString()} {t('원', 'KRW', lang)}
                       </span>
                       <span className="text-[11px] text-slate-500">
-                        동행: {c.companion} · 이동: {c.transport}
+                        {t('동행:', 'Companion:', lang)} {c.companion} · {t('이동:', 'Transport:', lang)} {c.transport}
                       </span>
                     </div>
 
                     {/* Spots Route Path */}
                     <div className="space-y-1.5">
-                      <p className="text-[11px] font-bold text-slate-700">📍 추천 방문 코스 순서:</p>
+                      <p className="text-[11px] font-bold text-slate-700">📍 {t('추천 방문 코스 순서:', 'Course Order:', lang)}</p>
                       <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-800 font-medium">
                         {c.spots.map((spot, idx) => (
                           <div key={idx} className="flex items-center gap-1">
                             <span className="rounded-md bg-white border border-sky-200 px-2 py-0.5 text-sky-950 font-bold shadow-xs">
-                              {idx + 1}. {spot.name}
+                              {idx + 1}. {tPlaceName(spot.name, lang)}
                             </span>
                             {idx < c.spots.length - 1 && (
                               <span className="text-slate-300 font-bold">➔</span>
@@ -388,14 +463,14 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1.5 font-bold text-amber-900">
                             <Star className="size-4 fill-amber-400 text-amber-400" />
-                            <span>코스 총 평점: {c.rating}.0 / 5.0 점</span>
+                            <span>{t('코스 총 평점:', 'Overall Course Rating:', lang)} {c.rating}.0 / 5.0 {t('점', 'pts', lang)}</span>
                           </div>
 
                           <button
                             onClick={(e) => handleDeleteReview(e, c.id)}
                             className="text-[11px] text-slate-400 hover:text-red-600 font-semibold cursor-pointer"
                           >
-                            후기 삭제
+                            {t('후기 삭제', 'Delete Review', lang)}
                           </button>
                         </div>
 
@@ -406,7 +481,7 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
                                 key={tag}
                                 className="rounded-md bg-white border border-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-900"
                               >
-                                {tag}
+                                {tTag(tag, lang)}
                               </span>
                             ))}
                           </div>
@@ -423,16 +498,16 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
                           <div className="space-y-1.5 pt-2 border-t border-amber-200/80">
                             <span className="text-[11px] font-bold text-amber-950 flex items-center gap-1">
                               <MapPin className="size-3.5 text-amber-700" />
-                              <span>📍 장소별 세부 평점 (🌤️ 날씨 어울림 / 🎉 재미)</span>
+                              <span>📍 {t('장소별 세부 평점 (🌤️ 날씨 어울림 / 🎉 재미)', 'Spot Ratings (🌤️ Weather Fit / 🎉 Fun)', lang)}</span>
                             </span>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[11px]">
                               {c.spotRatings.map((sr, srIdx) => (
                                 <div key={srIdx} className="flex flex-col bg-white/90 p-2 rounded-lg border border-amber-200/80 shadow-2xs space-y-1">
                                   <div className="flex items-center justify-between">
-                                    <span className="font-bold text-slate-900 truncate max-w-[130px]">{srIdx + 1}. {sr.spotName}</span>
+                                    <span className="font-bold text-slate-900 truncate max-w-[130px]">{srIdx + 1}. {tPlaceName(sr.spotName, lang)}</span>
                                     <div className="flex items-center gap-1.5 font-bold text-[10px]">
-                                      <span className="text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded border border-sky-100">🌤️ {sr.weatherScore}점</span>
-                                      <span className="text-amber-800 bg-amber-100/70 px-1.5 py-0.5 rounded border border-amber-200">🎉 {sr.funScore}점</span>
+                                      <span className="text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded border border-sky-100">🌤️ {sr.weatherScore}{t('점', ' pts', lang)}</span>
+                                      <span className="text-amber-800 bg-amber-100/70 px-1.5 py-0.5 rounded border border-amber-200">🎉 {sr.funScore}{t('점', ' pts', lang)}</span>
                                     </div>
                                   </div>
                                   {sr.comment && (
@@ -457,7 +532,7 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
                         <div className="flex items-center justify-between border-b border-amber-200 pb-2">
                           <span className="font-bold text-amber-950 text-xs flex items-center gap-1">
                             <Star className="size-3.5 fill-amber-400 text-amber-400" />
-                            <span>이 저장 코스 & 포함 장소별 평점 작성하기</span>
+                            <span>{t('이 저장 코스 & 포함 장소별 평점 작성하기', 'Rate this saved course & spots', lang)}</span>
                           </span>
                           <button
                             onClick={(e) => {
@@ -466,13 +541,13 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
                             }}
                             className="text-slate-400 hover:text-slate-700 text-xs font-bold cursor-pointer"
                           >
-                            취소 ✕
+                            {t('취소 ✕', 'Cancel ✕', lang)}
                           </button>
                         </div>
 
                         {/* 1. 코스 전체 별점 선택 */}
                         <div className="flex items-center gap-2 bg-white/80 p-2.5 rounded-lg border border-amber-200">
-                          <span className="text-xs font-bold text-slate-800">코스 전체 별점:</span>
+                          <span className="text-xs font-bold text-slate-800">{t('코스 전체 별점:', 'Overall Course Rating:', lang)}</span>
                           <div className="flex items-center gap-1">
                             {[1, 2, 3, 4, 5].map((star) => (
                               <button
@@ -494,13 +569,13 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
                             ))}
                           </div>
                           <span className="text-xs font-bold text-amber-800 ml-1">
-                            {(hoverRating || editRating)}.0점
+                            {(hoverRating || editRating)}.0{t('점', ' pts', lang)}
                           </span>
                         </div>
 
                         {/* 2. 코스 만족도 키워드 칩 선택 */}
                         <div className="space-y-1">
-                          <span className="text-[11px] font-bold text-slate-700">만족도 키워드:</span>
+                          <span className="text-[11px] font-bold text-slate-700">{t('만족도 키워드:', 'Satisfaction Keywords:', lang)}</span>
                           <div className="flex flex-wrap gap-1">
                             {SATISFACTION_TAG_OPTIONS.map((tag) => {
                               const isSelected = editTags.includes(tag)
@@ -515,7 +590,7 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
                                       : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
                                   }`}
                                 >
-                                  {isSelected ? `✓ ${tag}` : tag}
+                                  {isSelected ? `✓ ${tTag(tag, lang)}` : tTag(tag, lang)}
                                 </button>
                               )
                             })}
@@ -524,13 +599,13 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
 
                         {/* 3. 코스 소감 글 작성 */}
                         <div className="space-y-1">
-                          <span className="text-[11px] font-bold text-slate-700">코스 전체 소감:</span>
+                          <span className="text-[11px] font-bold text-slate-700">{t('코스 전체 소감:', 'Overall Course Review:', lang)}</span>
                           <textarea
                             value={editContent}
                             onChange={(e) => setEditContent(e.target.value)}
                             rows={2}
                             maxLength={300}
-                            placeholder="이 여행 코스의 맛집, 동선, 팁 등 솔직한 소감을 작성해 보세요."
+                            placeholder={t('이 여행 코스의 맛집, 동선, 팁 등 솔직한 소감을 작성해 보세요.', 'Write your honest review on food, route, tips, etc.', lang)}
                             className="w-full rounded-lg border border-amber-200 bg-white p-2.5 text-xs outline-none focus:ring-2 focus:ring-amber-300 font-medium"
                           />
                         </div>
@@ -540,10 +615,10 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
                           <div className="flex items-center justify-between">
                             <span className="text-[11px] font-bold text-slate-900 flex items-center gap-1">
                               <MapPin className="size-3.5 text-amber-700" />
-                              <span>📍 장소별 개별 평점 (날씨 조화 & 재미 평가):</span>
+                              <span>📍 {t('장소별 개별 평점 (날씨 조화 & 재미 평가):', 'Spot Ratings (Weather Fit & Fun):', lang)}</span>
                             </span>
                             <span className="text-[10px] text-amber-800 font-medium">
-                              각 장소가 날씨에 어울렸는지, 얼마나 재미있었는지 평가해보세요!
+                              {t('각 장소가 날씨에 어울렸는지, 얼마나 재미있었는지 평가해보세요!', 'Rate how well each spot fit the weather and how fun it was!', lang)}
                             </span>
                           </div>
 
@@ -553,13 +628,13 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
                               return (
                                 <div key={sIdx} className="rounded-lg border border-amber-200 bg-white p-2.5 space-y-1.5 text-xs shadow-2xs">
                                   <div className="font-bold text-slate-900 flex items-center justify-between">
-                                    <span>{sIdx + 1}. {spot.name} <span className="text-[10px] font-normal text-slate-400">({spot.category})</span></span>
+                                    <span>{sIdx + 1}. {tPlaceName(spot.name, lang)} <span className="text-[10px] font-normal text-slate-400">({spot.category})</span></span>
                                   </div>
 
                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-amber-50/50 p-2 rounded-md border border-amber-100">
                                     {/* 🌤️ 날씨 어울림 점수 */}
                                     <div className="flex items-center justify-between">
-                                      <span className="text-[11px] font-medium text-slate-700">🌤️ 날씨 어울림:</span>
+                                      <span className="text-[11px] font-medium text-slate-700">🌤️ {t('날씨 어울림:', 'Weather Fit:', lang)}</span>
                                       <div className="flex items-center gap-0.5">
                                         {[1, 2, 3, 4, 5].map((star) => (
                                           <button
@@ -582,13 +657,13 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
                                             />
                                           </button>
                                         ))}
-                                        <span className="text-[10px] font-bold text-sky-800 ml-1">{sRating.weatherScore}점</span>
+                                        <span className="text-[10px] font-bold text-sky-800 ml-1">{sRating.weatherScore}{t('점', ' pts', lang)}</span>
                                       </div>
                                     </div>
 
                                     {/* 🎉 재미 / 만족도 점수 */}
                                     <div className="flex items-center justify-between">
-                                      <span className="text-[11px] font-medium text-slate-700">🎉 재미/즐거움:</span>
+                                      <span className="text-[11px] font-medium text-slate-700">🎉 {t('재미/즐거움:', 'Fun/Enjoyment:', lang)}</span>
                                       <div className="flex items-center gap-0.5">
                                         {[1, 2, 3, 4, 5].map((star) => (
                                           <button
@@ -611,12 +686,12 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
                                             />
                                           </button>
                                         ))}
-                                        <span className="text-[10px] font-bold text-amber-800 ml-1">{sRating.funScore}점</span>
+                                        <span className="text-[10px] font-bold text-amber-800 ml-1">{sRating.funScore}{t('점', ' pts', lang)}</span>
                                       </div>
                                     </div>
                                   </div>
 
-                                  {/* ✍️ 장소별 개별 한줄평 입력 (선택사항 - 안 적어도 평점 100% 저장됨) */}
+                                  {/* ✍️ 장소별 개별 한줄평 입력 */}
                                   <div className="pt-0.5">
                                     <input
                                       type="text"
@@ -627,7 +702,7 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
                                           [spot.name]: { ...sRating, comment: e.target.value },
                                         })
                                       }}
-                                      placeholder="✍️ 이 장소 한줄평 후기 (선택사항 - 안 적어도 평점 100% 저장됨)"
+                                      placeholder={t('✍️ 이 장소 한줄평 후기 (선택사항 - 안 적어도 평점 100% 저장됨)', '✍️ One-line spot review (Optional)', lang)}
                                       className="w-full rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[11px] text-slate-800 outline-none focus:border-amber-400 placeholder:text-slate-400 font-normal"
                                     />
                                   </div>
@@ -644,7 +719,7 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
                             className="rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold px-4 py-1.5 text-xs shadow-2xs cursor-pointer flex items-center gap-1"
                           >
                             <Send className="size-3" />
-                            <span>평점/후기 저장</span>
+                            <span>{t('평점/후기 저장', 'Save Rating & Review', lang)}</span>
                           </button>
                         </div>
                       </div>
@@ -654,10 +729,10 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
                     <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
                       <span className="text-xs font-bold text-sky-700 group-hover:underline flex items-center gap-1">
                         <Play className="size-3 fill-sky-700" />
-                        이 코스 풀 모드로 길찾기 & 지도·가이드북 상세보기
+                        {t('이 코스 풀 모드로 길찾기 & 지도·가이드북 상세보기', 'Open full navigation & interactive map guidebook', lang)}
                       </span>
                       <span className="text-[11px] font-extrabold text-white bg-slate-900 group-hover:bg-sky-600 px-3 py-1 rounded-lg transition-colors flex items-center gap-1 shadow-xs">
-                        결과화면 열기 <ArrowIcon />
+                        {t('결과화면 열기', 'Open Result', lang)} <ArrowIcon />
                       </span>
                     </div>
                   </div>
@@ -673,7 +748,7 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
             onClick={onClose}
             className="bg-slate-800 hover:bg-slate-900 text-white font-semibold text-xs rounded-xl px-5 py-2 cursor-pointer"
           >
-            확인 및 닫기
+            {t('확인 및 닫기', 'Confirm & Close', lang)}
           </Button>
         </div>
       </div>

@@ -7,50 +7,52 @@ export type ChipOption = {
   value: string
   label: string
   hint?: string
+  labelEn?: string
+  hintEn?: string
 }
 
 // 남은 시간
 export const TIME_OPTIONS: ChipOption[] = [
-  { value: '1h', label: '⚡ 1시간', hint: '가볍게' },
-  { value: '3h', label: '☕ 3시간', hint: '여유롭게' },
-  { value: 'half', label: '🌤️ 반나절', hint: '4~5시간' },
-  { value: 'full', label: '🗓️ 하루', hint: '풀 코스' },
-  { value: '2days', label: '🏕️ 이틀', hint: '1박 2일' },
-  { value: '3days', label: '🗺️ 사흘', hint: '2박 3일' },
+  { value: '1h', label: '⚡ 1시간', hint: '가볍게', labelEn: '⚡ 1 Hour', hintEn: 'Quick' },
+  { value: '3h', label: '☕ 3시간', hint: '여유롭게', labelEn: '☕ 3 Hours', hintEn: 'Relaxed' },
+  { value: 'half', label: '🌤️ 반나절', hint: '4~5시간', labelEn: '🌤️ Half Day', hintEn: '4~5 Hours' },
+  { value: 'full', label: '🗓️ 하루', hint: '풀 코스', labelEn: '🗓️ Full Day', hintEn: 'Full Course' },
+  { value: '2days', label: '🏕️ 이틀', hint: '1박 2일', labelEn: '🏕️ 2 Days', hintEn: '1N 2D' },
+  { value: '3days', label: '🗺️ 사흘', hint: '2박 3일', labelEn: '🗺️ 3 Days', hintEn: '2N 3D' },
 ]
 
 // 예산
 export const BUDGET_OPTIONS: ChipOption[] = [
-  { value: '1', label: '1만원대', hint: '알뜰하게' },
-  { value: '3', label: '3만원대', hint: '적당하게' },
-  { value: '5', label: '5만원 이상', hint: '넉넉하게' },
+  { value: '1', label: '1만원대', hint: '알뜰하게', labelEn: '10k KRW', hintEn: 'Budget' },
+  { value: '3', label: '3만원대', hint: '적당하게', labelEn: '30k KRW', hintEn: 'Standard' },
+  { value: '5', label: '5만원 이상', hint: '넉넉하게', labelEn: '50k+ KRW', hintEn: 'Generous' },
 ]
 
 // 동행 유형
 export const COMPANION_OPTIONS: ChipOption[] = [
-  { value: 'solo', label: '🙋‍♂️ 혼자' },
-  { value: 'couple', label: '👩‍❤️‍👨 커플' },
-  { value: 'friends', label: '🧑‍🤝‍🧑 친구' },
-  { value: 'family', label: '👨‍👩‍👧‍👦 가족' },
-  { value: 'kids', label: '👶 아이 동반' },
-  { value: 'pet', label: '🐾 반려동물 동반' },
+  { value: 'solo', label: '🙋‍♂️ 혼자', labelEn: '🙋‍♂️ Solo' },
+  { value: 'couple', label: '👩‍❤️‍👨 커플', labelEn: '👩‍❤️‍👨 Couple' },
+  { value: 'friends', label: '🧑‍🤝‍🧑 친구', labelEn: '🧑‍🤝‍🧑 Friends' },
+  { value: 'family', label: '👨‍👩‍👧‍👦 가족', labelEn: '👨‍👩‍👧‍👦 Family' },
+  { value: 'kids', label: '👶 아이 동반', labelEn: '👶 With Kids' },
+  { value: 'pet', label: '🐾 반려동물 동반', labelEn: '🐾 With Pet' },
 ]
 
 // 이동수단 (도보는 🚶‍♂️, 대중교통은 🚌, 자차는 🚗 아이콘 장착)
 export const TRANSPORT_OPTIONS: ChipOption[] = [
-  { value: 'walk', label: '🚶‍♂️ 도보' },
-  { value: 'transit', label: '🚌 대중교통' },
-  { value: 'car', label: '🚗 자차' },
+  { value: 'walk', label: '🚶‍♂️ 도보', labelEn: '🚶‍♂️ Walk' },
+  { value: 'transit', label: '🚌 대중교통', labelEn: '🚌 Transit' },
+  { value: 'car', label: '🚗 자차', labelEn: '🚗 Car' },
 ]
 
 // 날씨 선택지 (실시간 및 예보/가상 날씨)
 export const WEATHER_OPTIONS: ChipOption[] = [
-  { value: 'auto', label: '🛰️ 실시간', hint: '기상청 연동' },
-  { value: 'clear', label: '☀️ 맑음·더위', hint: '시원한 실내' },
-  { value: 'rain', label: '☔ 비 옴', hint: '우천 공방/찻집' },
-  { value: 'cloudy', label: '☁️ 구름 많음', hint: '선선한 산책' },
-  { value: 'snow', label: '❄️ 눈 옴', hint: '한옥 설경/따뜻' },
-  { value: 'wind', label: '🥶 바람·한파', hint: '따뜻한 국밥/실내' },
+  { value: 'auto', label: '🛰️ 실시간', hint: '기상청 연동', labelEn: '🛰️ Live', hintEn: 'Live Weather' },
+  { value: 'clear', label: '☀️ 맑음·더위', hint: '시원한 실내', labelEn: '☀️ Sunny/Hot', hintEn: 'Cool Indoor' },
+  { value: 'rain', label: '☔ 비 옴', hint: '우천 공방/찻집', labelEn: '☔ Rainy', hintEn: 'Indoor Cafe/Workshop' },
+  { value: 'cloudy', label: '☁️ 구름 많음', hint: '선선한 산책', labelEn: '☁️ Cloudy', hintEn: 'Breezy Walk' },
+  { value: 'snow', label: '❄️ 눈 옴', hint: '한옥 설경/따뜻', labelEn: '❄️ Snowy', hintEn: 'Snow Scenery' },
+  { value: 'wind', label: '🥶 바람·한파', hint: '따뜻한 국밥/실내', labelEn: '🥶 Cold/Windy', hintEn: 'Warm Indoor' },
 ]
 
 // 필수 방문지 검색 더미 결과 (검색창에 입력 시 노출)
@@ -135,8 +137,50 @@ export type Place = {
   nearbySpecialties?: { name: string; distance: string; item: string; naverMapUrl?: string }[]
 }
 
-// 장소 대표 실사 이미지 매핑 함수 (네이버 검색/지도 100% 실사 pstatic CDN 매칭)
-export function getPlaceImageUrl(name: string = '', category: string = ''): string {
+function cleanPlaceName(s: string): string {
+  if (!s) return ''
+  return s.replace(/[^\w\s가-힣]/g, '').trim().toLowerCase().replace(/\s+/g, '')
+}
+
+// 장소 대표 실사 이미지 매핑 함수 (네이버 검색/지도 100% 실사 pstatic CDN 매칭 + Admin 커스텀 이미지 지원)
+export function getPlaceImageUrl(name: string = '', category: string = '', customUrl?: string): string {
+  // 1. 관리자(Admin)에서 변경된 대표 사진이 있다면 1순위로 즉시 반환 (이모지 및 공백 제거 정밀 매칭)
+  if (typeof window !== 'undefined' && name) {
+    const nameClean = cleanPlaceName(name)
+
+    try {
+      const data = localStorage.getItem('jeonju_admin_place_statuses')
+      if (data) {
+        const map = JSON.parse(data)
+        const matchingKey = Object.keys(map).find((k) => {
+          const kClean = cleanPlaceName(k)
+          return kClean === nameClean || (nameClean.length >= 3 && kClean.includes(nameClean)) || (kClean.length >= 3 && nameClean.includes(kClean))
+        })
+        if (matchingKey && map[matchingKey]?.imageUrl && map[matchingKey].imageUrl.trim()) {
+          return map[matchingKey].imageUrl.trim()
+        }
+      }
+    } catch (e) {}
+
+    // 신규 추가 장소 이미지 체크
+    try {
+      const customData = localStorage.getItem('jeonju_admin_custom_places')
+      if (customData) {
+        const customPlaces: any[] = JSON.parse(customData)
+        const found = customPlaces.find((p) => {
+          const pClean = cleanPlaceName(p.name)
+          return pClean === nameClean || (nameClean.length >= 3 && pClean.includes(nameClean)) || (pClean.length >= 3 && nameClean.includes(pClean))
+        })
+        if (found?.imageUrl && found.imageUrl.trim()) {
+          return found.imageUrl.trim()
+        }
+      }
+    } catch (e) {}
+  }
+
+  // 2. 전달된 customUrl 지원
+  if (customUrl && customUrl.trim()) return customUrl.trim()
+
   const n = name.toLowerCase()
   const c = category.toLowerCase()
 

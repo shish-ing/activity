@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import type { Place } from '@/lib/mock-data'
 import { Button } from '@/components/ui/button'
 import { Maximize2, Sparkles } from 'lucide-react'
-import { isPlaceClosedByAdmin } from '@/lib/admin-storage'
+import { isPlaceClosedByAdmin, isPlaceCurrentlyOpen } from '@/lib/admin-storage'
+import { getAppLang, t, tPlaceName, type AppLang } from '@/lib/i18n'
 
 type MapPlaceholderProps = {
   places: Place[]
@@ -59,18 +60,34 @@ export function MapPlaceholder({
   
   const isMapInitializedRef = useRef<boolean>(false)
   const prevPlacesKeyRef = useRef<string>('')
+  const [lang, setLang] = useState<AppLang>('ko')
 
-  // 🔵 내 실시간 위치 (GPS 수신 또는 출발지 폴백)
+  useEffect(() => {
+    setLang(getAppLang())
+    const handleLangChange = () => setLang(getAppLang())
+    window.addEventListener('jeonju_lang_changed', handleLangChange)
+    window.addEventListener('storage', handleLangChange)
+    return () => {
+      window.removeEventListener('jeonju_lang_changed', handleLangChange)
+      window.removeEventListener('storage', handleLangChange)
+    }
+  }, [])
+
+  // 🔵 내 실시간 위치 (0초 즉시 초기화 & 백그라운드 GPS 갱신)
   const [myLocation, setMyLocation] = useState<{
     lat: number
     lng: number
     isGps: boolean
     name: string
-  } | null>(null)
+  }>(() => {
+    const loc = getStartLocationCoords(startLocation, places[0])
+    return { ...loc, isGps: false }
+  })
 
   useEffect(() => {
     let isMounted = true
     const fallbackLoc = getStartLocationCoords(startLocation, places[0])
+    setMyLocation({ ...fallbackLoc, isGps: false })
 
     if (typeof window !== 'undefined' && 'geolocation' in navigator) {
       try {
@@ -84,34 +101,10 @@ export function MapPlaceholder({
               name: '현재 실시간 GPS',
             })
           },
-          (err) => {
-            console.warn('GPS position fallback to start location:', err)
-            if (!isMounted) return
-            setMyLocation({
-              lat: fallbackLoc.lat,
-              lng: fallbackLoc.lng,
-              isGps: false,
-              name: fallbackLoc.name,
-            })
-          },
-          { enableHighAccuracy: true, timeout: 5000, maximumAge: 10000 }
+          () => {},
+          { enableHighAccuracy: false, timeout: 1500, maximumAge: 30000 }
         )
-      } catch (e) {
-        if (!isMounted) return
-        setMyLocation({
-          lat: fallbackLoc.lat,
-          lng: fallbackLoc.lng,
-          isGps: false,
-          name: fallbackLoc.name,
-        })
-      }
-    } else {
-      setMyLocation({
-        lat: fallbackLoc.lat,
-        lng: fallbackLoc.lng,
-        isGps: false,
-        name: fallbackLoc.name,
-      })
+      } catch (e) {}
     }
 
     return () => {
@@ -141,14 +134,18 @@ export function MapPlaceholder({
   // 장소 구성 고유 식별키
   const placesKey = places.map((p) => p.id).join(',')
 
-  // OSRM 실시간 도로 길찾기 API 호출
+  // OSRM 병렬 고속 길찾기 API 호출 (직선 좌표 0초 즉시 선표시 ➔ OSRM 병렬 로딩)
   useEffect(() => {
     if (places.length < 2) return
 
-    async function fetchOsrmRoutes() {
-      const routesMap: Record<string, [number, number][]> = {}
+    let isMounted = true
+    const controller = new AbortController()
 
-      // 1) 순차 구간 (1-2, 2-3 ...)
+    async function fetchOsrmRoutesParallel() {
+      const routesMap: Record<string, [number, number][]> = {}
+      const promises: Promise<void>[] = []
+
+      // 1) 모든 순차 구간 0초 직선 좌표 즉시 세팅
       for (let i = 0; i < places.length - 1; i++) {
         const from = places[i]
         const to = places[i + 1]
@@ -156,28 +153,27 @@ export function MapPlaceholder({
         const fromLng = from.lng || 127.1492 + (from.mapX - 30) * 0.0002
         const toLat = to.lat || 35.8133 + (to.mapY - 50) * 0.0002
         const toLng = to.lng || 127.1492 + (to.mapX - 30) * 0.0002
-
         const key = `${i + 1}-${i + 2}`
 
-        try {
-          const url = `https://router.project-osrm.org/route/v1/foot/${fromLng},${fromLat};${toLng},${toLat}?overview=full&geometries=geojson`
-          const res = await fetch(url)
-          if (res.ok) {
-            const data = await res.json()
-            const coords = data.routes?.[0]?.geometry?.coordinates
+        routesMap[key] = [[fromLat, fromLng], [toLat, toLng]]
+
+        const p = fetch(
+          `https://router.project-osrm.org/route/v1/foot/${fromLng},${fromLat};${toLng},${toLat}?overview=full&geometries=geojson`,
+          { signal: controller.signal }
+        )
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => {
+            const coords = data?.routes?.[0]?.geometry?.coordinates
             if (coords && coords.length > 0) {
               routesMap[key] = coords.map((c: [number, number]) => [c[1], c[0]])
-              continue
             }
-          }
-        } catch (e) {
-          console.warn(`OSRM Route error for ${key}:`, e)
-        }
+          })
+          .catch(() => {})
 
-        routesMap[key] = [[fromLat, fromLng], [toLat, toLng]]
+        promises.push(p)
       }
 
-      // 2) 임의 핀 쌍 경로 (customPinPair가 지정된 경우)
+      // 2) 임의 핀 쌍 경로
       if (customPinPair) {
         const [pinA, pinB] = customPinPair
         const from = places[pinA - 1]
@@ -187,33 +183,47 @@ export function MapPlaceholder({
           const fromLng = from.lng || 127.1492 + (from.mapX - 30) * 0.0002
           const toLat = to.lat || 35.8133 + (to.mapY - 50) * 0.0002
           const toLng = to.lng || 127.1492 + (to.mapX - 30) * 0.0002
-
           const customKey = `custom-${pinA}-${pinB}`
 
-          try {
-            const url = `https://router.project-osrm.org/route/v1/foot/${fromLng},${fromLat};${toLng},${toLat}?overview=full&geometries=geojson`
-            const res = await fetch(url)
-            if (res.ok) {
-              const data = await res.json()
-              const coords = data.routes?.[0]?.geometry?.coordinates
+          routesMap[customKey] = [[fromLat, fromLng], [toLat, toLng]]
+
+          const p = fetch(
+            `https://router.project-osrm.org/route/v1/foot/${fromLng},${fromLat};${toLng},${toLat}?overview=full&geometries=geojson`,
+            { signal: controller.signal }
+          )
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data) => {
+              const coords = data?.routes?.[0]?.geometry?.coordinates
               if (coords && coords.length > 0) {
                 routesMap[customKey] = coords.map((c: [number, number]) => [c[1], c[0]])
               }
-            }
-          } catch (e) {
-            console.warn(`OSRM Custom Pair error for ${customKey}:`, e)
-          }
+            })
+            .catch(() => {})
 
-          if (!routesMap[customKey]) {
-            routesMap[customKey] = [[fromLat, fromLng], [toLat, toLng]]
-          }
+          promises.push(p)
         }
       }
 
-      setOsrmRoutes(routesMap)
+      // 0초에 1차 직선 라인 즉시 표출
+      if (isMounted) {
+        setOsrmRoutes({ ...routesMap })
+      }
+
+      // 1초 타임아웃 제한으로 병렬 로딩 완료 후 정밀 곡선 라인으로 교체
+      const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 1000))
+      await Promise.race([Promise.all(promises), timeoutPromise])
+
+      if (isMounted) {
+        setOsrmRoutes({ ...routesMap })
+      }
     }
 
-    fetchOsrmRoutes()
+    fetchOsrmRoutesParallel()
+
+    return () => {
+      isMounted = false
+      controller.abort()
+    }
   }, [places, placesKey, customPinPair])
 
   // 전체 화면 카메라 맞춤 및 리셋
@@ -451,9 +461,9 @@ export function MapPlaceholder({
 
         const marker = L.marker([lat, lng], { icon: customIcon }).addTo(map)
 
-        const isClosedPin = isPlaceClosedByAdmin(place.name)
+        const isClosedPin = !isPlaceCurrentlyOpen(place.name, place.operatingHours)
         const statusBadgeHtml = isClosedPin
-          ? ' <span style="color:#ef4444; font-weight:bold;">(🔴 휴업·영업마감)</span>'
+          ? ' <span style="color:#ef4444; font-weight:bold;">(🔴 영업종료·휴업)</span>'
           : ' <span style="color:#10b981; font-weight:bold;">(🟢 영업중)</span>'
 
         marker.bindTooltip(
@@ -606,7 +616,7 @@ export function MapPlaceholder({
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full size-2 bg-blue-600"></span>
             </span>
-            <span>🔵 내 위치 ({myLocation.isGps ? 'GPS' : myLocation.name})</span>
+            <span>🔵 {t('내 위치', 'My Location', lang)} ({myLocation.isGps ? 'GPS' : tPlaceName(myLocation.name, lang)})</span>
           </Button>
         )}
 
@@ -619,7 +629,7 @@ export function MapPlaceholder({
           className="absolute bottom-3 right-3 z-10 h-8 gap-1.5 text-xs font-bold text-slate-800 bg-white/95 border-slate-300 hover:bg-slate-100 shadow-md backdrop-blur-md rounded-xl cursor-pointer"
         >
           <Maximize2 className="size-3.5 text-amber-600" />
-          <span>🎯 전체 코스 보기</span>
+          <span>🎯 {t('전체 코스 보기', 'View All Spots', lang)}</span>
         </Button>
       </div>
     </div>

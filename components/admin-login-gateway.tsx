@@ -7,7 +7,6 @@ import {
   getAdminAccounts,
   registerAdminAccount,
   setAdminSession,
-  INITIAL_SUPER_ADMIN,
   type AdminAccount
 } from '@/lib/admin-auth-storage'
 
@@ -30,14 +29,6 @@ export function AdminLoginGateway({ onLoginSuccess }: AdminLoginGatewayProps) {
 
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
-
-  // 슈퍼 관리자 아이디/비밀번호 자동 입력 숏컷
-  const handleAutofillSuperAdmin = () => {
-    setLoginEmail(INITIAL_SUPER_ADMIN.email)
-    setLoginPassword(INITIAL_SUPER_ADMIN.password)
-    setErrorMessage('')
-    setSuccessMessage('총괄 관리자 계정이 입력되었습니다. [관리자 로그인] 버튼을 누르세요.')
-  }
 
   // 관리자 로그인 처리
   const handleLoginSubmit = (e: React.FormEvent) => {
@@ -196,7 +187,7 @@ export function AdminLoginGateway({ onLoginSuccess }: AdminLoginGatewayProps) {
                   required
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
-                  placeholder="ish30293029@gmail.com"
+                  placeholder="관리자 이메일을 입력하세요"
                   className="w-full rounded-xl border border-slate-700 bg-slate-950 pl-9 pr-4 py-2.5 text-white outline-none focus:border-amber-400"
                 />
               </div>
@@ -211,21 +202,10 @@ export function AdminLoginGateway({ onLoginSuccess }: AdminLoginGatewayProps) {
                   required
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="비밀번호를 입력하세요"
                   className="w-full rounded-xl border border-slate-700 bg-slate-950 pl-9 pr-4 py-2.5 text-white outline-none focus:border-amber-400"
                 />
               </div>
-            </div>
-
-            {/* 총괄 관리자 계정 자동입력 숏컷 */}
-            <div className="pt-1">
-              <button
-                type="button"
-                onClick={handleAutofillSuperAdmin}
-                className="w-full rounded-xl border border-amber-500/30 bg-amber-950/30 py-2 text-[11px] font-bold text-amber-300 hover:bg-amber-900/50 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <span>⚡ 총괄 계정 자동입력 (ish30293029@gmail.com)</span>
-              </button>
             </div>
 
             <Button

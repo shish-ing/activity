@@ -1,6 +1,7 @@
-import { useMemo } from 'react'
-import { PieChart as PieIcon, ShoppingBag, Utensils, Coffee, Ticket, Bus, Wallet, Gift, Sparkles } from 'lucide-react'
+import { useMemo, useState, useEffect } from 'react'
+import { PieChart as PieIcon, ShoppingBag, Utensils, Coffee, Ticket, Bus, Wallet, Gift } from 'lucide-react'
 import type { Place } from '@/lib/mock-data'
+import { getAppLang, t, tPlaceName, type AppLang } from '@/lib/i18n'
 
 type BudgetPieChartProps = {
   userBudgetLimit: number
@@ -10,8 +11,8 @@ type BudgetPieChartProps = {
   time?: string // '1h' | '3h' | 'half' | 'full' | '2days' | '3days'
 }
 
-function formatWon(val: number) {
-  return `${val.toLocaleString('ko-KR')}원`
+function formatWon(val: number, lang: AppLang = 'ko') {
+  return lang === 'en' ? `${val.toLocaleString('en-US')} KRW` : `${val.toLocaleString('ko-KR')}원`
 }
 
 export function BudgetPieChart({
@@ -21,12 +22,25 @@ export function BudgetPieChart({
   transport,
   time = '3h',
 }: BudgetPieChartProps) {
-  // 예산 소진 비율 및 지출 카테고리 세부 내역 계산 (사용자 추가 스팟 가격 실시간 100% 동적 반영)
+  const [lang, setLang] = useState<AppLang>('ko')
+
+  useEffect(() => {
+    setLang(getAppLang())
+    const handleLangChange = () => setLang(getAppLang())
+    window.addEventListener('jeonju_lang_changed', handleLangChange)
+    window.addEventListener('storage', handleLangChange)
+    return () => {
+      window.removeEventListener('jeonju_lang_changed', handleLangChange)
+      window.removeEventListener('storage', handleLangChange)
+    }
+  }, [])
+
+  // 예산 소진 비율 및 지출 카테고리 세부 내역 계산
   const breakdownData = useMemo(() => {
     // 0. 새로 추가된 스팟(사용자 직접 추가 및 필수 방문지) 가격 및 항목 분석
     const addedSpots = places.filter((p) => p.isMustVisit || p.id.startsWith('added-') || p.id.startsWith('mv-'))
     const addedSpotsSummary = addedSpots
-      .map((p) => `${p.name.replace(/\(.*\)/g, '').trim()} (${p.cost ? p.cost.toLocaleString('ko-KR') + '원' : '비용 개별'})`)
+      .map((p) => `${tPlaceName(p.name.replace(/\(.*\)/g, '').trim(), lang)} (${p.cost ? formatWon(p.cost, lang) : t('비용 개별', 'Cost Individual', lang)})`)
       .join(', ')
     const addedTotalCost = addedSpots.reduce((acc, p) => acc + (p.cost || 0), 0)
 
@@ -71,29 +85,29 @@ export function BudgetPieChart({
     const addedShoppingCost = addedShoppingSpots.reduce((sum, p) => sum + (p.cost || 0), 0)
 
     const getNamesStr = (spots: Place[]) =>
-      spots.map((p) => p.name.replace(/\(.*\)/g, '').trim()).join(', ')
+      spots.map((p) => tPlaceName(p.name.replace(/\(.*\)/g, '').trim(), lang)).join(', ')
 
     if (userBudgetLimit === 0) {
       return {
         targetSpent: 0,
         utilizationRate: 0,
         categories: [
-          { name: '🍲 로컬 식비 (자유 식사)', amount: 0, percentage: 0, color: '#10b981', icon: Utensils, description: '자유 개별 식사' },
-          { name: '🎟️ 관람 & 무료 명소', amount: 0, percentage: 0, color: '#f59e0b', icon: Ticket, description: '100% 무료 입장' },
-          { name: '☕ 카페 & 수제 디저트', amount: 0, percentage: 0, color: '#06b6d4', icon: Coffee, description: '자유 차 마시기' },
-          { name: '🛍️ 특산품 & 쇼핑', amount: 0, percentage: 0, color: '#a855f7', icon: ShoppingBag, description: '자유 구경' },
-          { name: '🚌 교통 & 기타', amount: 0, percentage: 0, color: '#3b82f6', icon: Bus, description: '도보 0원' },
+          { name: t('🍲 로컬 식비 (자유 식사)', '🍲 Local Food (Individual)', lang), amount: 0, percentage: 0, color: '#10b981', icon: Utensils, description: t('자유 개별 식사', 'Individual Meals', lang) },
+          { name: t('🎟️ 관람 & 무료 명소', '🎟️ Free Admission Spots', lang), amount: 0, percentage: 0, color: '#f59e0b', icon: Ticket, description: t('100% 무료 입장', '100% Free Entry', lang) },
+          { name: t('☕ 카페 & 수제 디저트', '☕ Cafe & Handmade Dessert', lang), amount: 0, percentage: 0, color: '#06b6d4', icon: Coffee, description: t('자유 차 마시기', 'Individual Tea/Coffee', lang) },
+          { name: t('🛍️ 특산품 & 쇼핑', '🛍️ Souvenir & Shopping', lang), amount: 0, percentage: 0, color: '#a855f7', icon: ShoppingBag, description: t('자유 구경', 'Sightseeing & Shopping', lang) },
+          { name: t('🚌 교통 & 기타', '🚌 Transit & Others', lang), amount: 0, percentage: 0, color: '#3b82f6', icon: Bus, description: t('도보 0원', 'Walking 0 KRW', lang) },
         ],
         minRange: 0,
         maxRange: 0,
         remainingSavings: 0,
-        mealDesc: '자유 개별 식사',
+        mealDesc: t('자유 개별 식사', 'Individual Meals', lang),
         addedSpotsSummary,
         addedTotalCost,
       }
     }
 
-    // 1. 목표 예산 소진액 (기본 소진액 + 추가 장소 비용 100% 누적)
+    // 1. 목표 예산 소진액
     const targetSpent = Math.min(
       userBudgetLimit + addedTotalCost,
       Math.max(totalPlaceCost + 15000 + addedTotalCost, Math.round(userBudgetLimit * 0.82) + addedTotalCost),
@@ -104,37 +118,37 @@ export function BudgetPieChart({
       transport === 'car' ? 12000 : transport === 'transit' ? 4500 : 0
 
     // 3. 여행 시간(time)별 식비 상한선 제약
-    let mealDesc = '전주 로컬 맛집 정식 1식'
+    let mealDesc = t('전주 로컬 맛집 정식 1식', 'Jeonju Local Meal Set', lang)
     let maxMealCost = 22000
     let maxCafeCost = 12000
 
     if (time === '1h') {
-      mealDesc = '가벼운 1인 로컬 주전부리/간식 1회'
+      mealDesc = t('가벼운 1인 로컬 주전부리/간식 1회', 'Light Local Snack 1 Meal', lang)
       maxMealCost = 10000
       maxCafeCost = 6000
     } else if (time === '3h') {
-      mealDesc = '전주 3대 비빔밥 또는 떡갈비 1식 (3시간 일정 1회 식사)'
+      mealDesc = t('전주 3대 비빔밥 또는 떡갈비 1식 (3시간 일정 1회 식사)', 'Jeonju Top 3 Bibimbap or Tteokgalbi 1 Meal', lang)
       maxMealCost = 22000
       maxCafeCost = 12000
     } else if (time === 'half') {
-      mealDesc = '점심 정식 1식 + 남부시장 주전부리 1회'
+      mealDesc = t('점심 정식 1식 + 남부시장 주전부리 1회', 'Lunch Meal Set + Nambu Market Snack', lang)
       maxMealCost = 35000
       maxCafeCost = 16000
     } else if (time === 'full') {
-      mealDesc = '점심 & 저녁 총 2식 풀 코스'
+      mealDesc = t('점심 & 저녁 총 2식 풀 코스', 'Lunch & Dinner 2 Full Meals', lang)
       maxMealCost = 48000
       maxCafeCost = 20000
     } else if (time === '2days') {
-      mealDesc = '1박 2일 일정 총 3~4식'
+      mealDesc = t('1박 2일 일정 총 3~4식', '1 Night 2 Days 3~4 Meals', lang)
       maxMealCost = 88000
       maxCafeCost = 30000
     } else if (time === '3days') {
-      mealDesc = '2박 3일 일정 총 5~6식'
+      mealDesc = t('2박 3일 일정 총 5~6식', '2 Nights 3 Days 5~6 Meals', lang)
       maxMealCost = 135000
       maxCafeCost = 45000
     }
 
-    // 4. 현실적 카테고리별 지출액 계산 (새로 추가된 장소 비용 100% 동적 분배)
+    // 4. 현실적 카테고리별 지출액 계산
     const diningAmount = Math.max(
       addedDiningCost,
       Math.min(
@@ -169,44 +183,44 @@ export function BudgetPieChart({
 
     const categories = [
       {
-        name: '🍲 로컬 식비',
+        name: t('🍲 로컬 식비', '🍲 Local Food & Dining', lang),
         amount: diningAmount,
         percentage: Math.round((diningAmount / totalCalculated) * 100),
-        color: '#10b981', // 초록색 (에메랄드)
+        color: '#10b981',
         icon: Utensils,
-        description: addedDiningCost > 0 ? `추가 식비 '${getNamesStr(addedDiningSpots)}' (${addedDiningCost.toLocaleString('ko-KR')}원) 반영` : mealDesc,
+        description: addedDiningCost > 0 ? `${t('추가 식비', 'Added Meal', lang)} '${getNamesStr(addedDiningSpots)}' (${formatWon(addedDiningCost, lang)})` : mealDesc,
       },
       {
-        name: '🎟️ 관람 & 공방 체험료',
+        name: t('🎟️ 관람 & 공방 체험료', '🎟️ Admission & Workshops', lang),
         amount: activityAmount,
         percentage: Math.round((activityAmount / totalCalculated) * 100),
-        color: '#f59e0b', // 노란색 (앰버)
+        color: '#f59e0b',
         icon: Ticket,
-        description: addedActivityCost > 0 ? `추가 체험 '${getNamesStr(addedActivitySpots)}' (${addedActivityCost.toLocaleString('ko-KR')}원) 반영` : '한지/도자기/부채 공방, 전주 난장, 어진박물관 등',
+        description: addedActivityCost > 0 ? `${t('추가 체험', 'Added Activity', lang)} '${getNamesStr(addedActivitySpots)}' (${formatWon(addedActivityCost, lang)})` : t('한지/도자기/부채 공방, 전주 난장, 어진박물관 등', 'Hanji, Pottery & Fan Workshops, Eojin Museum, etc.', lang),
       },
       {
-        name: '☕ 카페 & 전통 찻집',
+        name: t('☕ 카페 & 전통 찻집', '☕ Cafe & Traditional Tea', lang),
         amount: cafeAmount,
         percentage: Math.round((cafeAmount / totalCalculated) * 100),
-        color: '#06b6d4', // 시안 하늘색
+        color: '#06b6d4',
         icon: Coffee,
-        description: addedCafeCost > 0 ? `추가 카페 '${getNamesStr(addedCafeSpots)}' (${addedCafeCost.toLocaleString('ko-KR')}원) 반영` : '외할머니솜씨 팥빙수, 교동다원 전통 황차 1회',
+        description: addedCafeCost > 0 ? `${t('추가 카페', 'Added Cafe', lang)} '${getNamesStr(addedCafeSpots)}' (${formatWon(addedCafeCost, lang)})` : t('외할머니솜씨 팥빙수, 교동다원 전통 황차 1회', 'Grandma\'s Best Shaved Ice, Gyodong Tea House, etc.', lang),
       },
       {
-        name: '🛍️ 특산품 & 고급 선물 쇼핑',
+        name: t('🛍️ 특산품 & 고급 선물 쇼핑', '🛍️ Souvenir & Gift Shopping', lang),
         amount: shoppingAmount,
         percentage: Math.round((shoppingAmount / totalCalculated) * 100),
-        color: '#a855f7', // 보라색 (퍼플)
+        color: '#a855f7',
         icon: Gift,
-        description: addedShoppingCost > 0 ? `추가 쇼핑 '${getNamesStr(addedShoppingSpots)}' (${addedShoppingCost.toLocaleString('ko-KR')}원) 반영` : '전주 수제 초코파이 선물세트, 전통주 모주, 한지 소품',
+        description: addedShoppingCost > 0 ? `${t('추가 쇼핑', 'Added Shopping', lang)} '${getNamesStr(addedShoppingSpots)}' (${formatWon(addedShoppingCost, lang)})` : t('전주 수제 초코파이 선물세트, 전통주 모주, 한지 소품', 'Handmade Choco Pie Set, Jeonju Moju, Hanji Props', lang),
       },
       {
-        name: transport === 'car' ? '🚗 주차 & 기름값' : transport === 'transit' ? '🚌 시내버스 교통비' : '🚶 도보 이동비',
+        name: transport === 'car' ? t('🚗 주차 & 기름값', '🚗 Parking & Fuel', lang) : transport === 'transit' ? t('🚌 시내버스 교통비', '🚌 Bus Fare', lang) : t('🚶 도보 이동비', '🚶 Walking Cost', lang),
         amount: transportCost,
         percentage: Math.round((transportCost / totalCalculated) * 100),
-        color: '#3b82f6', // 파란색 (블루)
+        color: '#3b82f6',
         icon: Bus,
-        description: transport === 'car' ? '공영주차장 및 기름값' : transport === 'transit' ? '전주 시내버스 3~4회 승차' : '도보 0원 산책',
+        description: transport === 'car' ? t('공영주차장 및 기름값', 'Public Parking & Fuel', lang) : transport === 'transit' ? t('전주 시내버스 3~4회 승차', 'Jeonju City Bus 3~4 rides', lang) : t('도보 0원 산책', '0 KRW Free Walking', lang),
       },
     ]
 
@@ -221,7 +235,7 @@ export function BudgetPieChart({
       addedSpotsSummary,
       addedTotalCost,
     }
-  }, [userBudgetLimit, totalPlaceCost, places, transport, time])
+  }, [userBudgetLimit, totalPlaceCost, places, transport, time, lang])
 
   // 색상 번짐이나 오버랩이 0%인 완벽한 수학적 SVG Vector Donut Path 계산
   const svgDonutSlices = useMemo(() => {
@@ -230,7 +244,7 @@ export function BudgetPieChart({
 
     const outerRadius = 90
     const innerRadius = 55
-    let currentAngle = -Math.PI / 2 // 12시 방향부터 시계방향 회전
+    let currentAngle = -Math.PI / 2
 
     return breakdownData.categories.map((cat) => {
       const fraction = cat.amount / total
@@ -239,7 +253,6 @@ export function BudgetPieChart({
       const endAngle = currentAngle + sliceAngle
       currentAngle = endAngle
 
-      // 극좌표계 -> 직교좌표계 변환
       const x1_out = outerRadius * Math.cos(startAngle)
       const y1_out = outerRadius * Math.sin(startAngle)
       const x2_out = outerRadius * Math.cos(endAngle)
@@ -252,7 +265,6 @@ export function BudgetPieChart({
 
       const largeArc = sliceAngle > Math.PI ? 1 : 0
 
-      // SVG Donut Path
       const pathData = [
         `M ${x1_out.toFixed(3)} ${y1_out.toFixed(3)}`,
         `A ${outerRadius} ${outerRadius} 0 ${largeArc} 1 ${x2_out.toFixed(3)} ${y2_out.toFixed(3)}`,
@@ -273,10 +285,14 @@ export function BudgetPieChart({
       <div className="mt-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-xs text-emerald-300">
         <div className="flex items-center gap-2 font-bold text-sm text-emerald-400">
           <Wallet className="size-4" />
-          <span>💰 0원 100% 무료 명소 코스 안내</span>
+          <span>💰 {t('0원 100% 무료 명소 코스 안내', '0 KRW 100% Free Spots Guide', lang)}</span>
         </div>
         <p className="mt-1 leading-relaxed">
-          선택하신 예산이 0원이므로 모든 입장료가 무료인 전주 대표 명소(전동성당, 서학동, 연화정도서관, 수목원, 한벽굴, 아중호수 등)로 구성되었습니다. 식비 및 카페는 개별 선택에 따라 원하시는 만큼 부담 없이 이용해 주세요.
+          {t(
+            '선택하신 예산이 0원이므로 모든 입장료가 무료인 전주 대표 명소(전동성당, 서학동, 연화정도서관, 수목원, 한벽굴, 아중호수 등)로 구성되었습니다. 식비 및 카페는 개별 선택에 따라 원하시는 만큼 부담 없이 이용해 주세요.',
+            'Your budget is 0 KRW, so all spots included have free entry (Jeondong Cathedral, Seohak-dong, Deokjin Park, Arboretum, etc.).',
+            lang
+          )}
         </p>
       </div>
     )
@@ -288,7 +304,10 @@ export function BudgetPieChart({
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
         <div className="flex items-center gap-2 font-bold text-base text-foreground">
           <PieIcon className="size-5 text-accent" />
-          <span>📊 여행 시간 맞춤 예산 분석 원형 그래프 ({time === '3h' ? '3시간 코스 1식 전용' : `${time} 일정`})</span>
+          <span>
+            📊 {t('여행 시간 맞춤 예산 분석 원형 그래프', 'Budget Analysis Chart Customized for Travel Time', lang)}{' '}
+            ({time === '3h' ? t('3시간 코스 1식 전용', '3h Course, 1 Meal', lang) : `${time} ${t('일정', 'Schedule', lang)}`})
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <span
@@ -298,7 +317,7 @@ export function BudgetPieChart({
                 : 'bg-accent/15 text-accent border-accent/30'
             }`}
           >
-            소진율: 약 {breakdownData.utilizationRate}% ({formatWon(breakdownData.targetSpent)})
+            {t('소진율: 약', 'Usage: ~', lang)} {breakdownData.utilizationRate}% ({formatWon(breakdownData.targetSpent, lang)})
           </span>
         </div>
       </div>
@@ -306,26 +325,24 @@ export function BudgetPieChart({
       {/* 예산 지출 예상 범위 배지 & 초과/여유 잔액 표기 */}
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-secondary/80 p-3 text-xs text-foreground">
         <div>
-          <span className="font-bold text-accent">💰 {time} 일정 예상 지출 범위:</span>{' '}
+          <span className="font-bold text-accent">💰 {time} {t('일정 예상 지출 범위:', 'Schedule Est. Spending Range:', lang)}</span>{' '}
           <strong className="text-foreground font-bold">
-            약 {formatWon(breakdownData.minRange)} ~ {formatWon(breakdownData.maxRange)}
+            {t('약', '~', lang)} {formatWon(breakdownData.minRange, lang)} ~ {formatWon(breakdownData.maxRange, lang)}
           </strong>
         </div>
         {breakdownData.remainingSavings < 0 ? (
           <span className="text-rose-600 dark:text-rose-400 font-bold text-[11px]">
-            ⚠️ (설정한 예산 {formatWon(userBudgetLimit)} 대비 약 {formatWon(Math.abs(breakdownData.remainingSavings))} 초과 지출 예상)
+            ⚠️ ({t('설정한 예산', 'Budget', lang)} {formatWon(userBudgetLimit, lang)} {t('대비 약', 'est. excess', lang)} {formatWon(Math.abs(breakdownData.remainingSavings), lang)})
           </span>
         ) : (
           <span className="text-muted-foreground text-[11px]">
-            (설정한 예산 {formatWon(userBudgetLimit)} 중 약 {formatWon(breakdownData.remainingSavings)} 여유 잔액 남음)
+            ({t('설정한 예산', 'Out of budget', lang)} {formatWon(userBudgetLimit, lang)}, {t('약', '~', lang)} {formatWon(breakdownData.remainingSavings, lang)} {t('여유 잔액 남음', 'remaining', lang)})
           </span>
         )}
       </div>
 
-
-
       <div className="grid gap-6 md:grid-cols-[220px_1fr] items-center pt-2">
-        {/* 원형 도넛 그래프 (각 영역별 독립 SVG Vector Path - 영역 겹침/번짐 0%) */}
+        {/* 원형 도넛 그래프 */}
         <div className="relative flex flex-col items-center justify-center p-2">
           <svg viewBox="-100 -100 200 200" className="size-48 overflow-visible">
             {svgDonutSlices.map((slice) => (
@@ -342,17 +359,17 @@ export function BudgetPieChart({
 
           {/* 그래프 중앙 텍스트 */}
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-            <span className="text-[11px] font-medium text-muted-foreground">총 예상 지출</span>
+            <span className="text-[11px] font-medium text-muted-foreground">{t('총 예상 지출', 'Total Exp. Spending', lang)}</span>
             <span className="font-bold text-sm text-foreground">
-              {formatWon(breakdownData.targetSpent)}
+              {formatWon(breakdownData.targetSpent, lang)}
             </span>
             <span className="text-[10px] text-accent font-semibold">
-              (예산의 {breakdownData.utilizationRate}%)
+              ({t('예산의', 'of Budget', lang)} {breakdownData.utilizationRate}%)
             </span>
           </div>
         </div>
 
-        {/* 범례 및 세부 지출 항목 내역 5선 (색상 도트 정확 연동) */}
+        {/* 범례 및 세부 지출 항목 내역 5선 */}
         <div className="flex flex-col gap-2">
           {breakdownData.categories.map((cat) => {
             return (
@@ -376,7 +393,7 @@ export function BudgetPieChart({
                 </div>
 
                 <div className="text-right shrink-0">
-                  <div className="font-bold text-foreground">{formatWon(cat.amount)}</div>
+                  <div className="font-bold text-foreground">{formatWon(cat.amount, lang)}</div>
                   <div className="text-[10px] font-semibold" style={{ color: cat.color }}>
                     {cat.percentage}%
                   </div>
