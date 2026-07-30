@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AlertCircle, Bus, Check, Loader2, LocateFixed, MapPin, Search, Sparkles, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -38,6 +38,7 @@ const NAVER_MAP_START_ADDRESSES = [
 
 export function ConditionForm() {
   const router = useRouter()
+  const searchBoxRef = useRef<HTMLDivElement>(null)
 
   const [startInput, setStartInput] = useState<string>('전주 한옥마을 (전동성당)')
   const [selectedAddress, setSelectedAddress] = useState<string>('전북 전주시 완산구 태조로 51')
@@ -52,6 +53,19 @@ export function ConditionForm() {
   const [transport, setTransport] = useState<string | null>('walk')
   const [mustVisit, setMustVisit] = useState<string[]>(['전동성당'])
   const [loading, setLoading] = useState(false)
+
+  // 출발지 검색창 외부 클릭 시 추천 드롭다운 자동 닫기 이벤트
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (searchBoxRef.current && !searchBoxRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
 
   // 첫 화면 기상청 실시간 날씨 데이터 연동 state
   const [liveWeatherData, setLiveWeatherData] = useState<{
@@ -172,8 +186,8 @@ export function ConditionForm() {
     <div className="flex flex-col gap-4 relative z-10">
       <WeatherBackground weather={weatherOpt || 'auto'} realtimeCondition={liveWeatherData?.condition || liveWeatherData?.summary} />
 
-      {/* 네이버 지도 연동 출발지 주소 검색 & 실시간 GPS 카드 */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-sky-200/80 bg-white/85 text-slate-900 backdrop-blur-md p-4 sm:p-5 shadow-xl relative">
+      {/* 네이버 지도 연동 출발지 주소 검색 & 실시간 GPS 카드 (z-30으로 하단 카드 위로 드롭다운 노출 보장) */}
+      <div className="flex flex-col gap-3 rounded-2xl border border-sky-200/80 bg-white/85 text-slate-900 backdrop-blur-md p-4 sm:p-5 shadow-xl relative z-30">
         <div className="flex items-center justify-between pt-1">
           <div className="flex items-center gap-2 font-bold text-sm text-slate-900">
             <MapPin className="size-4.5 text-sky-600" />
@@ -193,7 +207,7 @@ export function ConditionForm() {
         </div>
 
         {/* 직접 출발지/주소 검색 입력창 */}
-        <div className="relative">
+        <div ref={searchBoxRef} className="relative">
           <div className="flex items-center rounded-xl border border-sky-200 bg-sky-50/70 px-3.5 py-2.5 text-sm text-slate-900 focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-300/40">
             <Search className="size-4 text-sky-600 mr-2 shrink-0" />
             <input
@@ -211,11 +225,12 @@ export function ConditionForm() {
             />
           </div>
 
-          {/* 네이버 지도 자동완성 주소 드롭다운 */}
+          {/* 네이버 지도 자동완성 주소 드롭다운 (z-50 및 shadow-2xl로 하단 카드를 덮고 최상단에 깨끗하게 표시) */}
           {showSuggestions && filteredSuggestions.length > 0 ? (
-            <div className="absolute inset-x-0 top-full z-40 mt-1 max-h-60 overflow-y-auto rounded-xl border border-sky-200 bg-white p-1.5 shadow-xl backdrop-blur-md">
-              <div className="px-3 py-1.5 text-[11px] font-bold text-sky-600 border-b border-sky-100">
-                🗺️ 네이버 지도 추천 전주 출발 주소
+            <div className="absolute inset-x-0 top-full z-50 mt-1.5 max-h-64 overflow-y-auto rounded-xl border border-sky-200 bg-white/95 p-1.5 shadow-2xl backdrop-blur-lg animate-in fade-in">
+              <div className="px-3 py-1.5 text-[11px] font-bold text-sky-600 border-b border-sky-100 flex items-center justify-between">
+                <span>🗺️ 네이버 지도 추천 전주 출발 주소</span>
+                <span className="text-[10px] text-slate-400 font-normal">선택 시 목록 자동 닫힘</span>
               </div>
               {filteredSuggestions.map((item) => (
                 <button
