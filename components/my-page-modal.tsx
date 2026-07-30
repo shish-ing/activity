@@ -34,6 +34,26 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
   const [courses, setCourses] = useState<SavedCourse[]>([])
   const [deleteSuccessMsg, setDeleteSuccessMsg] = useState('')
 
+  // 👤 현재 로그인 유저 세션 관리 (부모 user prop 또는 localStorage 자동 복원)
+  const [currentUser, setCurrentUser] = useState<RegisteredUser | null>(user)
+
+  useEffect(() => {
+    if (user) {
+      setCurrentUser(user)
+    } else if (isOpen) {
+      try {
+        const saved = localStorage.getItem('jeonju_current_user')
+        if (saved) {
+          setCurrentUser(JSON.parse(saved))
+        } else {
+          setCurrentUser(null)
+        }
+      } catch (e) {
+        setCurrentUser(null)
+      }
+    }
+  }, [isOpen, user])
+
   // 현재 리뷰 편집 중인 코스 ID
   const [editingCourseId, setEditingCourseId] = useState<string | null>(null)
   const [editRating, setEditRating] = useState<number>(5)
@@ -45,18 +65,47 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
   const [editSpotRatings, setEditSpotRatings] = useState<Record<string, { weatherScore: number; funScore: number; comment: string }>>({})
 
   useEffect(() => {
-    if (isOpen && user?.email) {
-      const saved = getSavedCourses(user.email)
+    if (isOpen && currentUser?.email) {
+      const saved = getSavedCourses(currentUser.email)
       setCourses(saved)
     }
-  }, [isOpen, user?.email])
+  }, [isOpen, currentUser?.email])
 
-  if (!isOpen || !user) return null
+  if (!isOpen) return null
+
+  if (!currentUser) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-100 text-center space-y-4 font-sans">
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer"
+            aria-label="닫기"
+          >
+            <X className="size-5" />
+          </button>
+          <div className="size-12 mx-auto flex items-center justify-center rounded-2xl bg-amber-100 text-amber-900 text-2xl font-bold">
+            📂
+          </div>
+          <h3 className="text-lg font-bold text-slate-900">로그인이 필요한 서비스입니다</h3>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            저장한 여행 코스 관리 및 세부 평점 기능을 이용하시려면 먼저 상단에서 로그인해 주세요!
+          </p>
+          <Button
+            onClick={onClose}
+            className="w-full rounded-xl bg-amber-500 hover:bg-amber-600 text-amber-950 font-bold cursor-pointer"
+          >
+            확인
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   const handleDeleteCourse = (e: React.MouseEvent, courseId: string) => {
     e.stopPropagation()
     if (!confirm('이 저장된 여행 코스를 삭제하시겠습니까?')) return
-    const success = deleteCourseFromUser(user.email, courseId)
+    const success = deleteCourseFromUser(currentUser.email, courseId)
     if (success) {
       setCourses((prev) => prev.filter((c) => c.id !== courseId))
       setDeleteSuccessMsg('코스가 삭제되었습니다.')
@@ -105,7 +154,7 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
       }
     })
 
-    const success = updateCourseReviewInStorage(user.email, courseId, {
+    const success = updateCourseReviewInStorage(currentUser.email, courseId, {
       rating: editRating,
       satisfactionTags: editTags,
       reviewContent: editContent.trim(),
@@ -142,7 +191,7 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
     e.stopPropagation()
     if (!confirm('작성하신 별점과 후기를 삭제하시겠습니까?')) return
 
-    const success = deleteCourseReviewFromStorage(user.email, courseId)
+    const success = deleteCourseReviewFromStorage(currentUser.email, courseId)
     if (success) {
       setCourses((prev) =>
         prev.map((c) => {
@@ -215,17 +264,17 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="flex size-12 items-center justify-center rounded-full bg-amber-500 text-amber-950 font-extrabold text-lg shadow-2xs">
-                  {user.name.slice(0, 1).toUpperCase()}
+                  {currentUser.name.slice(0, 1).toUpperCase()}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-900 text-base">{user.name}</span>
+                    <span className="font-bold text-slate-900 text-base">{currentUser.name}</span>
                     <span className="inline-flex items-center gap-1 rounded-full bg-amber-200/70 border border-amber-300 px-2 py-0.5 text-[10px] font-bold text-amber-900">
-                      ⚡ {user.travelStyle === 'J' ? '계획형 (J)' : '즉흥형 (P)'}
+                      ⚡ {currentUser.travelStyle === 'J' ? '계획형 (J)' : '즉흥형 (P)'}
                     </span>
                   </div>
                   <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
-                    <Mail className="size-3.5" /> {user.email}
+                    <Mail className="size-3.5" /> {currentUser.email}
                   </p>
                 </div>
               </div>
