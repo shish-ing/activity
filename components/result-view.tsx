@@ -851,67 +851,109 @@ export function ResultView() {
     }
   }, [time])
 
-  // 선택된 날씨 옵션별 큐레이션 타이틀 및 가이드 메시지
-  const weatherCareMessage = useMemo(() => {
-    switch (weatherParam) {
-      case 'wind':
-        return {
-          icon: '🥶',
-          title: '🥶 한파·찬 바람 맞춤 큐레이션:',
-          text: '매서운 찬 바람을 피할 수 있도록 쾌적한 실내 팔복예술공장, 수제 공방, 지하 어진박물관, 연화정 한옥 도서관 위주로 최단 순선 정렬되었습니다.',
-          bannerColor: 'border-blue-500/40 bg-blue-500/10 text-blue-300',
-        }
-      case 'snow':
-        return {
-          icon: '❄️',
-          title: '❄️ 한옥 설경·눈 오는 날 큐레이션:',
-          text: '하얀 눈이 내려앉은 고즈넉한 한벽굴, 전주향교, 팔복예술공장 온실을 감상하는 최단 순선 동선입니다.',
-          bannerColor: 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300',
-        }
-      case 'rain':
-        return {
-          icon: '☔',
-          title: '☔ 비 오는 날 낭만 큐레이션:',
-          text: '빗소리를 들으며 즐기는 팔복예술공장 실내 미술관, 실내 공방, 아중호수 수중 산책로 위주로 큐레이션되었습니다.',
-          bannerColor: 'border-teal-500/40 bg-teal-500/10 text-teal-300',
-        }
-      case 'clear':
-        return {
-          icon: '☀️',
-          title: '☀️ 폭염·더위 맞춤 큐레이션:',
-          text: '무더위 땡볕 야외 언덕을 피하고, 시원한 팔복예술공장 온실, 실내 공방, 지하 어진박물관으로 배치되었습니다.',
-          bannerColor: 'border-amber-500/40 bg-amber-500/10 text-amber-300',
-        }
-      case 'cloudy':
-        return {
-          icon: '☁️',
-          title: '☁️ 선선한 날씨 맞춤 큐레이션:',
-          text: '햇살이 선선해 전주 수목원, 한벽굴 드라마 촬영지, 자만벽화마을, 아중호수 야경 산책을 즐기기 딱 좋은 날씨입니다.',
-          bannerColor: 'border-sky-500/40 bg-sky-500/10 text-sky-300',
-        }
-      default:
-        // auto
-        return {
-          icon: weather.emoji,
-          title: `🛰️ 실시간 날씨(${weather.summary}) 큐레이션:`,
-          text: '선택한 출발지 및 예산 슬라이더 범위 내에서 최적의 장소와 최단 순선 경로가 제공됩니다.',
-          bannerColor: 'border-accent/40 bg-accent/10 text-accent',
-        }
-    }
-  }, [weatherParam, weather])
-
-  // 날씨별 실내 장소 비중 비율 (0.0 ~ 1.0)
-  // 1.0 = 100% 실내, 0.5 = 실내/야외 반반, 0.0 = 제한 없음
-  const indoorRatio = useMemo(() => {
-    // 폭설·폭우: 실내 70% + 야외 30%
-    if (weatherParam === 'snow' || weatherParam === 'rain' || weather.condition === 'rain') return 0.7
-    // 강풍·한파: 실내 70%
-    if (weatherParam === 'wind') return 0.7
-    // 폭염: 실내 60%
-    if (weatherParam === 'clear' || weather.detail.includes('30°C')) return 0.6
-    // 흐림·선선·실시간 auto: 실내/야외 균등
-    return 0.5
+  // 실시간 기온 수치 추출 (기본값 20°C)
+  const tempNum = useMemo(() => {
+    if (weather.temperature !== undefined) return weather.temperature
+    const match = weather.detail?.match(/(-?\d+)\s*°C/)
+    if (match) return parseInt(match[1], 10)
+    if (weatherParam === 'snow') return -2
+    if (weatherParam === 'wind') return 3
+    if (weatherParam === 'clear') return 29
+    return 20
   }, [weather, weatherParam])
+
+  // 사용자 지정 규칙 기반 온도 & 날씨별 실내 장소 목표 비율 (indoorRatio: 0.0 ~ 1.0)
+  // 15°C~25°C ➔ 야외 70% / 실내 30% (indoorRatio = 0.3)
+  // 28°C 이상 ➔ 야외 30% / 실내 70% (indoorRatio = 0.7)
+  // 5°C 이하  ➔ 야외 20% / 실내 80% (indoorRatio = 0.8)
+  // 비·눈 악천후 ➔ 야외 0~10% / 실내 90~100% (indoorRatio = 0.95)
+  // 기타 26~27°C ➔ 야외 40% / 실내 60% (indoorRatio = 0.6)
+  // 기타 6~14°C  ➔ 야외 50% / 실내 50% (indoorRatio = 0.5)
+  const indoorRatio = useMemo(() => {
+    if (
+      weatherParam === 'snow' ||
+      weatherParam === 'rain' ||
+      weather.condition === 'rain' ||
+      weather.condition === 'snow' ||
+      weather.summary?.includes('비') ||
+      weather.summary?.includes('눈') ||
+      weather.summary?.includes('소나기')
+    ) {
+      return 0.95 // 실내 95%, 실외 5%
+    }
+
+    if (tempNum <= 5 || weatherParam === 'wind') {
+      return 0.8 // 실내 80%, 실외 20%
+    }
+
+    if (tempNum >= 28) {
+      return 0.7 // 실내 70%, 실외 30%
+    }
+
+    if (tempNum >= 15 && tempNum <= 25) {
+      return 0.3 // 실내 30%, 실외 70% (날씨 쾌적! 야외 위주 산책)
+    }
+
+    if (tempNum >= 26 && tempNum <= 27) {
+      return 0.6 // 실내 60%, 실외 40%
+    }
+
+    return 0.5 // 실내 50%, 실외 50%
+  }, [weather, weatherParam, tempNum])
+
+  // 선택된 날씨 옵션 및 기온 비율별 큐레이션 타이틀 및 가이드 메시지
+  const weatherCareMessage = useMemo(() => {
+    const outdoorPct = Math.round((1 - indoorRatio) * 100)
+    const indoorPct = Math.round(indoorRatio * 100)
+
+    if (weatherParam === 'snow' || weather.condition === 'snow') {
+      return {
+        icon: '❄️',
+        title: `❄️ 한옥 설경 큐레이션 (기온 ${tempNum}°C · 실내 ${indoorPct}% / 실외 ${outdoorPct}%):`,
+        text: `눈 오는 날씨에 맞춰 따뜻한 실내 공간 위주(${indoorPct}%)로 쾌적하게 큐레이션되었습니다.`,
+        bannerColor: 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300',
+      }
+    }
+    if (weatherParam === 'rain' || weather.condition === 'rain' || weather.summary?.includes('비')) {
+      return {
+        icon: '☔',
+        title: `☔ 비 오는 날 낭만 큐레이션 (실내 ${indoorPct}% / 실외 ${outdoorPct}%):`,
+        text: `빗줄기를 피할 수 있도록 100% 쾌적한 실내 미술관/공방/찻집 위주(${indoorPct}%)로 배치되었습니다.`,
+        bannerColor: 'border-teal-500/40 bg-teal-500/10 text-teal-300',
+      }
+    }
+    if (tempNum >= 28) {
+      return {
+        icon: '☀️',
+        title: `☀️ 무더위·폭염 맞춤 큐레이션 (기온 ${tempNum}°C · 실내 ${indoorPct}% / 실외 ${outdoorPct}%):`,
+        text: `28°C 이상 무더위에 맞춰 시원한 에어컨 실내 스팟(${indoorPct}%) 위주로 동선이 쾌적하게 조율되었습니다.`,
+        bannerColor: 'border-amber-500/40 bg-amber-500/10 text-amber-300',
+      }
+    }
+    if (tempNum <= 5) {
+      return {
+        icon: '🥶',
+        title: `🥶 한파·찬 바람 맞춤 큐레이션 (기온 ${tempNum}°C · 실내 ${indoorPct}% / 실외 ${outdoorPct}%):`,
+        text: `5°C 이하 추위를 피할 수 있는 따뜻한 실내 장소(${indoorPct}%) 위주로 최단 동선이 배치되었습니다.`,
+        bannerColor: 'border-blue-500/40 bg-blue-500/10 text-blue-300',
+      }
+    }
+    if (tempNum >= 15 && tempNum <= 25) {
+      return {
+        icon: '🌤️',
+        title: `🌤️ 최적 쾌적 날씨 큐레이션 (기온 ${tempNum}°C · 실외 ${outdoorPct}% / 실내 ${indoorPct}%):`,
+        text: `15°C~25°C의 최고로 좋은 날씨! 야외 명소 산책(${outdoorPct}%)과 실내 공간(${indoorPct}%)이 황금 비율로 구성되었습니다.`,
+        bannerColor: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300',
+      }
+    }
+
+    return {
+      icon: weather.emoji || '🛰️',
+      title: `🛰️ 맞춤 날씨(${weather.summary}, ${tempNum}°C) 큐레이션 (실외 ${outdoorPct}% / 실내 ${indoorPct}%):`,
+      text: `기온 ${tempNum}°C에 맞춰 실외 산책(${outdoorPct}%)과 실내 방문(${indoorPct}%)이 최적 비율로 배치되었습니다.`,
+      bannerColor: 'border-accent/40 bg-accent/10 text-accent',
+    }
+  }, [weatherParam, weather, tempNum, indoorRatio])
 
   // isIndoorPriority: 실내 비중이 50% 초과인 경우 (정렬 우선순위 판단용)
   const isIndoorPriority = indoorRatio > 0.5
