@@ -384,7 +384,7 @@ export function ConditionForm() {
         />
       </div>
 
-      {/* 1. 폼 카드 내부 메인 추천받기 버튼 */}
+      {/* 메인 맞춤 여행 코스 추천받기 단일 통합 버튼 (중복 오버레이 제거로 1개의 깔끔한 로딩 상태만 노출) */}
       <Button
         size="lg"
         onClick={handleSubmit}
@@ -400,21 +400,6 @@ export function ConditionForm() {
           <span>✨ 맞춤 여행 코스 추천받기</span>
         )}
       </Button>
-
-      {/* 2. 📱 모바일 하단 플로팅 추천 버튼 (로딩 시 중복 오버레이 겹침 방지를 위해 단일 로딩 상태 유지) */}
-      {!loading && (
-        <div className="fixed bottom-4 inset-x-0 z-50 px-4 flex justify-center pointer-events-none sm:hidden">
-          <div className="w-full max-w-md pointer-events-auto">
-            <Button
-              size="lg"
-              onClick={handleSubmit}
-              className="h-13 w-full rounded-2xl text-base font-bold tracking-wide bg-[#4E3629]/95 hover:bg-[#3D291F] text-white backdrop-blur-md shadow-2xl border border-white/20 transition-all active:scale-[0.98] cursor-pointer"
-            >
-              <span>✨ 맞춤 여행 코스 추천받기</span>
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
