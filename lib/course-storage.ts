@@ -22,6 +22,12 @@ export interface SavedCourse {
   totalTravelMinutes: number
   spots: SavedCourseSpot[]
   savedPlaces?: any[]
+
+  // ✍️ 저장한 코스별 평점 & 후기
+  rating?: number // 1 ~ 5점
+  satisfactionTags?: string[]
+  reviewContent?: string
+  reviewedAt?: string
 }
 
 export const getSavedCourses = (userEmail: string): SavedCourse[] => {
@@ -67,6 +73,63 @@ export const deleteCourseFromUser = (userEmail: string, courseId: string): boole
     const key = `jeonju_saved_courses_${userEmail.toLowerCase()}`
     const existing = getSavedCourses(userEmail)
     const updated = existing.filter((c) => c.id !== courseId)
+    localStorage.setItem(key, JSON.stringify(updated))
+    return true
+  } catch (e) {
+    return false
+  }
+}
+
+// ✍️ 저장한 코스의 평점 및 후기 업데이트/삭제 함수
+export const updateCourseReviewInStorage = (
+  userEmail: string,
+  courseId: string,
+  review: { rating: number; satisfactionTags: string[]; reviewContent: string }
+): boolean => {
+  if (typeof window === 'undefined' || !userEmail) return false
+  try {
+    const key = `jeonju_saved_courses_${userEmail.toLowerCase()}`
+    const existing = getSavedCourses(userEmail)
+    const updated = existing.map((c) => {
+      if (c.id === courseId) {
+        return {
+          ...c,
+          rating: review.rating,
+          satisfactionTags: review.satisfactionTags,
+          reviewContent: review.reviewContent,
+          reviewedAt: new Date().toLocaleDateString('ko-KR', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+        }
+      }
+      return c
+    })
+    localStorage.setItem(key, JSON.stringify(updated))
+    return true
+  } catch (e) {
+    return false
+  }
+}
+
+export const deleteCourseReviewFromStorage = (
+  userEmail: string,
+  courseId: string
+): boolean => {
+  if (typeof window === 'undefined' || !userEmail) return false
+  try {
+    const key = `jeonju_saved_courses_${userEmail.toLowerCase()}`
+    const existing = getSavedCourses(userEmail)
+    const updated = existing.map((c) => {
+      if (c.id === courseId) {
+        const { rating, satisfactionTags, reviewContent, reviewedAt, ...rest } = c
+        return rest
+      }
+      return c
+    })
     localStorage.setItem(key, JSON.stringify(updated))
     return true
   } catch (e) {

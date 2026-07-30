@@ -1,11 +1,15 @@
-'use client'
-
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { X, Mail, Compass, Bookmark, Trash2, Calendar, Clock, Wallet, Check, ExternalLink, Play } from 'lucide-react'
+import { X, Mail, Compass, Bookmark, Trash2, Calendar, Clock, Wallet, Check, ExternalLink, Play, Star, MessageSquarePlus, Edit3, Tag, Send } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { RegisteredUser } from '@/components/auth-modal'
-import { getSavedCourses, deleteCourseFromUser, SavedCourse } from '@/lib/course-storage'
+import {
+  getSavedCourses,
+  deleteCourseFromUser,
+  SavedCourse,
+  updateCourseReviewInStorage,
+  deleteCourseReviewFromStorage,
+} from '@/lib/course-storage'
 
 interface MyPageModalProps {
   isOpen: boolean
@@ -13,10 +17,28 @@ interface MyPageModalProps {
   user: RegisteredUser | null
 }
 
+const SATISFACTION_TAG_OPTIONS = [
+  '🚀 최적의 최단 동선',
+  '🎒 여유롭고 한적함',
+  '🍱 알찬 맛집 배치',
+  '🌧️ 날씨 맞춤 유용함',
+  '📸 인스타 감성 포토존',
+  '💰 가성비 만점',
+  '👟 걷기 좋은 코스',
+  '☕ 특색있는 카페',
+]
+
 export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
   const router = useRouter()
   const [courses, setCourses] = useState<SavedCourse[]>([])
   const [deleteSuccessMsg, setDeleteSuccessMsg] = useState('')
+
+  // 현재 리뷰 편집 중인 코스 ID
+  const [editingCourseId, setEditingCourseId] = useState<string | null>(null)
+  const [editRating, setEditRating] = useState<number>(5)
+  const [hoverRating, setHoverRating] = useState<number>(0)
+  const [editTags, setEditTags] = useState<string[]>(['🚀 최적의 최단 동선', '🍱 알찬 맛집 배치'])
+  const [editContent, setEditContent] = useState<string>('')
 
   useEffect(() => {
     if (isOpen && user?.email) {
@@ -28,13 +50,91 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
   if (!isOpen || !user) return null
 
   const handleDeleteCourse = (e: React.MouseEvent, courseId: string) => {
-    e.stopPropagation() // 카드 클릭 이벤트와 분리
+    e.stopPropagation()
     if (!confirm('이 저장된 여행 코스를 삭제하시겠습니까?')) return
     const success = deleteCourseFromUser(user.email, courseId)
     if (success) {
       setCourses((prev) => prev.filter((c) => c.id !== courseId))
       setDeleteSuccessMsg('코스가 삭제되었습니다.')
       setTimeout(() => setDeleteSuccessMsg(''), 2000)
+    }
+  }
+
+  // 리뷰 작성/수정 창 열기
+  const handleStartReview = (e: React.MouseEvent, c: SavedCourse) => {
+    e.stopPropagation()
+    setEditingCourseId(c.id)
+    setEditRating(c.rating || 5)
+    setEditTags(c.satisfactionTags || ['🚀 최적의 최단 동선', '🍱 알찬 맛집 배치'])
+    setEditContent(c.reviewContent || '')
+  }
+
+  // 리뷰 저장
+  const handleSaveReview = (e: React.FormEvent, courseId: string) => {
+    e.stopPropagation()
+    e.preventDefault()
+
+    if (!editContent.trim()) {
+      alert('후기 소감 내용을 작성해주세요!')
+      return
+    }
+
+    const success = updateCourseReviewInStorage(user.email, courseId, {
+      rating: editRating,
+      satisfactionTags: editTags,
+      reviewContent: editContent.trim(),
+    })
+
+    if (success) {
+      setCourses((prev) =>
+        prev.map((c) =>
+          c.id === courseId
+            ? {
+                ...c,
+                rating: editRating,
+                satisfactionTags: editTags,
+                reviewContent: editContent.trim(),
+                reviewedAt: new Date().toLocaleDateString('ko-KR', {
+                  year: 'numeric',
+                  month: '2-digit',
+                  day: '2-digit',
+                }),
+              }
+            : c
+        )
+      )
+      setEditingCourseId(null)
+      setDeleteSuccessMsg('🎉 코스 별점과 후기가 저장되었습니다!')
+      setTimeout(() => setDeleteSuccessMsg(''), 3000)
+    }
+  }
+
+  // 리뷰 삭제
+  const handleDeleteReview = (e: React.MouseEvent, courseId: string) => {
+    e.stopPropagation()
+    if (!confirm('작성하신 별점과 후기를 삭제하시겠습니까?')) return
+
+    const success = deleteCourseReviewFromStorage(user.email, courseId)
+    if (success) {
+      setCourses((prev) =>
+        prev.map((c) => {
+          if (c.id === courseId) {
+            const { rating, satisfactionTags, reviewContent, reviewedAt, ...rest } = c
+            return rest
+          }
+          return c
+        })
+      )
+      setDeleteSuccessMsg('후기가 삭제되었습니다.')
+      setTimeout(() => setDeleteSuccessMsg(''), 2000)
+    }
+  }
+
+  const toggleTag = (tag: string) => {
+    if (editTags.includes(tag)) {
+      setEditTags(editTags.filter((t) => t !== tag))
+    } else {
+      setEditTags([...editTags, tag])
     }
   }
 
@@ -68,7 +168,7 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-900">내 정보 관리 & 저장한 코스</h2>
-              <p className="text-xs text-slate-500">저장된 여행 카드를 클릭하면 지도·추천 가이드북 풀버전으로 연결됩니다</p>
+              <p className="text-xs text-slate-500">저장된 코스 카드에서 별점과 후기를 직접 작성하실 수 있습니다</p>
             </div>
           </div>
           <button
@@ -111,7 +211,7 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
 
           {/* Delete Feedback Message */}
           {deleteSuccessMsg && (
-            <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-700 flex items-center gap-1.5">
+            <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-700 flex items-center gap-1.5 animate-in fade-in">
               <Check className="size-4 text-emerald-600" /> {deleteSuccessMsg}
             </div>
           )}
@@ -119,7 +219,7 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
           {/* Saved Courses Section */}
           <div>
             <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-1.5">
-              <Compass className="size-4 text-sky-600" /> 내가 저장한 여행 코스 목록 (클릭 시 결과화면 열기)
+              <Compass className="size-4 text-sky-600" /> 내가 저장한 여행 코스 목록 (각 코스별 평점 & 후기 작성)
             </h3>
 
             {courses.length === 0 ? (
@@ -132,12 +232,12 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
                 </p>
               </div>
             ) : (
-              <div className="space-y-3.5">
+              <div className="space-y-4">
                 {courses.map((c) => (
                   <div
                     key={c.id}
                     onClick={() => handleOpenSavedCourse(c)}
-                    className="group relative rounded-xl border border-sky-100 bg-white p-4.5 shadow-sm hover:border-sky-400 hover:shadow-md transition-all cursor-pointer overflow-hidden"
+                    className="group relative rounded-xl border border-sky-100 bg-white p-4.5 shadow-sm hover:border-sky-400 hover:shadow-md transition-all cursor-pointer overflow-hidden space-y-3"
                   >
                     {/* Hover Highlight Banner */}
                     <div className="absolute top-0 right-0 bg-sky-500 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-bl-lg opacity-90 group-hover:opacity-100 transition-opacity flex items-center gap-1">
@@ -160,17 +260,28 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
                         </p>
                       </div>
 
-                      <button
-                        onClick={(e) => handleDeleteCourse(e, c.id)}
-                        className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer border border-transparent hover:border-red-200"
-                        title="코스 삭제"
-                      >
-                        <Trash2 className="size-3.5" /> 삭제
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={(e) => handleStartReview(e, c)}
+                          className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold bg-amber-100 text-amber-900 hover:bg-amber-200 transition-colors cursor-pointer border border-amber-300"
+                          title="이 코스에 평점 및 후기 작성"
+                        >
+                          <Edit3 className="size-3.5 text-amber-700" />
+                          <span>{c.rating ? '✏️ 평점/후기 수정' : '✍️ 평점/후기 작성'}</span>
+                        </button>
+
+                        <button
+                          onClick={(e) => handleDeleteCourse(e, c.id)}
+                          className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer border border-transparent hover:border-red-200"
+                          title="코스 삭제"
+                        >
+                          <Trash2 className="size-3.5" /> 삭제
+                        </button>
+                      </div>
                     </div>
 
                     {/* Course Summary Chips */}
-                    <div className="my-3 flex flex-wrap items-center gap-3 text-xs text-slate-700 bg-sky-50/60 p-2.5 rounded-xl border border-sky-100 font-medium">
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-700 bg-sky-50/60 p-2.5 rounded-xl border border-sky-100 font-medium">
                       <span className="flex items-center gap-1 font-semibold">
                         <Clock className="size-3.5 text-amber-600" /> 총 {c.totalTravelMinutes}분
                       </span>
@@ -183,7 +294,7 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
                     </div>
 
                     {/* Spots Route Path */}
-                    <div className="space-y-1.5 pt-1">
+                    <div className="space-y-1.5">
                       <p className="text-[11px] font-bold text-slate-700">📍 추천 방문 코스 순서:</p>
                       <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-800 font-medium">
                         {c.spots.map((spot, idx) => (
@@ -199,8 +310,143 @@ export function MyPageModal({ isOpen, onClose, user }: MyPageModalProps) {
                       </div>
                     </div>
 
+                    {/* ✍️ 작성된 평점 & 후기 보기 영역 */}
+                    {c.rating && editingCourseId !== c.id && (
+                      <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 space-y-2 text-xs">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5 font-bold text-amber-900">
+                            <Star className="size-4 fill-amber-400 text-amber-400" />
+                            <span>내가 남긴 평점: {c.rating}.0 / 5.0 점</span>
+                          </div>
+
+                          <button
+                            onClick={(e) => handleDeleteReview(e, c.id)}
+                            className="text-[11px] text-slate-400 hover:text-red-600 font-semibold cursor-pointer"
+                          >
+                            후기 삭제
+                          </button>
+                        </div>
+
+                        {c.satisfactionTags && c.satisfactionTags.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {c.satisfactionTags.map((tag) => (
+                              <span
+                                key={tag}
+                                className="rounded-md bg-white border border-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-900"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        {c.reviewContent && (
+                          <p className="text-slate-800 font-medium bg-white/80 p-2.5 rounded-lg border border-amber-100 leading-relaxed">
+                            💬 "{c.reviewContent}"
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* ✍️ 평점 & 후기 인라인 작성/수정 박스 */}
+                    {editingCourseId === c.id && (
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="rounded-xl border border-amber-300 bg-amber-50 p-4 space-y-3 animate-in fade-in"
+                      >
+                        <div className="flex items-center justify-between border-b border-amber-200 pb-2">
+                          <span className="font-bold text-amber-950 text-xs flex items-center gap-1">
+                            <Star className="size-3.5 fill-amber-400 text-amber-400" />
+                            <span>이 저장 코스에 평점 & 후기 작성하기</span>
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setEditingCourseId(null)
+                            }}
+                            className="text-slate-400 hover:text-slate-700 text-xs font-bold cursor-pointer"
+                          >
+                            취소 ✕
+                          </button>
+                        </div>
+
+                        {/* 별점 선택 */}
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-slate-700">별점:</span>
+                          <div className="flex items-center gap-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <button
+                                key={star}
+                                type="button"
+                                onMouseEnter={() => setHoverRating(star)}
+                                onMouseLeave={() => setHoverRating(0)}
+                                onClick={() => setEditRating(star)}
+                                className="p-0.5 hover:scale-125 transition-transform cursor-pointer"
+                              >
+                                <Star
+                                  className={`size-5 transition-colors ${
+                                    star <= (hoverRating || editRating)
+                                      ? 'text-amber-400 fill-amber-400'
+                                      : 'text-slate-300 fill-slate-100'
+                                  }`}
+                                />
+                              </button>
+                            ))}
+                          </div>
+                          <span className="text-xs font-bold text-amber-800">
+                            {(hoverRating || editRating)}.0점
+                          </span>
+                        </div>
+
+                        {/* 만족도 키워드 칩 선택 */}
+                        <div className="space-y-1">
+                          <span className="text-[11px] font-bold text-slate-700">만족도 키워드:</span>
+                          <div className="flex flex-wrap gap-1">
+                            {SATISFACTION_TAG_OPTIONS.map((tag) => {
+                              const isSelected = editTags.includes(tag)
+                              return (
+                                <button
+                                  key={tag}
+                                  type="button"
+                                  onClick={() => toggleTag(tag)}
+                                  className={`rounded-lg px-2 py-0.5 text-[11px] font-bold transition-all border cursor-pointer ${
+                                    isSelected
+                                      ? 'bg-amber-500 text-amber-950 border-amber-500'
+                                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                                  }`}
+                                >
+                                  {isSelected ? `✓ ${tag}` : tag}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+
+                        {/* 후기 내용 작성 */}
+                        <textarea
+                          value={editContent}
+                          onChange={(e) => setEditContent(e.target.value)}
+                          rows={2}
+                          maxLength={300}
+                          placeholder="이 여행 코스의 맛집, 동선, 팁 등 솔직한 소감을 작성해 보세요."
+                          className="w-full rounded-lg border border-amber-200 bg-white p-2.5 text-xs outline-none focus:ring-2 focus:ring-amber-300 font-medium"
+                        />
+
+                        <div className="flex justify-end gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={(e) => handleSaveReview(e, c.id)}
+                            className="rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold px-4 py-1.5 text-xs shadow-2xs cursor-pointer flex items-center gap-1"
+                          >
+                            <Send className="size-3" />
+                            <span>평점/후기 저장</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Action Button Banner */}
-                    <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between">
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
                       <span className="text-xs font-bold text-sky-700 group-hover:underline flex items-center gap-1">
                         <Play className="size-3 fill-sky-700" />
                         이 코스 풀 모드로 길찾기 & 지도·가이드북 상세보기
