@@ -291,13 +291,19 @@ export function BudgetPieChart({
           <span>📊 여행 시간 맞춤 예산 분석 원형 그래프 ({time === '3h' ? '3시간 코스 1식 전용' : `${time} 일정`})</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="rounded-lg bg-accent/15 px-3 py-1 text-xs font-bold text-accent border border-accent/30">
+          <span
+            className={`rounded-lg px-3 py-1 text-xs font-bold border ${
+              breakdownData.utilizationRate > 100
+                ? 'bg-rose-500/15 text-rose-700 border-rose-400/40'
+                : 'bg-accent/15 text-accent border-accent/30'
+            }`}
+          >
             소진율: 약 {breakdownData.utilizationRate}% ({formatWon(breakdownData.targetSpent)})
           </span>
         </div>
       </div>
 
-      {/* 예산 지출 예상 범위 배지 */}
+      {/* 예산 지출 예상 범위 배지 & 초과/여유 잔액 표기 */}
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-secondary/80 p-3 text-xs text-foreground">
         <div>
           <span className="font-bold text-accent">💰 {time} 일정 예상 지출 범위:</span>{' '}
@@ -305,9 +311,15 @@ export function BudgetPieChart({
             약 {formatWon(breakdownData.minRange)} ~ {formatWon(breakdownData.maxRange)}
           </strong>
         </div>
-        <span className="text-muted-foreground text-[11px]">
-          (설정한 예산 {formatWon(userBudgetLimit)} 중 약 {formatWon(breakdownData.remainingSavings)} 여유 예비비 포함)
-        </span>
+        {breakdownData.remainingSavings < 0 ? (
+          <span className="text-rose-600 dark:text-rose-400 font-bold text-[11px]">
+            ⚠️ (설정한 예산 {formatWon(userBudgetLimit)} 대비 약 {formatWon(Math.abs(breakdownData.remainingSavings))} 초과 지출 예상)
+          </span>
+        ) : (
+          <span className="text-muted-foreground text-[11px]">
+            (설정한 예산 {formatWon(userBudgetLimit)} 중 약 {formatWon(breakdownData.remainingSavings)} 여유 잔액 남음)
+          </span>
+        )}
       </div>
 
 
