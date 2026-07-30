@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { Place } from '@/lib/mock-data'
+import { JEONJU_REAL_POI_DATABASE } from '@/lib/mock-data'
 
 // ============================================================
 // 전주 고유 명소 DB — 자동 코스 추천 전용
@@ -543,43 +544,76 @@ const JEONJU_ALL_SEARCHABLE = [...JEONJU_PLACES_DATABASE, ...JEONJU_SEARCHABLE_O
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
-  const q = searchParams.get('q')?.trim() ?? ''
+  const rawQ = searchParams.get('q')?.trim() ?? ''
+  const q = rawQ.toLowerCase()
+  const cleanQ = q.replace(/\s+/g, '')
 
   if (!q) {
     return NextResponse.json(JEONJU_PLACES_DATABASE.slice(0, 10))
   }
 
-  const matched = JEONJU_ALL_SEARCHABLE.filter(
+  // 1. JEONJU_REAL_POI_DATABASE 매칭 (버거킹 전주중앙점, 스타벅스, 올리브영 등 프랜차이즈/체험 매장)
+  const poiMatched = JEONJU_REAL_POI_DATABASE.filter((poi) => {
+    const poiNameLower = poi.name.toLowerCase()
+    const poiAddressLower = poi.address?.toLowerCase() || ''
+    const poiNameClean = poiNameLower.replace(/\s+/g, '')
+
+    if (poiNameLower.includes(q) || poiNameClean.includes(cleanQ) || cleanQ.includes(poiNameClean)) return true
+    if (poiAddressLower.includes(q)) return true
+
+    return poi.keywords.some((k) => {
+      const kClean = k.toLowerCase().replace(/\s+/g, '')
+      const kShort = kClean.replace(/전주|점|dt/g, '').trim()
+      return (
+        kClean.includes(cleanQ) ||
+        cleanQ.includes(kClean) ||
+        (kShort.length >= 2 && cleanQ.includes(kShort)) ||
+        (cleanQ.length >= 2 && kShort.includes(cleanQ))
+      )
+    })
+  }).map((poi, idx) => ({
+    ...poi,
+    id: `poi-api-${poi.name}-${idx}`,
+    order: 0,
+    walkMinutes: 5,
+    suggestedDuration: '45분',
+  }))
+
+  // 2. 통합 DB 매칭
+  const dbMatched = JEONJU_ALL_SEARCHABLE.filter(
     (p) =>
-      p.name.toLowerCase().includes(q.toLowerCase()) ||
-      p.category.toLowerCase().includes(q.toLowerCase()) ||
-      p.address?.toLowerCase().includes(q.toLowerCase()) ||
-      p.tags?.some((t) => t.toLowerCase().includes(q.toLowerCase())),
+      !poiMatched.some((pm) => pm.name.toLowerCase() === p.name.toLowerCase()) &&
+      (p.name.toLowerCase().includes(q) ||
+        p.category.toLowerCase().includes(q) ||
+        p.address?.toLowerCase().includes(q) ||
+        p.tags?.some((t) => t.toLowerCase().includes(q))),
   )
 
-  if (matched.length > 0) {
-    return NextResponse.json(matched.slice(0, 10))
+  const combined = [...poiMatched, ...dbMatched]
+
+  if (combined.length > 0) {
+    return NextResponse.json(combined.slice(0, 15))
   }
 
   const customSearchPlace: Omit<Place, 'id' | 'order'> = {
-    name: q,
+    name: rawQ,
     category: '네이버 지도 검색 장소',
     subCategory: 'spot',
     cost: 0, costLabel: '입장료/비용 개별 확인',
     walkMinutes: 10,
-    reason: `사용자께서 네이버 지도로 직접 검색하여 추가하신 스팟 '${q}'입니다.`,
+    reason: `사용자께서 네이버 지도로 직접 검색하여 추가하신 스팟 '${rawQ}'입니다.`,
     isMustVisit: true, isIndoor: true,
     mapX: Math.floor(Math.random() * 40) + 30,
     mapY: Math.floor(Math.random() * 40) + 30,
     lat: 35.8140 + (Math.random() * 0.006 - 0.003),
     lng: 127.1510 + (Math.random() * 0.006 - 0.003),
-    address: `전북 전주시 완산구 ${q} 부근 (네이버 지도 연동)`,
+    address: `전북 전주시 완산구 ${rawQ} 부근 (네이버 지도 연동)`,
     operatingHours: '운영시간 개별 확인',
     phone: '네이버 지도 참조',
-    tags: ['#실시간검색추가', '#네이버지도', `#${q}`],
+    tags: ['#실시간검색추가', '#네이버지도', `#${rawQ}`],
     suggestedDuration: '45분',
-    tips: `💡 현지인 팁: 네이버 지도를 통해 '${q}'의 최신 휴무일과 실시간 방문 후기를 확인하세요.`,
-    naverMapUrl: `https://map.naver.com/v5/search/${encodeURIComponent(q)}`,
+    tips: `💡 현지인 팁: 네이버 지도를 통해 '${rawQ}'의 최신 휴무일과 실시간 방문 후기를 확인하세요.`,
+    naverMapUrl: `https://map.naver.com/v5/search/${encodeURIComponent(rawQ)}`,
     transitInfo: `🚌 시내버스 노선은 네이버 지도의 최신 버스 정보를 참조해 주세요.`,
     parkingInfo: `🚗 인근 공영/민영 주차장을 이용해 주세요.`,
   }

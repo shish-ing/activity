@@ -21,9 +21,10 @@ import {
   Sparkles,
   Utensils,
   Wallet,
+  Trash2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import type { Place } from '@/lib/mock-data'
+import { getPlaceImageUrl, type Place } from '@/lib/mock-data'
 import { cn } from '@/lib/utils'
 
 type PlaceCardProps = {
@@ -31,8 +32,10 @@ type PlaceCardProps = {
   transport?: string // 'walk' | 'transit' | 'car'
   highlighted?: boolean
   canReplace?: boolean
+  canDelete?: boolean
   onHover?: (id: string | null) => void
   onReplace?: (id: string) => void
+  onDelete?: (id: string) => void
 }
 
 function formatWon(value: number) {
@@ -45,8 +48,10 @@ export function PlaceCard({
   transport = 'walk',
   highlighted = false,
   canReplace = false,
+  canDelete = true,
   onHover,
   onReplace,
+  onDelete,
 }: PlaceCardProps) {
   const [replacing, setReplacing] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
@@ -142,7 +147,7 @@ export function PlaceCard({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {canReplace ? (
             <Button
               variant="outline"
@@ -155,6 +160,49 @@ export function PlaceCard({
               <span>{replacing ? '교체 중...' : '다른 장소 변경'}</span>
             </Button>
           ) : null}
+
+          {canDelete && onDelete ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete(place.id)
+              }}
+              className="h-8 gap-1 rounded-xl border-red-200 bg-red-50 px-2.5 text-xs font-bold text-red-600 hover:bg-red-500 hover:text-white transition-all cursor-pointer shadow-xs"
+              title="이 장소를 코스에서 삭제하고 동선/순서 재정렬"
+            >
+              <Trash2 className="size-3.5" />
+              <span>삭제</span>
+            </Button>
+          ) : null}
+        </div>
+      </div>
+
+      {/* 🖼️ 장소 대표 실사 이미지 (네이버 지도 대표 사진 100% 실사) */}
+      <div className="relative mt-3 h-36 sm:h-44 w-full overflow-hidden rounded-xl border border-slate-200/90 shadow-sm bg-slate-100 group/img">
+        <img
+          src={place.imageUrl || getPlaceImageUrl(place.name, place.category)}
+          alt={place.name}
+          className="h-full w-full object-cover transition-transform duration-500 group-hover/img:scale-105"
+          onError={(e) => {
+            ;(e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1578637387939-43c525550085?auto=format&fit=crop&w=800&q=80'
+          }}
+        />
+        <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-slate-950/85 via-slate-950/50 to-transparent p-2.5 pt-6 text-[11px] text-white">
+          <span className="flex items-center gap-1 font-extrabold text-emerald-300 drop-shadow-sm">
+            <span>🟢 네이버 지도 100% 현장 실사 사진</span>
+          </span>
+          <a
+            href={place.naverMapUrl || `https://map.naver.com/v5/search/${encodeURIComponent(place.name)}`}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="flex items-center gap-1 font-extrabold text-sky-200 hover:text-white bg-slate-900/80 hover:bg-slate-950 px-2 py-0.5 rounded-md border border-white/20 transition-all text-[10px] sm:text-[11px]"
+          >
+            <span>네이버 지도에서 보기</span>
+            <ExternalLink className="size-3 shrink-0" />
+          </a>
         </div>
       </div>
 

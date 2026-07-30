@@ -14,6 +14,7 @@ import {
   ALTERNATIVE_PLACES,
   CURRENT_WEATHER,
   findNearestJeonjuRealPoi,
+  findNearestJeonjuRealPois,
   RECOMMENDED_PLACES,
   type Place,
   type Weather,
@@ -407,62 +408,67 @@ export function ResultView() {
     const query = addSearchInput.toLowerCase().trim()
     const currentPlaceNames = new Set(places.map((p) => p.name.toLowerCase()))
 
-    // 1. 네이버 지도 실존 전주 프랜차이즈/체험 매장 POI DB에서 코스 경로에 가장 가까운 지점 우선 매칭
-    const realPoiMatch = findNearestJeonjuRealPoi(query, places)
-    if (realPoiMatch && !currentPlaceNames.has(realPoiMatch.name.toLowerCase())) {
-      return [realPoiMatch]
-    }
+    // 1. 네이버 지도 실존 전주 프랜차이즈/체험 매장 POI DB에서 검색된 모든 매장 (현재 경로 동선 중심 기준 거리 오름차순 정렬)
+    const realPoiMatches = findNearestJeonjuRealPois(query, places).filter(
+      (p) => !currentPlaceNames.has(p.name.toLowerCase())
+    )
 
     // 2. 대표 데이터베이스 내 장소 매칭
     const dbMatches = JEONJU_PLACES_DATABASE.filter(
       (p) =>
         !currentPlaceNames.has(p.name.toLowerCase()) &&
+        !realPoiMatches.some((rpm) => rpm.name.toLowerCase() === p.name.toLowerCase()) &&
         (p.name.toLowerCase().includes(query) ||
           p.category.toLowerCase().includes(query) ||
           p.tags?.some((t) => t.toLowerCase().includes(query))),
     )
 
-    if (dbMatches.length > 0) {
-      return dbMatches
-    }
+    const combinedMatches = [...realPoiMatches, ...dbMatches]
 
-    // 3. 지점 미매칭 시에도 실제 전주 위치 기반 장소 추천 생성
+    // 3. 사용자가 입력한 검색어 기반 네이버 지도 직접 연동 스팟 (항상 위치확인/추가 가능하도록 생성)
     const isJeonbukdae = query.includes('전북대')
     const isHyoja = query.includes('효자')
     const isSeoshin = query.includes('서신')
     const isSongcheon = query.includes('송천') || query.includes('에코')
+    const isJungang = query.includes('중앙') || query.includes('객사') || query.includes('고사')
 
-    const customLat = isJeonbukdae ? 35.8485 : isHyoja ? 35.8115 : isSeoshin ? 35.8300 : isSongcheon ? 35.8670 : 35.8192
-    const customLng = isJeonbukdae ? 127.1298 : isHyoja ? 127.1085 : isSeoshin ? 127.1180 : isSongcheon ? 127.1350 : 127.1435
+    const customLat = isJeonbukdae ? 35.8485 : isHyoja ? 35.8115 : isSeoshin ? 35.8300 : isSongcheon ? 35.8670 : isJungang ? 35.8178 : 35.8192
+    const customLng = isJeonbukdae ? 127.1298 : isHyoja ? 127.1085 : isSeoshin ? 127.1180 : isSongcheon ? 127.1350 : isJungang ? 127.1442 : 127.1435
     const customAddress = isJeonbukdae
       ? '전북 전주시 덕진구 명륜3길 18 (전북대 대학로)'
       : isHyoja
         ? '전북 전주시 완산구 용머리로 82 (효자동)'
         : isSeoshin
           ? '전북 전주시 완산구 당산로 43 (서신동)'
-          : `전북 전주시 완산구 전주객사4길 (고사동)`
-
+          : isJungang
+            ? '전북 전주시 완산구 팔달로 190 (고사동/객사)'
+            : '네이버 지도에서 위치 및 주소 직접 확인'
     const customSuggestion: Place = {
       id: `custom-${Date.now()}`,
       order: 0,
-      name: `${addSearchInput} (전주 현지 매장)`,
-      category: '📍 전주 현지 실존 명소',
+      name: `🔍 네이버 지도로 '${addSearchInput.trim()}' 검색 및 코스 추가`,
+      category: '📍 네이버 지도 연동 장소',
       subCategory: 'spot',
-      cost: 8000,
-      costLabel: '비용 약 8,000원',
+      cost: 0,
+      costLabel: '비용 정보 네이버 지도 참조',
       walkMinutes: 5,
-      reason: `네이버 지도로 실제 전주에 존재하는 스팟 '${addSearchInput}'을 코스에 연동했습니다.`,
+      reason: `네이버 지도로 실제 위치를 직접 확인하고 코스에 연동하는 스팟입니다.`,
       isMustVisit: true,
+      isIndoor: true,
       mapX: 50,
       mapY: 50,
       lat: customLat,
       lng: customLng,
-      address: customAddress,
-      operatingHours: '09:00 - 22:00 (네이버 지도 참조)',
-      tags: ['#실제위치', `#${addSearchInput}`, '#네이버지도', '#예산재계산'],
+      address: '네이버 지도에서 실시간 위치 및 주소 확인',
+      operatingHours: '네이버 지도 참조',
+      tags: ['#네이버지도실시간연동', `#${addSearchInput}`, '#위치확인가능'],
       suggestedDuration: '45분',
-      tips: `💡 네이버 지도로 실제 전주 주소를 확인하신 후 경로에 반영된 스팟입니다.`,
-      naverMapUrl: `https://map.naver.com/v5/search/${encodeURIComponent(addSearchInput)}`,
+      tips: `💡 네이버 지도 위치 확인 버튼을 눌러 실제 등록 장소를 확인하세요.`,
+      naverMapUrl: `https://map.naver.com/v5/search/${encodeURIComponent(addSearchInput.trim())}`,
+    }
+
+    if (combinedMatches.length > 0) {
+      return combinedMatches
     }
 
     return [customSuggestion]
@@ -1365,6 +1371,101 @@ export function ResultView() {
     })
   }
 
+  // 클릭 시 코스 장소 삭제 처리 함수 — 삭제 후 남은 장소들 전체 경로 최단 순선 재정렬 + 번호 1부터 순서 재배정
+  function handleDeletePlace(id: string) {
+    setPlaces((prev) => {
+      if (prev.length <= 1) {
+        alert('최소 1개 이상의 코스 장소가 남아있어야 합니다.')
+        return prev
+      }
+
+      const remainingList = prev.filter((p) => p.id !== id)
+
+      // 삭제 후 출발지 앵커 기준 최단 순선 알고리즘(Nearest-Neighbor TSP) 전체 재정렬
+      const startAnchor: Place = {
+        id: 'start-anchor',
+        order: 0,
+        name: startLocationParam,
+        category: '출발지',
+        cost: 0, costLabel: '0원',
+        walkMinutes: 0, reason: '출발지',
+        isMustVisit: false,
+        mapX: 50, mapY: 50,
+        lat: startLocationParam.includes('전주역') ? 35.8490
+          : startLocationParam.includes('터미널') ? 35.8360
+          : startLocationParam.includes('전북대') ? 35.8470
+          : 35.8133,
+        lng: startLocationParam.includes('전주역') ? 127.1615
+          : startLocationParam.includes('터미널') ? 127.1320
+          : startLocationParam.includes('전북대') ? 127.1290
+          : 127.1492,
+      }
+
+      const unvisited = [...remainingList]
+      const reOptimized: Place[] = []
+
+      // 출발지에서 가장 가까운 첫 번째 장소 탐색
+      let nearestToStartIdx = 0
+      let minStartDist = Infinity
+      for (let i = 0; i < unvisited.length; i++) {
+        const dist = getPlaceDistance(startAnchor, unvisited[i])
+        if (dist < minStartDist) {
+          minStartDist = dist
+          nearestToStartIdx = i
+        }
+      }
+      let current = unvisited.splice(nearestToStartIdx, 1)[0]
+      reOptimized.push(current)
+
+      // 나머지 최단 순선 연결
+      while (unvisited.length > 0) {
+        let nearestIdx = 0
+        let minDistance = Infinity
+        for (let i = 0; i < unvisited.length; i++) {
+          const dist = getPlaceDistance(current, unvisited[i])
+          if (dist < minDistance) {
+            minDistance = dist
+            nearestIdx = i
+          }
+        }
+        current = unvisited.splice(nearestIdx, 1)[0]
+        reOptimized.push(current)
+      }
+
+      const total = reOptimized.length
+
+      // 번호(order) 1부터 순서대로, day도 재배분, 이동시간 재계산
+      return reOptimized.map((place, idx) => {
+        let travelMins = 0
+        if (idx > 0) {
+          const prevPlace = reOptimized[idx - 1]
+          const distSq = getPlaceDistance(prevPlace, place)
+          const approxKm = Math.sqrt(distSq)
+          travelMins = transport === 'walk'
+            ? Math.max(3, Math.round(approxKm * 8 + 2))
+            : Math.max(4, Math.round(approxKm * 10 + 2))
+        }
+
+        let day = 1
+        if (time === '2days') {
+          day = idx < Math.ceil(total / 2) ? 1 : 2
+        } else if (time === '3days') {
+          const perDay = Math.ceil(total / 3)
+          if (idx < perDay) day = 1
+          else if (idx < perDay * 2) day = 2
+          else day = 3
+        }
+
+        return ensureThreeDiningAndCafes({
+          ...place,
+          order: idx + 1,
+          day,
+          walkMinutes: travelMins,
+        })
+      })
+    })
+  }
+
   const totalCost = useMemo(
     () => places.reduce((sum, p) => sum + p.cost, 0),
     [places],
@@ -1849,8 +1950,10 @@ export function ResultView() {
                             transport={transport}
                             highlighted={activeId === place.id}
                             canReplace={true}
+                            canDelete={places.length > 1}
                             onHover={setActiveId}
                             onReplace={handleReplace}
+                            onDelete={handleDeletePlace}
                           />
                         )
                       })}
@@ -1865,8 +1968,10 @@ export function ResultView() {
                       transport={transport}
                       highlighted={activeId === place.id}
                       canReplace={true}
+                      canDelete={places.length > 1}
                       onHover={setActiveId}
                       onReplace={handleReplace}
+                      onDelete={handleDeletePlace}
                     />
                   ))
                 )}
@@ -1985,46 +2090,60 @@ export function ResultView() {
                       <span>🔍 네이버 지도 검색 결과 (위치를 먼저 확인 후 코스에 추가하실 수 있습니다)</span>
                       <span className="text-[10px] text-slate-400">네이버 지도 연동</span>
                     </div>
-                    {addPlaceSuggestions.map((item) => (
-                      <div
-                        key={item.name}
-                        className="flex flex-col gap-1.5 px-3 py-2.5 hover:bg-sky-50 rounded-xl transition-colors border-b border-slate-100 last:border-0"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex items-center gap-1.5 font-bold text-slate-900 text-xs">
-                            <span>{item.name}</span>
-                            <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-bold text-sky-800">
-                              {item.category}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <a
-                              href={item.naverMapUrl || `https://map.naver.com/v5/search/${encodeURIComponent(item.name)}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="inline-flex items-center gap-1 rounded-lg border border-sky-300 bg-sky-50 px-2 py-1 text-[11px] font-bold text-sky-700 hover:bg-sky-100 transition-colors shadow-2xs"
-                            >
-                              <MapPin className="size-3 text-sky-600" />
-                              <span>🗺️ 네이버 지도 위치 확인</span>
-                            </a>
-                            <Button
-                              size="sm"
-                              variant="default"
-                              onClick={() => handleAddPlaceToItinerary(item)}
-                              className="h-7 text-[11px] rounded-lg shrink-0 gap-1 font-bold bg-amber-400 text-slate-950 hover:bg-amber-300"
-                            >
-                              <Plus className="size-3" /> 코스 추가
-                            </Button>
-                          </div>
-                        </div>
+                    {addPlaceSuggestions.map((item) => {
+                      const distTag = item.tags?.find((t) => t.startsWith('#거리_'))?.replace('#거리_', '거리 ')
+                      const isNearest = item.tags?.includes('#🎯현재동선최단추천')
 
-                        <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-500 pt-0.5">
-                          <span>📍 실제 주소: <strong className="text-slate-800">{item.address || '전북 전주시'}</strong></span>
-                          <span className="text-emerald-600 font-bold">{item.costLabel || '비용 정보'}</span>
+                      return (
+                        <div
+                          key={item.name}
+                          className="flex flex-col gap-1.5 px-3 py-2.5 hover:bg-sky-50 rounded-xl transition-colors border-b border-slate-100 last:border-0"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex flex-wrap items-center gap-1.5 font-bold text-slate-900 text-xs">
+                              <span>{item.name}</span>
+                              <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-bold text-sky-800">
+                                {item.category}
+                              </span>
+                              {isNearest ? (
+                                <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-300">
+                                  🎯 최단 동선
+                                </span>
+                              ) : distTag ? (
+                                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-700 border border-slate-200">
+                                  📍 {distTag}
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <a
+                                href={item.naverMapUrl || `https://map.naver.com/v5/search/${encodeURIComponent(item.name)}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center gap-1 rounded-lg border border-sky-300 bg-sky-50 px-2 py-1 text-[11px] font-bold text-sky-700 hover:bg-sky-100 transition-colors shadow-2xs"
+                              >
+                                <MapPin className="size-3 text-sky-600" />
+                                <span>🗺️ 네이버 지도 위치 확인</span>
+                              </a>
+                              <Button
+                                size="sm"
+                                variant="default"
+                                onClick={() => handleAddPlaceToItinerary(item)}
+                                className="h-7 text-[11px] rounded-lg shrink-0 gap-1 font-bold bg-amber-400 text-slate-950 hover:bg-amber-300 cursor-pointer"
+                              >
+                                <Plus className="size-3" /> 코스 추가
+                              </Button>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-500 pt-0.5">
+                            <span>📍 실제 주소: <strong className="text-slate-800">{item.address || '전북 전주시'}</strong></span>
+                            <span className="text-emerald-600 font-bold">{item.costLabel || '비용 정보'}</span>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 ) : null}
               </div>
