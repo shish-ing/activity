@@ -384,22 +384,43 @@ export function ConditionForm() {
         />
       </div>
 
-      {/* 메인 맞춤 여행 코스 추천받기 단일 통합 버튼 (중복 오버레이 제거로 1개의 깔끔한 로딩 상태만 노출) */}
+      {/* 1. 폼 하단 메인 추천받기 버튼 */}
       <Button
         size="lg"
         onClick={handleSubmit}
         disabled={loading}
-        className="h-14 w-full rounded-2xl text-base sm:text-lg font-bold tracking-wide bg-[#4E3629] hover:bg-[#3D291F] text-white shadow-xl shadow-[#4E3629]/20 transition-all active:scale-[0.99] cursor-pointer mt-4 border border-[#4E3629]/40"
+        className="h-14 w-full rounded-2xl text-base sm:text-lg font-serif font-bold tracking-wide bg-slate-900 hover:bg-slate-800 text-white shadow-xl shadow-slate-900/20 transition-all active:scale-[0.99] cursor-pointer mt-4 border border-slate-700/60"
       >
         {loading ? (
-          <div className="flex items-center justify-center gap-2.5">
-            <Loader2 className="size-5 animate-spin text-amber-300" />
-            <span className="font-semibold">✨ 최단 여행 코스 생성 중...</span>
+          <div className="flex items-center gap-2">
+            <Loader2 className="size-5 animate-spin text-white" />
+            <span>최단 여행 코스 생성 중...</span>
           </div>
         ) : (
-          <span>✨ 맞춤 여행 코스 추천받기</span>
+          <span>맞춤 여행 코스 추천받기</span>
         )}
       </Button>
+
+      {/* 2. 📱 화면 하단 플로팅 추천 버튼 (흰색 바탕 제거 & 투명도 적용) */}
+      <div className="fixed bottom-4 inset-x-0 z-50 px-4 flex justify-center pointer-events-none">
+        <div className="w-full max-w-md pointer-events-auto">
+          <Button
+            size="lg"
+            onClick={handleSubmit}
+            disabled={loading}
+            className="h-13 w-full rounded-2xl text-base sm:text-lg font-serif font-bold tracking-wide bg-slate-950/80 hover:bg-slate-950/95 text-white backdrop-blur-md shadow-2xl border border-white/20 transition-all active:scale-[0.98] cursor-pointer"
+          >
+            {loading ? (
+              <div className="flex items-center gap-2">
+                <Loader2 className="size-5 animate-spin text-amber-400" />
+                <span>최단 여행 코스 생성 중...</span>
+              </div>
+            ) : (
+              <span>맞춤 여행 코스 추천받기</span>
+            )}
+          </Button>
+        </div>
+      </div>
     </div>
   )
 }
