@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import {
   Building2,
@@ -23,10 +23,26 @@ import {
   AlertCircle,
   MessageSquare,
   BarChart3,
-  X
+  X,
+  Star,
+  ThumbsUp,
+  SunMedium,
+  Smile,
+  ChevronDown,
+  ChevronUp,
+  Award,
+  Filter
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { JEONJU_PLACES_DATABASE } from '@/app/api/places/search/route'
+
+export interface SpotReviewDetail {
+  userName: string
+  weatherScore: number
+  funScore: number
+  comment: string
+  date: string
+}
 
 export interface AdminPlaceItem {
   id: string
@@ -49,33 +65,82 @@ export interface AdminPlaceItem {
   status: 'active' | 'review' | 'inactive'
   isTempClosed: boolean
   updatedAt: string
+
+  // ⭐ 장소별 평점 및 평가 데이터
+  avgWeatherScore: number // 1 ~ 5 (날씨 조화 평균 점수)
+  avgFunScore: number // 1 ~ 5 (재미/만족도 평균 점수)
+  overallRating: number // 1 ~ 5 (종합 평균 평점)
+  reviewCount: number // 평가 참여 수
+  isFeatured?: boolean // 피처링 추천 뱃지
+  reviewsList: SpotReviewDetail[]
 }
 
-// 초기 데이터셋 생성
-const INITIAL_ADMIN_PLACES: AdminPlaceItem[] = JEONJU_PLACES_DATABASE.map((p, idx) => ({
-  id: `place_${idx + 1}`,
-  name: p.name,
-  category: p.category,
-  subCategory: p.subCategory,
-  address: p.address || '전북 전주시 완산구',
-  lat: p.lat || 35.8133,
-  lng: p.lng || 127.1492,
-  cost: p.cost,
-  costLabel: p.costLabel,
-  operatingHours: p.operatingHours || '10:00 - 20:00',
-  phone: p.phone || '063-280-0000',
-  reason: p.reason,
-  tips: p.tips || '',
-  isIndoor: p.isIndoor ?? true,
-  isMustVisit: p.isMustVisit ?? false,
-  suitableCompanions: p.suitableCompanions || ['couple', 'friends', 'family'],
-  tags: p.tags || ['#전주맛집', '#한옥마을'],
-  status: idx % 15 === 0 ? 'review' : idx % 23 === 0 ? 'inactive' : 'active',
-  isTempClosed: idx === 3 || idx === 12,
-  updatedAt: '2026-07-30 14:20',
-}))
+// 장소별 시드 더미 평점 데이터 생성 (실제 POI DB 연동)
+const INITIAL_ADMIN_PLACES: AdminPlaceItem[] = JEONJU_PLACES_DATABASE.map((p, idx) => {
+  // 장소별 고유의 현실적인 평점 부여
+  const baseWeather = 4.2 + ((idx * 7) % 8) / 10
+  const baseFun = 4.3 + ((idx * 9) % 7) / 10
+  const weatherScore = Number(Math.min(5.0, baseWeather).toFixed(1))
+  const funScore = Number(Math.min(5.0, baseFun).toFixed(1))
+  const overall = Number(((weatherScore + funScore) / 2).toFixed(1))
+  const count = 12 + ((idx * 13) % 45)
 
-// 유저 오류 신고 더미 데이터
+  // 샘플 사용자 한줄평
+  const sampleComments: SpotReviewDetail[] = [
+    {
+      userName: '전주p탐험가',
+      weatherScore: 5,
+      funScore: 5,
+      comment: '날씨에 맞게 추천받아서 들렀는데 동선도 최고고 힐링하기 좋았어요!',
+      date: '2026-07-30 14:10',
+    },
+    {
+      userName: '여행러_민지',
+      weatherScore: Math.round(weatherScore),
+      funScore: Math.round(funScore),
+      comment: '사진 찍기에도 너무 고즈넉하고 카페 연계 코스가 완전 알찼습니다.',
+      date: '2026-07-29 18:30',
+    },
+    {
+      userName: '전북대생_준호',
+      weatherScore: 4,
+      funScore: 5,
+      comment: '친구들이랑 같이 방문했는데 예산 대비 가성비도 훌륭하고 만족스러워요.',
+      date: '2026-07-28 11:20',
+    },
+  ]
+
+  return {
+    id: `place_${idx + 1}`,
+    name: p.name,
+    category: p.category,
+    subCategory: p.subCategory,
+    address: p.address || '전북 전주시 완산구',
+    lat: p.lat || 35.8133,
+    lng: p.lng || 127.1492,
+    cost: p.cost,
+    costLabel: p.costLabel,
+    operatingHours: p.operatingHours || '10:00 - 20:00',
+    phone: p.phone || '063-280-0000',
+    reason: p.reason,
+    tips: p.tips || '',
+    isIndoor: p.isIndoor ?? true,
+    isMustVisit: p.isMustVisit ?? false,
+    suitableCompanions: p.suitableCompanions || ['couple', 'friends', 'family'],
+    tags: p.tags || ['#전주맛집', '#한옥마을'],
+    status: idx % 15 === 0 ? 'review' : idx % 23 === 0 ? 'inactive' : 'active',
+    isTempClosed: idx === 3 || idx === 12,
+    updatedAt: '2026-07-30 14:20',
+    avgWeatherScore: weatherScore,
+    avgFunScore: funScore,
+    overallRating: overall,
+    reviewCount: count,
+    isFeatured: idx === 0 || idx === 1 || idx === 4,
+    reviewsList: sampleComments,
+  }
+})
+
+// 유저 오류 신고 데이터
 interface UserReport {
   id: string
   placeName: string
@@ -113,14 +178,17 @@ const INITIAL_REPORTS: UserReport[] = [
 ]
 
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState<'crud' | 'hours' | 'simulator' | 'monitoring'>('crud')
+  const [activeTab, setActiveTab] = useState<'crud' | 'ratings' | 'hours' | 'simulator' | 'monitoring'>('crud')
   const [places, setPlaces] = useState<AdminPlaceItem[]>(INITIAL_ADMIN_PLACES)
   const [reports, setReports] = useState<UserReport[]>(INITIAL_REPORTS)
 
   // 🔍 CRUD 검색 및 필터 State
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'review' | 'inactive'>('all')
-  const [categoryFilter] = useState<string>('all')
+
+  // ⭐ 평점 전용 필터 State
+  const [ratingSort, setRatingSort] = useState<'overall' | 'weather' | 'fun' | 'count'>('overall')
+  const [selectedPlaceReviews, setSelectedPlaceReviews] = useState<AdminPlaceItem | null>(null)
 
   // ✏️ 장소 등록 / 수정 모달 State
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -135,31 +203,108 @@ export default function AdminPage() {
   const [formReason, setFormReason] = useState('')
   const [formIsIndoor, setFormIsIndoor] = useState(true)
   const [formStatus, setFormStatus] = useState<'active' | 'review' | 'inactive'>('active')
-  const [formCompanions] = useState<string[]>(['couple', 'friends'])
   const [formTags, setFormTags] = useState<string>('#전주 #핫플')
 
-  // 🌤️ 기상청 수동 폴백 모드 State (Phase 3-1)
+  // 🌤️ 기상청 수동 폴백 모드 State
   const [manualWeatherFallback, setManualWeatherFallback] = useState<boolean>(false)
   const [forcedWeatherCondition] = useState<string>('rain')
 
-  // 🎯 시뮬레이터 State (Phase 1-5)
+  // 🎯 시뮬레이터 State
   const [simAuditResults, setSimAuditResults] = useState<any[] | null>(null)
 
-  // 📊 통계 수치
+  // 💡 LocalStorage에서 사용자가 직접 남긴 내 정보 관리 장소별 평점 데이터 실시간 합성
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const allUserKeys = Object.keys(localStorage).filter((k) =>
+        k.startsWith('jeonju_saved_courses_')
+      )
+      const userSpotRatingsMap: Record<
+        string,
+        { weatherSum: number; funSum: number; count: number; reviews: SpotReviewDetail[] }
+      > = {}
+
+      allUserKeys.forEach((key) => {
+        const coursesStr = localStorage.getItem(key)
+        if (!coursesStr) return
+        const courses = JSON.parse(coursesStr)
+        courses.forEach((c: any) => {
+          if (c.spotRatings && Array.isArray(c.spotRatings)) {
+            c.spotRatings.forEach((sr: any) => {
+              if (!userSpotRatingsMap[sr.spotName]) {
+                userSpotRatingsMap[sr.spotName] = {
+                  weatherSum: 0,
+                  funSum: 0,
+                  count: 0,
+                  reviews: [],
+                }
+              }
+              const entry = userSpotRatingsMap[sr.spotName]
+              entry.weatherSum += sr.weatherScore || 5
+              entry.funSum += sr.funScore || 5
+              entry.count += 1
+              if (sr.comment) {
+                entry.reviews.push({
+                  userName: key.replace('jeonju_saved_courses_', '').split('@')[0],
+                  weatherScore: sr.weatherScore || 5,
+                  funScore: sr.funScore || 5,
+                  comment: sr.comment,
+                  date: c.reviewedAt || '2026-07-30',
+                })
+              }
+            })
+          }
+        })
+      })
+
+      // places 실시간 업데이트
+      setPlaces((prev) =>
+        prev.map((p) => {
+          const userStats = userSpotRatingsMap[p.name]
+          if (!userStats || userStats.count === 0) return p
+
+          const newCount = p.reviewCount + userStats.count
+          const newWeatherAvg = Number(
+            ((p.avgWeatherScore * p.reviewCount + userStats.weatherSum) / newCount).toFixed(1)
+          )
+          const newFunAvg = Number(
+            ((p.avgFunScore * p.reviewCount + userStats.funSum) / newCount).toFixed(1)
+          )
+          const newOverall = Number(((newWeatherAvg + newFunAvg) / 2).toFixed(1))
+
+          return {
+            ...p,
+            reviewCount: newCount,
+            avgWeatherScore: newWeatherAvg,
+            avgFunScore: newFunAvg,
+            overallRating: newOverall,
+            reviewsList: [...userStats.reviews, ...p.reviewsList],
+          }
+        })
+      )
+    } catch (e) {}
+  }, [])
+
+  // 📊 대시보드 통계 수치
   const stats = useMemo(() => {
     const total = places.length
     const active = places.filter((p) => p.status === 'active' && !p.isTempClosed).length
     const review = places.filter((p) => p.status === 'review').length
     const tempClosed = places.filter((p) => p.isTempClosed).length
-    const inactive = places.filter((p) => p.status === 'inactive').length
-    return { total, active, review, tempClosed, inactive }
+    const avgRatingAll = (
+      places.reduce((sum, p) => sum + p.overallRating, 0) / (total || 1)
+    ).toFixed(2)
+    const topWeatherSpot = [...places].sort((a, b) => b.avgWeatherScore - a.avgWeatherScore)[0]
+    const topFunSpot = [...places].sort((a, b) => b.avgFunScore - a.avgFunScore)[0]
+    const totalReviews = places.reduce((sum, p) => sum + p.reviewCount, 0)
+
+    return { total, active, review, tempClosed, avgRatingAll, topWeatherSpot, topFunSpot, totalReviews }
   }, [places])
 
-  // 필터링된 장소 목록
+  // 필터링 및 정렬된 장소 목록 (CRUD용)
   const filteredPlaces = useMemo(() => {
     return places.filter((p) => {
       if (statusFilter !== 'all' && p.status !== statusFilter) return false
-      if (categoryFilter !== 'all' && !p.category.includes(categoryFilter)) return false
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase()
         return (
@@ -170,7 +315,17 @@ export default function AdminPage() {
       }
       return true
     })
-  }, [places, statusFilter, categoryFilter, searchQuery])
+  }, [places, statusFilter, searchQuery])
+
+  // 평점 탭 전용 정렬 목록
+  const sortedRatingPlaces = useMemo(() => {
+    return [...places].sort((a, b) => {
+      if (ratingSort === 'weather') return b.avgWeatherScore - a.avgWeatherScore
+      if (ratingSort === 'fun') return b.avgFunScore - a.avgFunScore
+      if (ratingSort === 'count') return b.reviewCount - a.reviewCount
+      return b.overallRating - a.overallRating
+    })
+  }, [places, ratingSort])
 
   // 신규 장소 등록 또는 기존 장소 수정 처리
   const handleSavePlace = (e: React.FormEvent) => {
@@ -186,7 +341,6 @@ export default function AdminPage() {
       .filter((t) => t.length > 0)
 
     if (editingPlace) {
-      // 수정
       setPlaces((prev) =>
         prev.map((item) =>
           item.id === editingPlace.id
@@ -201,16 +355,14 @@ export default function AdminPage() {
                 reason: formReason || '전주 인기 추천 스팟입니다.',
                 isIndoor: formIsIndoor,
                 status: formStatus,
-                suitableCompanions: formCompanions,
                 tags: tagList,
                 updatedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
               }
             : item
         )
       )
-      alert(`'${formName}' 장소 정보가 성공적으로 수정되었습니다!`)
+      alert(`'${formName}' 장소 정보가 수정되었습니다!`)
     } else {
-      // 신규 등록
       const newPlace: AdminPlaceItem = {
         id: `place_${Date.now()}`,
         name: formName,
@@ -224,21 +376,25 @@ export default function AdminPage() {
         reason: formReason || '신규 등록된 전주 추천 장소입니다.',
         isIndoor: formIsIndoor,
         isMustVisit: false,
-        suitableCompanions: formCompanions,
+        suitableCompanions: ['couple', 'friends'],
         tags: tagList,
         status: formStatus,
         isTempClosed: false,
         updatedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+        avgWeatherScore: 4.5,
+        avgFunScore: 4.5,
+        overallRating: 4.5,
+        reviewCount: 1,
+        reviewsList: [],
       }
       setPlaces((prev) => [newPlace, ...prev])
-      alert(`신규 장소 '${formName}'이(가) 성공적으로 등록되었습니다!`)
+      alert(`신규 장소 '${formName}'이(가) 등록되었습니다!`)
     }
 
     setIsModalOpen(false)
     setEditingPlace(null)
   }
 
-  // 장소 편집 모달 열기
   const handleOpenEditModal = (p: AdminPlaceItem) => {
     setEditingPlace(p)
     setFormName(p.name)
@@ -253,7 +409,6 @@ export default function AdminPage() {
     setIsModalOpen(true)
   }
 
-  // 장소 신규 등록 모달 열기
   const handleOpenNewModal = () => {
     setEditingPlace(null)
     setFormName('')
@@ -268,7 +423,6 @@ export default function AdminPage() {
     setIsModalOpen(true)
   }
 
-  // 원클릭 임시휴업 토글 (Phase 1-3)
   const handleToggleTempClosed = (id: string) => {
     setPlaces((prev) =>
       prev.map((p) => {
@@ -284,14 +438,25 @@ export default function AdminPage() {
     )
   }
 
-  // 장소 상태 변경 (활성 / 검수중 / 비활성)
+  const handleToggleFeatured = (id: string) => {
+    setPlaces((prev) =>
+      prev.map((p) => {
+        if (p.id === id) {
+          const next = !p.isFeatured
+          alert(`'${p.name}' 추천 피처링 뱃지가 [${next ? '⭐ 설정됨' : '해제됨'}]입니다.`)
+          return { ...p, isFeatured: next }
+        }
+        return p
+      })
+    )
+  }
+
   const handleChangeStatus = (id: string, status: 'active' | 'review' | 'inactive') => {
     setPlaces((prev) =>
       prev.map((p) => (p.id === id ? { ...p, status } : p))
     )
   }
 
-  // 30조합 일괄 점검 실행 (Phase 1-5 & 2-2)
   const handleRun30CombinationAudit = () => {
     const weatherList = [
       { id: 'clear', name: '☀️ 맑음' },
@@ -374,7 +539,7 @@ export default function AdminPage() {
       </header>
 
       <main className="mx-auto max-w-7xl px-6 py-6 space-y-6">
-        {/* 📊 상단 핵심 현황 대시보드 카드리스트 (Phase 0 / 1 / 3) */}
+        {/* 📊 상단 핵심 현황 대시보드 카드리스트 */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 shadow-md flex items-center justify-between">
             <div>
@@ -386,52 +551,50 @@ export default function AdminPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-4 shadow-md flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-emerald-400">🟢 현재 서비스 추천 활성</p>
-              <p className="text-2xl font-black text-emerald-300 mt-1">{stats.active}<span className="text-xs font-medium text-emerald-500/80 ml-1">곳</span></p>
-            </div>
-            <div className="flex size-10 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-              <CheckCircle2 className="size-5" />
-            </div>
-          </div>
-
           <div className="rounded-2xl border border-amber-500/30 bg-amber-950/20 p-4 shadow-md flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold text-amber-400">🔍 검수 대기중 (승인필요)</p>
-              <p className="text-2xl font-black text-amber-300 mt-1">{stats.review}<span className="text-xs font-medium text-amber-500/80 ml-1">곳</span></p>
+              <p className="text-xs font-semibold text-amber-400">⭐ 전체 장소 평균 평점</p>
+              <p className="text-2xl font-black text-amber-300 mt-1">⭐ {stats.avgRatingAll}<span className="text-xs font-medium text-amber-500/80 ml-1">/ 5.0</span></p>
             </div>
             <div className="flex size-10 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
-              <Clock className="size-5" />
+              <Star className="size-5 fill-amber-400" />
             </div>
           </div>
 
-          <div className="rounded-2xl border border-red-500/30 bg-red-950/20 p-4 shadow-md flex items-center justify-between">
+          <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-4 shadow-md flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold text-red-400">🔴 오늘 임시휴업 매장</p>
-              <p className="text-2xl font-black text-red-300 mt-1">{stats.tempClosed}<span className="text-xs font-medium text-red-500/80 ml-1">곳</span></p>
+              <p className="text-xs font-semibold text-emerald-400">🌤️ 날씨 어울림 1위 스팟</p>
+              <p className="text-sm font-extrabold text-emerald-300 mt-1 truncate max-w-[120px]">
+                {stats.topWeatherSpot?.name || '경기전'}
+              </p>
+              <p className="text-[10px] text-emerald-400/80 font-bold">⭐ {stats.topWeatherSpot?.avgWeatherScore}점</p>
             </div>
-            <div className="flex size-10 items-center justify-center rounded-xl bg-red-500/20 text-red-400 border border-red-500/30">
-              <AlertTriangle className="size-5" />
+            <div className="flex size-10 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              <SunMedium className="size-5" />
             </div>
           </div>
 
           <div className="rounded-2xl border border-purple-500/30 bg-purple-950/20 p-4 shadow-md flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold text-purple-400">🌤️ 기상청 API 연동 상태</p>
-              <p className="text-xs font-bold text-emerald-400 mt-2 flex items-center gap-1">
-                <span className="size-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                {manualWeatherFallback ? `수동 강제(${forcedWeatherCondition})` : '자동 실시간 수신중'}
+              <p className="text-xs font-semibold text-purple-400">🎉 재미/만족도 1위 스팟</p>
+              <p className="text-sm font-extrabold text-purple-300 mt-1 truncate max-w-[120px]">
+                {stats.topFunSpot?.name || '한국집'}
               </p>
+              <p className="text-[10px] text-purple-400/80 font-bold">⭐ {stats.topFunSpot?.avgFunScore}점</p>
             </div>
-            <button
-              type="button"
-              onClick={() => setManualWeatherFallback(!manualWeatherFallback)}
-              className="flex size-10 items-center justify-center rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/30 cursor-pointer"
-              title="기상청 장애 시 수동 강제 스위치"
-            >
-              <Sliders className="size-5" />
-            </button>
+            <div className="flex size-10 items-center justify-center rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30">
+              <Smile className="size-5" />
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-sky-500/30 bg-sky-950/20 p-4 shadow-md flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-sky-400">💬 누적 사용자 평점 리뷰</p>
+              <p className="text-2xl font-black text-sky-300 mt-1">{stats.totalReviews}<span className="text-xs font-medium text-sky-500/80 ml-1">건</span></p>
+            </div>
+            <div className="flex size-10 items-center justify-center rounded-xl bg-sky-500/20 text-sky-300 border border-sky-500/30">
+              <MessageSquare className="size-5" />
+            </div>
           </div>
         </div>
 
@@ -447,7 +610,20 @@ export default function AdminPage() {
             }`}
           >
             <Building2 className="size-4" />
-            <span>1장. 장소 데이터 CRUD & 상태/태그 관리</span>
+            <span>1장. 장소 데이터 CRUD & 평점 포함 목록</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('ratings')}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all cursor-pointer border ${
+              activeTab === 'ratings'
+                ? 'bg-amber-500 text-amber-950 border-amber-400 shadow-md font-extrabold'
+                : 'bg-slate-800/80 text-slate-400 border-slate-700/80 hover:bg-slate-800 hover:text-slate-200'
+            }`}
+          >
+            <Star className="size-4 fill-amber-950" />
+            <span>⭐ 5장. 장소별 평점 & 사용자 리뷰 검수 센터</span>
           </button>
 
           <button
@@ -491,14 +667,13 @@ export default function AdminPage() {
         </div>
 
         {/* ========================================================================= */}
-        {/* TAB 1: 🏢 장소 데이터 CRUD & 상태/태그 관리 */}
+        {/* TAB 1: 🏢 장소 데이터 CRUD & 평점 포함 목록 */}
         {/* ========================================================================= */}
         {activeTab === 'crud' && (
           <div className="space-y-4 animate-in fade-in duration-200">
             {/* 검색 및 필터 컨트롤 바 */}
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/80 p-4 shadow-md">
               <div className="flex flex-wrap items-center gap-3 flex-1">
-                {/* 검색어 입력 */}
                 <div className="relative min-w-[240px] flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
                   <input
@@ -510,7 +685,6 @@ export default function AdminPage() {
                   />
                 </div>
 
-                {/* 노출 상태 필터 */}
                 <div className="flex items-center gap-1 rounded-xl border border-slate-700 bg-slate-900 p-1 text-xs">
                   <button
                     type="button"
@@ -551,7 +725,6 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* 신규 장소 등록 버튼 */}
               <Button
                 type="button"
                 onClick={handleOpenNewModal}
@@ -569,10 +742,10 @@ export default function AdminPage() {
                   <thead className="border-b border-slate-800 bg-slate-900/90 text-slate-400 font-bold">
                     <tr>
                       <th className="px-4 py-3">장소명 / 카테고리</th>
+                      <th className="px-4 py-3">⭐ 장소 평점 (날씨 / 재미)</th>
                       <th className="px-4 py-3">상태</th>
                       <th className="px-4 py-3">비용 및 체류시간</th>
                       <th className="px-4 py-3">실내/야외</th>
-                      <th className="px-4 py-3">적합 동행 / 태그</th>
                       <th className="px-4 py-3">임시휴업 토글</th>
                       <th className="px-4 py-3 text-right">관리 액션</th>
                     </tr>
@@ -583,13 +756,32 @@ export default function AdminPage() {
                         <td className="px-4 py-3.5">
                           <div className="font-bold text-white text-sm flex items-center gap-1.5">
                             <span>{p.name}</span>
-                            {p.isMustVisit && (
-                              <span className="rounded bg-sky-500/20 border border-sky-400/40 text-sky-300 text-[10px] px-1.5 py-0.2">
-                                🌟 필수
+                            {p.isFeatured && (
+                              <span className="rounded bg-amber-500/20 border border-amber-400/40 text-amber-300 text-[10px] px-1.5 py-0.2 font-bold flex items-center gap-0.5">
+                                ⭐ 피처링
                               </span>
                             )}
                           </div>
                           <p className="text-slate-400 text-[11px] mt-0.5">{p.category} • {p.address}</p>
+                        </td>
+
+                        {/* ⭐ 장소별 세부 평점 수치 열 추가! */}
+                        <td className="px-4 py-3.5">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1.5 font-extrabold text-amber-300">
+                              <Star className="size-3.5 fill-amber-400 text-amber-400" />
+                              <span>⭐ {p.overallRating}</span>
+                              <span className="text-[10px] text-slate-400 font-normal">({p.reviewCount}건)</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-[10px]">
+                              <span className="text-emerald-400 font-semibold flex items-center gap-0.5">
+                                🌤️ 날씨 {p.avgWeatherScore}
+                              </span>
+                              <span className="text-purple-400 font-semibold flex items-center gap-0.5">
+                                🎉 재미 {p.avgFunScore}
+                              </span>
+                            </div>
+                          </div>
                         </td>
 
                         <td className="px-4 py-3.5">
@@ -626,16 +818,6 @@ export default function AdminPage() {
                         </td>
 
                         <td className="px-4 py-3.5">
-                          <div className="flex flex-wrap gap-1 max-w-xs">
-                            {p.tags.slice(0, 3).map((tag, idx) => (
-                              <span key={idx} className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-300">
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-
-                        <td className="px-4 py-3.5">
                           <button
                             type="button"
                             onClick={() => handleToggleTempClosed(p.id)}
@@ -661,6 +843,19 @@ export default function AdminPage() {
 
                         <td className="px-4 py-3.5 text-right">
                           <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleFeatured(p.id)}
+                              className={`rounded-lg border p-1.5 cursor-pointer transition-colors ${
+                                p.isFeatured
+                                  ? 'border-amber-400 bg-amber-400/20 text-amber-300'
+                                  : 'border-slate-700 bg-slate-800 text-slate-400 hover:text-white'
+                              }`}
+                              title="피처링 뱃지 토글"
+                            >
+                              <Star className="size-3.5 fill-current" />
+                            </button>
+
                             <button
                               type="button"
                               onClick={() => handleOpenEditModal(p)}
@@ -695,6 +890,159 @@ export default function AdminPage() {
                   </tbody>
                 </table>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB 5: ⭐ 장소별 평점 & 사용자 리뷰 검수 센터 */}
+        {/* ========================================================================= */}
+        {activeTab === 'ratings' && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            {/* 정렬 및 통계 바 */}
+            <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-amber-500/30 bg-amber-950/20 p-4">
+              <div>
+                <h2 className="text-base font-bold text-amber-200 flex items-center gap-2">
+                  <Star className="size-5 text-amber-400 fill-amber-400" />
+                  <span>장소별 사용자 평점 분석 (날씨 어울림 & 재미/만족도)</span>
+                </h2>
+                <p className="text-xs text-slate-400 mt-1">
+                  내 정보 관리 페이지에서 소비자가 작성한 개별 장소 평점 데이터를 실시간 집계하여 보여줍니다.
+                </p>
+              </div>
+
+              {/* 정렬 선택 스위치 */}
+              <div className="flex items-center gap-1.5 bg-slate-900/90 border border-slate-800 p-1.5 rounded-xl text-xs">
+                <span className="text-slate-400 font-semibold px-2 flex items-center gap-1">
+                  <Filter className="size-3.5" /> 정렬:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setRatingSort('overall')}
+                  className={`rounded-lg px-2.5 py-1 font-bold cursor-pointer transition-all ${
+                    ratingSort === 'overall'
+                      ? 'bg-amber-500 text-amber-950 shadow-xs'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  종합 평점순
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRatingSort('weather')}
+                  className={`rounded-lg px-2.5 py-1 font-bold cursor-pointer transition-all ${
+                    ratingSort === 'weather'
+                      ? 'bg-emerald-500 text-emerald-950 shadow-xs'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  🌤️ 날씨 어울림순
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRatingSort('fun')}
+                  className={`rounded-lg px-2.5 py-1 font-bold cursor-pointer transition-all ${
+                    ratingSort === 'fun'
+                      ? 'bg-purple-500 text-purple-950 shadow-xs'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  🎉 재미/만족도순
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRatingSort('count')}
+                  className={`rounded-lg px-2.5 py-1 font-bold cursor-pointer transition-all ${
+                    ratingSort === 'count'
+                      ? 'bg-sky-500 text-sky-950 shadow-xs'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  리뷰 많은순
+                </button>
+              </div>
+            </div>
+
+            {/* 평점 데이터 그리드 카드 리스트 */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {sortedRatingPlaces.map((p) => (
+                <div
+                  key={p.id}
+                  className="rounded-2xl border border-slate-800 bg-slate-950/80 p-5 shadow-xl space-y-4 hover:border-slate-700 transition-all flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <h3 className="font-bold text-white text-base">{p.name}</h3>
+                          {p.isFeatured && (
+                            <span className="rounded bg-amber-500/20 text-amber-300 text-[10px] px-1.5 py-0.5 font-bold border border-amber-400/40">
+                              ⭐ 피처링
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-400 mt-0.5">{p.category}</p>
+                      </div>
+
+                      <div className="rounded-xl bg-amber-500/20 border border-amber-400/40 px-3 py-1 text-center">
+                        <p className="text-xs font-semibold text-amber-400">종합 평점</p>
+                        <p className="text-lg font-black text-amber-300">⭐ {p.overallRating}</p>
+                      </div>
+                    </div>
+
+                    {/* 세부 별점 프로그래스 바 */}
+                    <div className="mt-4 pt-3 border-t border-slate-800 space-y-2.5 text-xs">
+                      {/* 날씨 어울림 점수 */}
+                      <div>
+                        <div className="flex justify-between text-emerald-400 font-semibold mb-1">
+                          <span className="flex items-center gap-1">
+                            <SunMedium className="size-3.5" /> 🌤️ 날씨 어울림 점수
+                          </span>
+                          <span className="font-bold">⭐ {p.avgWeatherScore} / 5.0</span>
+                        </div>
+                        <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
+                          <div
+                            className="h-full bg-emerald-400 rounded-full"
+                            style={{ width: `${(p.avgWeatherScore / 5) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* 재미/만족도 점수 */}
+                      <div>
+                        <div className="flex justify-between text-purple-400 font-semibold mb-1">
+                          <span className="flex items-center gap-1">
+                            <Smile className="size-3.5" /> 🎉 재미/만족도 점수
+                          </span>
+                          <span className="font-bold">⭐ {p.avgFunScore} / 5.0</span>
+                        </div>
+                        <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
+                          <div
+                            className="h-full bg-purple-400 rounded-full"
+                            style={{ width: `${(p.avgFunScore / 5) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 사용자 작성 한줄평 보기 버튼 */}
+                  <div className="pt-3 border-t border-slate-800 flex items-center justify-between">
+                    <span className="text-slate-500 text-xs font-semibold">
+                      총 {p.reviewCount}개 평가 참여
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setSelectedPlaceReviews(p)}
+                      className="rounded-xl border-slate-700 bg-slate-900 text-xs text-sky-300 hover:bg-slate-800 gap-1 cursor-pointer font-bold"
+                    >
+                      <MessageSquare className="size-3.5 text-sky-400" />
+                      <span>한줄평 후기 ({p.reviewsList.length})</span>
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -785,7 +1133,6 @@ export default function AdminPage() {
                 </Button>
               </div>
 
-              {/* 30조합 자동 점검 결과 매트릭스 */}
               {simAuditResults && (
                 <div className="mt-4 pt-4 border-t border-sky-500/30 space-y-3">
                   <p className="text-xs font-bold text-white flex items-center justify-between">
@@ -827,7 +1174,6 @@ export default function AdminPage() {
         {/* ========================================================================= */}
         {activeTab === 'monitoring' && (
           <div className="space-y-6 animate-in fade-in duration-200">
-            {/* API 상태 카드 */}
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-4 space-y-2">
                 <div className="flex items-center justify-between">
@@ -863,7 +1209,6 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* 사용자 오류 신고함 */}
             <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-5 space-y-4">
               <h2 className="text-base font-bold text-white flex items-center gap-2">
                 <MessageSquare className="size-5 text-amber-400" />
@@ -926,9 +1271,62 @@ export default function AdminPage() {
         )}
       </main>
 
-      {/* ========================================================================= */}
-      {/* ✏️ 장소 등록 & 수정 폼 모달 (Phase 1-1) */}
-      {/* ========================================================================= */}
+      {/* 💬 장소별 사용자 세부 리뷰 모달 */}
+      {selectedPlaceReviews && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4 bg-slate-950/60">
+              <div>
+                <h3 className="font-bold text-white text-base flex items-center gap-2">
+                  <span>💬 '{selectedPlaceReviews.name}' 사용자 세부 리뷰 목록</span>
+                </h3>
+                <p className="text-xs text-amber-300 font-semibold mt-0.5">
+                  종합 평점 ⭐ {selectedPlaceReviews.overallRating} (총 {selectedPlaceReviews.reviewCount}개 평가)
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedPlaceReviews(null)}
+                className="rounded-full p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-3">
+              {selectedPlaceReviews.reviewsList.length === 0 ? (
+                <p className="text-center text-slate-500 text-xs py-8">
+                  아직 사용자가 남긴 한 줄 평 후기가 없습니다.
+                </p>
+              ) : (
+                selectedPlaceReviews.reviewsList.map((rev, idx) => (
+                  <div key={idx} className="rounded-xl border border-slate-800 bg-slate-950/60 p-3.5 space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-white">👤 {rev.userName}</span>
+                      <span className="text-slate-500 text-[10px]">{rev.date}</span>
+                    </div>
+
+                    <div className="flex items-center gap-3 text-[11px]">
+                      <span className="text-emerald-400 font-bold">
+                        🌤️ 날씨 어울림 ⭐ {rev.weatherScore}점
+                      </span>
+                      <span className="text-purple-400 font-bold">
+                        🎉 재미/만족도 ⭐ {rev.funScore}점
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-slate-300 bg-slate-900/90 p-2 rounded-lg border border-slate-800/80">
+                      "{rev.comment}"
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✏️ 장소 등록 & 수정 폼 모달 */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="relative w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl">
