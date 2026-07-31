@@ -53,7 +53,7 @@ export default function HomePage() {
             }`}
           >
             <span className="block text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#4E3629] mb-1.5 tracking-tight drop-shadow-md">
-              {lang === 'en' ? 'For Spontaneous Travelers' : '무계획 P를 위한'}
+              {lang === 'en' ? 'For Spontaneous Travelers' : '무계획 :P를 위한'}
             </span>
             <span className="block text-5xl sm:text-6xl md:text-7xl font-black text-[#8B4513] leading-tight drop-shadow-md">
               {lang === 'en' ? 'The Most Perfect ' : '가장 완벽한 '}
@@ -76,7 +76,7 @@ export default function HomePage() {
             <h1 className="font-handwriting relative z-30 select-none drop-shadow-xs">
               {/* 서브 타이틀: 무계획 P를 위한 */}
               <span className="block text-xl sm:text-2xl md:text-3xl font-extrabold text-[#4E3629] mb-1.5 tracking-tight">
-                {lang === 'en' ? 'For Spontaneous Travelers' : '무계획 P를 위한'}
+                {lang === 'en' ? 'For Spontaneous Travelers' : '무계획 :P를 위한'}
               </span>
 
               {/* 대표 메인 슬로건: 가장 완벽한 지금 */}
