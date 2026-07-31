@@ -140,10 +140,13 @@ export function MapPlaceholder({
   // OSRM 네비게이션 경로 좌표 캐시 (구간 키 ➔ latLngs)
   const [osrmRoutes, setOsrmRoutes] = useState<Record<string, [number, number][]>>({})
 
+  // 🎯 [최적화 1] Directions/Route API 좌표 인메모리 캐시 (중복 Network 호출 방지)
+  const routeCacheRef = useRef<Map<string, [number, number][]>>(new Map())
+
   // 장소 구성 고유 식별키
   const placesKey = places.map((p) => p.id).join(',')
 
-  // OSRM 병렬 고속 길찾기 API 호출 (직선 좌표 0초 즉시 선표시 ➔ OSRM 병렬 로딩)
+  // OSRM/Directions 병렬 고속 길찾기 API 호출 (직선 좌표 0초 즉시 선표시 ➔ API 로딩 & 캐싱)
   useEffect(() => {
     if (places.length < 2) return
 
@@ -154,7 +157,7 @@ export function MapPlaceholder({
       const routesMap: Record<string, [number, number][]> = {}
       const promises: Promise<void>[] = []
 
-      // 1) 모든 순차 구간 0초 직선 좌표 즉시 세팅
+      // 1) 모든 순차 구간 0초 직선 좌표 즉시 세팅 & 캐시 확인
       for (let i = 0; i < places.length - 1; i++) {
         const from = places[i]
         const to = places[i + 1]
@@ -163,6 +166,13 @@ export function MapPlaceholder({
         const toLat = to.lat || 35.8133 + (to.mapY - 50) * 0.0002
         const toLng = to.lng || 127.1492 + (to.mapX - 30) * 0.0002
         const key = `${i + 1}-${i + 2}`
+        const cacheKey = `${fromLat.toFixed(5)},${fromLng.toFixed(5)}->${toLat.toFixed(5)},${toLng.toFixed(5)}`
+
+        // 🎯 [최적화 1-1] 캐시된 경로 데이터가 존재할 경우 API 중복 호출 생략
+        if (routeCacheRef.current.has(cacheKey)) {
+          routesMap[key] = routeCacheRef.current.get(cacheKey)!
+          continue
+        }
 
         routesMap[key] = [[fromLat, fromLng], [toLat, toLng]]
 
@@ -174,7 +184,9 @@ export function MapPlaceholder({
           .then((data) => {
             const coords = data?.routes?.[0]?.geometry?.coordinates
             if (coords && coords.length > 0) {
-              routesMap[key] = coords.map((c: [number, number]) => [c[1], c[0]])
+              const parsedCoords: [number, number][] = coords.map((c: [number, number]) => [c[1], c[0]])
+              routesMap[key] = parsedCoords
+              routeCacheRef.current.set(cacheKey, parsedCoords)
             }
           })
           .catch(() => {})
@@ -193,37 +205,46 @@ export function MapPlaceholder({
           const toLat = to.lat || 35.8133 + (to.mapY - 50) * 0.0002
           const toLng = to.lng || 127.1492 + (to.mapX - 30) * 0.0002
           const customKey = `custom-${pinA}-${pinB}`
+          const cacheKey = `${fromLat.toFixed(5)},${fromLng.toFixed(5)}->${toLat.toFixed(5)},${toLng.toFixed(5)}`
 
-          routesMap[customKey] = [[fromLat, fromLng], [toLat, toLng]]
+          if (routeCacheRef.current.has(cacheKey)) {
+            routesMap[customKey] = routeCacheRef.current.get(cacheKey)!
+          } else {
+            routesMap[customKey] = [[fromLat, fromLng], [toLat, toLng]]
 
-          const p = fetch(
-            `https://router.project-osrm.org/route/v1/foot/${fromLng},${fromLat};${toLng},${toLat}?overview=full&geometries=geojson`,
-            { signal: controller.signal }
-          )
-            .then((res) => (res.ok ? res.json() : null))
-            .then((data) => {
-              const coords = data?.routes?.[0]?.geometry?.coordinates
-              if (coords && coords.length > 0) {
-                routesMap[customKey] = coords.map((c: [number, number]) => [c[1], c[0]])
-              }
-            })
-            .catch(() => {})
+            const p = fetch(
+              `https://router.project-osrm.org/route/v1/foot/${fromLng},${fromLat};${toLng},${toLat}?overview=full&geometries=geojson`,
+              { signal: controller.signal }
+            )
+              .then((res) => (res.ok ? res.json() : null))
+              .then((data) => {
+                const coords = data?.routes?.[0]?.geometry?.coordinates
+                if (coords && coords.length > 0) {
+                  const parsedCoords: [number, number][] = coords.map((c: [number, number]) => [c[1], c[0]])
+                  routesMap[customKey] = parsedCoords
+                  routeCacheRef.current.set(cacheKey, parsedCoords)
+                }
+              })
+              .catch(() => {})
 
-          promises.push(p)
+            promises.push(p)
+          }
         }
       }
 
-      // 0초에 1차 직선 라인 즉시 표출
+      // 0초에 1차 직선 라인 또는 캐시 데이터 즉시 표출
       if (isMounted) {
-        setOsrmRoutes({ ...routesMap })
+        setOsrmRoutes((prev) => ({ ...prev, ...routesMap }))
       }
 
-      // 300ms 타임아웃 제한으로 초고속 렌더링
-      const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 300))
-      await Promise.race([Promise.all(promises), timeoutPromise])
+      // 비동기 렌더링 최적화
+      if (promises.length > 0) {
+        const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 300))
+        await Promise.race([Promise.all(promises), timeoutPromise])
 
-      if (isMounted) {
-        setOsrmRoutes({ ...routesMap })
+        if (isMounted) {
+          setOsrmRoutes((prev) => ({ ...prev, ...routesMap }))
+        }
       }
     }
 
@@ -287,45 +308,57 @@ export function MapPlaceholder({
   useEffect(() => {
     if (typeof window === 'undefined' || !containerRef.current) return
 
+    let isMounted = true
+
     getLeaflet().then((L) => {
+      if (!isMounted) return
 
-      // 지도 객체 초기화
-      if (!mapRef.current && containerRef.current) {
-        const initialLat = places[0]?.lat || 35.8133
-        const initialLng = places[0]?.lng || 127.1492
+      // 🎯 [최적화 2] Race Condition 방지: 지도 인스턴스 초기화 예외 처리 및 검사
+      try {
+        if (!mapRef.current && containerRef.current) {
+          const initialLat = places[0]?.lat || 35.8133
+          const initialLng = places[0]?.lng || 127.1492
 
-        const map = L.map(containerRef.current, {
-          center: [initialLat, initialLng],
-          zoom: 15,
-          zoomControl: true,
-          scrollWheelZoom: true,
-        })
+          const map = L.map(containerRef.current, {
+            center: [initialLat, initialLng],
+            zoom: 15,
+            zoomControl: true,
+            scrollWheelZoom: true,
+          })
 
-        L.tileLayer(
-          'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-          {
-            attribution:
-              '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-            subdomains: 'abcd',
-            maxZoom: 19,
-          },
-        ).addTo(map)
+          L.tileLayer(
+            'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+            {
+              attribution:
+                '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+              subdomains: 'abcd',
+              maxZoom: 19,
+            },
+          ).addTo(map)
 
-        mapRef.current = map
+          mapRef.current = map
+        }
+      } catch (err) {
+        console.error('Map initialization error:', err)
       }
 
       const map = mapRef.current
       if (!map) return
 
-      // 기존 마커 및 선 레이어 정리
-      Object.values(markersRef.current).forEach((marker: any) => marker.remove())
-      markersRef.current = {}
-      if (polylineRef.current) {
-        polylineRef.current.remove()
-        polylineRef.current = null
+      // 🎯 [최적화 3-1] 이전 마커 및 경로선(Polyline) 안전 제거
+      try {
+        Object.values(markersRef.current).forEach((marker: any) => marker?.remove?.())
+        markersRef.current = {}
+
+        if (polylineRef.current) {
+          polylineRef.current.remove()
+          polylineRef.current = null
+        }
+        navPolylinesRef.current.forEach((pl) => pl?.remove?.())
+        navPolylinesRef.current = []
+      } catch (err) {
+        console.error('Layer cleanup error:', err)
       }
-      navPolylinesRef.current.forEach((pl) => pl.remove())
-      navPolylinesRef.current = []
 
       // 위경도 좌표 리스트
       const routeLatLngs: [number, number][] = places.map((p) => {
@@ -335,89 +368,100 @@ export function MapPlaceholder({
       })
 
       // ─── 1. 경로선 그리기 (routeMode === 'straight' vs routeMode === 'navigation') ───
-      if (routeMode === 'straight') {
-        // [📏 간결한 직선 동선 모드]
-        if (customPinPair) {
-          const [pinA, pinB] = customPinPair
-          const startPt = routeLatLngs[pinA - 1]
-          const endPt = routeLatLngs[pinB - 1]
-          if (startPt && endPt) {
-            polylineRef.current = L.polyline([startPt, endPt], {
-              color: '#f59e0b',
-              weight: 6,
-              dashArray: '8, 8',
-              opacity: 1.0,
-              lineJoin: 'round',
-            }).addTo(map)
-          }
-        } else if (selectedSegment !== null) {
-          const idx = selectedSegment - 1
-          if (routeLatLngs[idx] && routeLatLngs[idx + 1]) {
-            polylineRef.current = L.polyline([routeLatLngs[idx], routeLatLngs[idx + 1]], {
-              color: '#f59e0b',
-              weight: 6,
-              dashArray: '8, 8',
-              opacity: 1.0,
-              lineJoin: 'round',
-            }).addTo(map)
+      // 🎯 [최적화 2-1] Polyline 렌더링 Race Condition 방지 예외 처리 (try-catch)
+      try {
+        if (routeMode === 'straight') {
+          // [📏 간결한 직선 동선 모드]
+          if (customPinPair) {
+            const [pinA, pinB] = customPinPair
+            const startPt = routeLatLngs[pinA - 1]
+            const endPt = routeLatLngs[pinB - 1]
+            if (startPt && endPt) {
+              polylineRef.current = L.polyline([startPt, endPt], {
+                color: '#f59e0b',
+                weight: 6,
+                dashArray: '8, 8',
+                opacity: 1.0,
+                lineJoin: 'round',
+              }).addTo(map)
+            }
+          } else if (selectedSegment !== null) {
+            const idx = selectedSegment - 1
+            if (routeLatLngs[idx] && routeLatLngs[idx + 1]) {
+              polylineRef.current = L.polyline([routeLatLngs[idx], routeLatLngs[idx + 1]], {
+                color: '#f59e0b',
+                weight: 6,
+                dashArray: '8, 8',
+                opacity: 1.0,
+                lineJoin: 'round',
+              }).addTo(map)
+            }
+          } else {
+            if (routeLatLngs.length > 1) {
+              polylineRef.current = L.polyline(routeLatLngs, {
+                color: '#f59e0b',
+                weight: 5,
+                dashArray: '8, 8',
+                opacity: 0.9,
+                lineJoin: 'round',
+              }).addTo(map)
+            }
           }
         } else {
-          if (routeLatLngs.length > 1) {
-            polylineRef.current = L.polyline(routeLatLngs, {
-              color: '#f59e0b',
-              weight: 5,
-              dashArray: '8, 8',
-              opacity: 0.9,
-              lineJoin: 'round',
-            }).addTo(map)
+          // [🚗 🗺️ 실제 도로 길찾기 네비게이션 모드]
+          if (customPinPair) {
+            const [pinA, pinB] = customPinPair
+            const customKey = `custom-${pinA}-${pinB}`
+            const points = osrmRoutes[customKey] || [routeLatLngs[pinA - 1], routeLatLngs[pinB - 1]]
+
+            if (points && points.length > 0) {
+              const customPolyline = L.polyline(points, {
+                color: '#2563eb',
+                weight: 7,
+                opacity: 1.0,
+                lineCap: 'round',
+                lineJoin: 'round',
+              }).addTo(map)
+
+              navPolylinesRef.current.push(customPolyline)
+            }
+          } else if (selectedSegment !== null) {
+            const idx = selectedSegment - 1
+            const key = `${selectedSegment}-${selectedSegment + 1}`
+            const points = osrmRoutes[key] || [routeLatLngs[idx], routeLatLngs[idx + 1]]
+
+            if (points && points.length > 0) {
+              const segPolyline = L.polyline(points, {
+                color: '#2563eb',
+                weight: 7,
+                opacity: 1.0,
+                lineCap: 'round',
+                lineJoin: 'round',
+              }).addTo(map)
+
+              navPolylinesRef.current.push(segPolyline)
+            }
+          } else {
+            for (let i = 0; i < places.length - 1; i++) {
+              const key = `${i + 1}-${i + 2}`
+              const roadPoints = osrmRoutes[key] || [routeLatLngs[i], routeLatLngs[i + 1]]
+
+              if (roadPoints && roadPoints.length > 0) {
+                const navPolyline = L.polyline(roadPoints, {
+                  color: '#2563eb',
+                  weight: 5,
+                  opacity: 0.9,
+                  lineCap: 'round',
+                  lineJoin: 'round',
+                }).addTo(map)
+
+                navPolylinesRef.current.push(navPolyline)
+              }
+            }
           }
         }
-      } else {
-        // [🚗 🗺️ 실제 도로 길찾기 네비게이션 모드]
-        if (customPinPair) {
-          const [pinA, pinB] = customPinPair
-          const customKey = `custom-${pinA}-${pinB}`
-          const points = osrmRoutes[customKey] || [routeLatLngs[pinA - 1], routeLatLngs[pinB - 1]]
-
-          const customPolyline = L.polyline(points, {
-            color: '#2563eb',
-            weight: 7,
-            opacity: 1.0,
-            lineCap: 'round',
-            lineJoin: 'round',
-          }).addTo(map)
-
-          navPolylinesRef.current.push(customPolyline)
-        } else if (selectedSegment !== null) {
-          const idx = selectedSegment - 1
-          const key = `${selectedSegment}-${selectedSegment + 1}`
-          const points = osrmRoutes[key] || [routeLatLngs[idx], routeLatLngs[idx + 1]]
-
-          const segPolyline = L.polyline(points, {
-            color: '#2563eb',
-            weight: 7,
-            opacity: 1.0,
-            lineCap: 'round',
-            lineJoin: 'round',
-          }).addTo(map)
-
-          navPolylinesRef.current.push(segPolyline)
-        } else {
-          for (let i = 0; i < places.length - 1; i++) {
-            const key = `${i + 1}-${i + 2}`
-            const roadPoints = osrmRoutes[key] || [routeLatLngs[i], routeLatLngs[i + 1]]
-
-            const navPolyline = L.polyline(roadPoints, {
-              color: '#2563eb',
-              weight: 5,
-              opacity: 0.9,
-              lineCap: 'round',
-              lineJoin: 'round',
-            }).addTo(map)
-
-            navPolylinesRef.current.push(navPolyline)
-          }
-        }
+      } catch (polylineErr) {
+        console.error('Polyline rendering error:', polylineErr)
       }
 
       // ─── 2. 숫자 핀 마커 그리기 & 클릭 이벤트 연결 ───
@@ -570,6 +614,21 @@ export function MapPlaceholder({
         prevPlacesKeyRef.current = placesKey
       }
     })
+
+    // 🎯 [최적화 3-2] useEffect Cleanup 함수 설정: 의존성 변경 및 컴포넌트 언마운트 시 기존 Polyline 안전 제거
+    return () => {
+      isMounted = false
+      try {
+        if (polylineRef.current) {
+          polylineRef.current.remove()
+          polylineRef.current = null
+        }
+        navPolylinesRef.current.forEach((pl) => pl?.remove?.())
+        navPolylinesRef.current = []
+      } catch (err) {
+        console.error('Cleanup error:', err)
+      }
+    }
   }, [places, activeId, onHover, placesKey, routeMode, selectedSegment, customPinPair, customStartPin, osrmRoutes, myLocation])
 
   const handleFlyToMyLocation = () => {
