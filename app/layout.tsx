@@ -43,7 +43,7 @@ export default function RootLayout({
   return (
     <html
       lang="ko"
-      className={`light bg-[#38BDF8] ${notoSansKr.variable} ${gowunBatang.variable}`}
+      className={`light bg-[#FAF4E6] ${notoSansKr.variable} ${gowunBatang.variable}`}
     >
       <head>
         <link rel="dns-prefetch" href="https://a.basemaps.cartocdn.com" />
@@ -56,7 +56,7 @@ export default function RootLayout({
           crossOrigin=""
         />
       </head>
-      <body className="font-sans antialiased relative z-10">
+      <body className="font-sans antialiased relative z-10 bg-gradient-to-b from-[#FFFDF8] via-[#FAF4E6] to-[#F5E7D3] min-h-screen text-[#2D221E]">
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>

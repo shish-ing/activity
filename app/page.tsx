@@ -42,7 +42,7 @@ export default function HomePage() {
       {splashStage !== 'done' && (
         <div
           className={`fixed inset-0 z-50 flex items-center justify-center transition-all duration-700 ease-in-out pointer-events-none ${
-            splashStage === 'intro' ? 'bg-[#38BDF8] opacity-100' : 'bg-transparent opacity-0'
+            splashStage === 'intro' ? 'bg-gradient-to-b from-[#FFFDF8] via-[#FAF3E5] to-[#F4E6D0] opacity-100' : 'bg-transparent opacity-0'
           }`}
         >
           <div
